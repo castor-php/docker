@@ -117,7 +117,7 @@ function initialize(): void
     ]);
     $dispatcher->dispatch($event);
 
-    $yamlContent = yaml_dump($event->content);
+    $yamlContent = yaml_dump($event->content, inline: 5);
 
     file_put_contents($c->workingDirectory . '/compose.yaml',
         <<<YAML
