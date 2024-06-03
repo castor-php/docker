@@ -1,14 +1,19 @@
 {
     "name": "castor-php/docker",
     "description": "Castor plugin for docker",
-    "require": {
+    "type": "library",
+    "require-dev": {
         "jolicode/castor": "^0.17.1"
     },
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "CastorPhp\\Docker\\": "src/"
-        }
+            "Castor\\Docker\\": "src/"
+        },
+        "files": [
+            "src/docker.php",
+            "src/functions.php"
+        ]
     },
     "authors": [
         {

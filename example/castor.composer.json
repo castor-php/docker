@@ -1,0 +1,20 @@
+{
+    "name": "castor-php/docker-example",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Joel Wurtz",
+            "email": "joel.wurtz@gmail.com"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../.."
+        }
+    ],
+    "require": {
+        "castor-php/docker": "@dev"
+    }
+}
