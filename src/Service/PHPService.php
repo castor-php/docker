@@ -12,10 +12,16 @@ use function Castor\io;
 use function Castor\PHPQa\php_cs_fixer;
 use function Castor\PHPQa\phpstan;
 use function Castor\with;
+use function Castor\context;
 
 class PHPService implements ServiceInterface
 {
     private DatabaseServiceInterface|null $databaseService = null;
+
+    /**
+     * @var array<string, string>
+     */
+    private array $workers = [];
 
     public function __construct(
         protected string $name = 'app',
@@ -28,6 +34,13 @@ class PHPService implements ServiceInterface
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
     ) {
+    }
+
+    public function addWorker(string $name, string $command): self
+    {
+        $this->workers[$name] = $command;
+
+        return $this;
     }
 
     public function addDomain(string $domain): self
@@ -125,12 +138,48 @@ class PHPService implements ServiceInterface
             $compose['services'][$this->name . '-builder']['environment'][] = "DATABASE_URL=" . $this->databaseService->getDatabaseURL();
         }
 
+        foreach ($this->workers as $workerName => $command) {
+            $compose['services'][$this->name . '-worker-' . $workerName] = [
+                'build' => [
+                    'context' => __DIR__ . '/../Resources/php',
+                    'target' => 'worker',
+                    'cache_from' => [
+                        'type=registry,ref=${REGISTRY:-}/'. $this->name . ':cache',
+                    ],
+                    'args' => [
+                        'PHP_VERSION' => $this->version,
+                    ],
+                ],
+                'user' => "{$userId}:{$userId}",
+                'volumes' => [
+                    $this->directory . ":/var/www:cached",
+                    $this->sharedHomeDirectory . ":/home/app:cached",
+                ],
+                'command' => $command,
+                'profiles' => ['default'],
+            ];
+
+            if ($this->databaseService) {
+                $compose['services'][$this->name . '-worker-' . $workerName]['depends_on'][$this->databaseService->getName()] = [
+                    'condition' => 'service_healthy',
+                ];
+                $compose['services'][$this->name . '-worker-' . $workerName]['environment'][] = "DATABASE_URL=" . $this->databaseService->getDatabaseURL();
+            }
+        }
+
         return $compose;
     }
 
     // This method return a list of tasks associated to this services
     public function getTasks(): iterable
     {
+        yield [
+            'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
+            'function' => function () {
+                docker_compose_run('bash', $this->name . '-builder', c: context()->toInteractive());
+            },
+        ];
+
         yield [
             'task' => new AsTask('install', $this->name, 'Install PHP dependencies using Composer'),
             'function' => function () {

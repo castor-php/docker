@@ -27,6 +27,7 @@ ARG PHP_VERSION
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         "php${PHP_VERSION}-apcu" \
+        "php${PHP_VERSION}-amqp" \
         "php${PHP_VERSION}-bcmath" \
         "php${PHP_VERSION}-cli" \
         "php${PHP_VERSION}-common" \

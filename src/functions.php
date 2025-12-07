@@ -63,6 +63,9 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $command[] = '-f';
     $command[] = $c->workingDirectory . '/compose.yaml';
 
+    $command[] = '-f';
+    $command[] = $c->workingDirectory . '/compose.override.yaml';
+
     $command = array_merge($command, $subCommand);
 
     return run($command, context: $c);
@@ -139,9 +142,6 @@ function initialize(AfterBootEvent $afterBootEvent): void
         'name' => $c['project_name'] ?? 'project',
         'volumes' => [],
         'services' => [],
-        'include' => [
-            'compose.override.yaml',
-        ],
     ];
 
     $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();

@@ -38,6 +38,7 @@ function register_service(RegisterServiceEvent $event)
             ->addDomain('project.test')
             ->addDomain('localhost')
             ->allowHttpAccess()
+            ->addWorker('messenger', 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M')
     );
 
     $event->addService(
