@@ -20,6 +20,8 @@ function register_service(RegisterServiceEvent $event)
             ->withDatabaseService($databaseService)
             ->addDomain('app1.project.test')
             ->addDomain('project.test')
+            ->addDomain('localhost')
+            ->allowHttpAccess()
     );
 
     $event->addService(
