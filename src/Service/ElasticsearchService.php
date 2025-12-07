@@ -45,9 +45,9 @@ class ElasticsearchService implements ServiceInterface
             ],
             'labels' => [
                 'traefik.enable=true',
-                "project-name={$projectName}",
                 "traefik.http.routers.{$projectName}-kibana.rule=Host(`kibana.{$rootDomain}`)",
                 "traefik.http.routers.{$projectName}-kibana.tls=true",
+                "traefik.http.services.{$projectName}-kibana.loadbalancer.server.port=5601",
             ],
             'profiles' => ['default'],
         ];

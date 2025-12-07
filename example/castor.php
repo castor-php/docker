@@ -12,14 +12,13 @@ use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\SymfonyService;
-use Castor\Docker\Service\TraefikRouterService;
 
 #[AsContext(default: true)]
 function default_context(): Context
 {
     return new Context([
         'project_name' => 'castor-docker-demo',
-        'root_domain' => 'castor-docker-demo.test',
+        'root_domain' => 'project.test',
     ]);
 }
 
