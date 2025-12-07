@@ -3,7 +3,7 @@
     "description": "Castor plugin for docker",
     "type": "library",
     "require-dev": {
-        "jolicode/castor": "^0.17.1"
+        "jolicode/castor": "^1.1"
     },
     "license": "MIT",
     "autoload": {
@@ -11,8 +11,8 @@
             "Castor\\Docker\\": "src/"
         },
         "files": [
-            "src/docker.php",
-            "src/functions.php"
+            "src/functions.php",
+            "src/tasks.php"
         ]
     },
     "authors": [
@@ -20,5 +20,8 @@
             "name": "Joel Wurtz",
             "email": "jwurtz@jolicode.com"
         }
-    ]
+    ],
+    "require": {
+        "castor-php/php-qa": "^0.3.0"
+    }
 }

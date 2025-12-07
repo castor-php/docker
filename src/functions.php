@@ -2,147 +2,159 @@
 
 namespace Castor\Docker;
 
-use Castor\Attribute\AsOption;
-use Castor\Attribute\AsTask;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Process\Exception\ExceptionInterface;
-
+use Castor\Attribute\AsListener;
+use Castor\Console\Command\TaskCommand;
+use Castor\Container;
+use Castor\Context;
+use Castor\Descriptor\TaskDescriptor;
+use Castor\Docker\Event\RegisterServiceEvent;
+use Castor\Event\AfterBootEvent;
+use Castor\ExpressionLanguage;
 use Symfony\Component\Process\Process;
+
 use function Castor\context;
-use function Castor\io;
+use function Castor\run;
 use function Castor\variable;
+use function Castor\yaml_dump;
 
-#[AsTask(description: 'Builds the infrastructure', aliases: ['build'], namespace: 'docker')]
-function build(
-    ?string $service = null,
-    ?string $profile = null,
-): void {
-    io()->title('Building infrastructure');
+/**
+ * @param list<string> $subCommand
+ * @param list<string> $profiles
+ */
+function docker_compose(array $subCommand, ?Context $c = null, array $profiles = []): Process
+{
+    $c ??= context();
+    $profiles = $profiles ?: ['default'];
 
-    $command = [];
+    $c = $c
+        ->withTimeout(null)
+        ->withEnvironment([
+            'PHP_VERSION' => variable('php_version'),
+        ])
+    ;
 
-    if ($profile) {
+    $command = [
+        'docker',
+        'compose',
+    ];
+
+    if (isset($c['project_name'])) {
+        $command[] = '-p';
+        $command[] = $c['project_name'];
+    }
+
+    foreach ($profiles as $profile) {
         $command[] = '--profile';
         $command[] = $profile;
     }
 
-    $buildArgs = variable('build_args', []);
+    $command[] = '-f';
+    $command[] = $c->workingDirectory . '/compose.yaml';
 
+    $command = array_merge($command, $subCommand);
+
+    return run($command, context: $c);
+}
+
+function docker_compose_run(
+    string $runCommand,
+    string $service,
+    ?Context $c = null,
+    bool $noDeps = true,
+    ?string $workDir = null,
+    bool $portMapping = false,
+): Process {
     $command = [
-        ...$command,
-        'build',
+        'run',
+        '--rm',
     ];
 
-    foreach ($buildArgs as $key => $value) {
-        $command[] = '--build-arg';
-        $command[] = "{$key}={$value}";
+    if ($noDeps) {
+        $command[] = '--no-deps';
     }
 
-    if ($service) {
-        $command[] = $service;
+    if ($portMapping) {
+        $command[] = '--service-ports';
     }
 
-    docker_compose($command);
+    if (null !== $workDir) {
+        $command[] = '-w';
+        $command[] = $workDir;
+    }
+
+    $command[] = $service;
+    $command[] = '/bin/sh';
+    $command[] = '-c';
+    $command[] = "exec {$runCommand}";
+
+    return docker_compose($command, c: $c);
 }
 
-/**
- * @param list<string> $profiles
- */
-#[AsTask(description: 'Builds and starts the infrastructure', aliases: ['up'], namespace: 'docker')]
-function up(
-    ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
-    array $profiles = [],
-): void {
-    if (!$service && !$profiles) {
-        io()->title('Starting infrastructure');
-    }
+function docker_exit_code(
+    string $runCommand,
+    string $service = 'builder',
+    ?Context $c = null,
+    bool $noDeps = true,
+    ?string $workDir = null,
+    bool $portMapping = false,
+): int {
+    $c = ($c ?? context())->withAllowFailure();
 
-    $command = ['up', '--detach', '--no-build'];
+    $process = docker_compose_run(
+        runCommand: $runCommand,
+        service: $service,
+        c: $c,
+        noDeps: $noDeps,
+        workDir: $workDir,
+    );
 
-    if ($service) {
-        $command[] = $service;
-    }
-
-    try {
-        docker_compose($command, profiles: $profiles);
-    } catch (ExceptionInterface $e) {
-        io()->error('An error occured while starting the infrastructure.');
-        io()->note('Did you forget to run "castor docker:build"?');
-        io()->note('Or you forget to login to the registry?');
-
-        throw $e;
-    }
+    return $process->getExitCode() ?? 0;
 }
 
-/**
- * @param list<string> $profiles
- */
-#[AsTask(description: 'Stops the infrastructure', aliases: ['stop'], namespace: 'docker')]
-function stop(
-    ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
-    array $profiles = [],
-): void {
-    if (!$service || !$profiles) {
-        io()->title('Stopping infrastructure');
-    }
-
-    $command = ['stop'];
-
-    if ($service) {
-        $command[] = $service;
-    }
-
-    docker_compose($command, profiles: $profiles);
-}
-
-/**
- * @param list<string> $profiles
- */
-#[AsTask(description: 'Displays infrastructure logs', aliases: ['logs'], namespace: 'docker')]
-function logs(
-    ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
-    array $profiles = [],
-): void {
-    $command = ['logs', '--tail', '150'];
-    $c = context();
-
-    if (Process::isTtySupported()) {
-        $c = $c->withTty();
-        $command[] = '-f';
-    }
-
-    if ($service) {
-        $command[] = $service;
-    }
-
-    docker_compose($command, c: $c, profiles: $profiles);
-}
-
-#[AsTask(description: 'Lists containers status', aliases: ['ps'], namespace: 'docker')]
-function ps(): void
+#[AsListener(AfterBootEvent::class)]
+function initialize(AfterBootEvent $afterBootEvent): void
 {
-    docker_compose(['ps']);
-}
+    $c = context();
+    $container = Container::get();
+    $dispatcher = $container->eventDispatcher;
 
-#[AsTask(description: 'Cleans the infrastructure (remove container, volume, networks)', aliases: ['destroy'], namespace: 'docker')]
-function destroy(
-    #[AsOption(description: 'Force the destruction without confirmation', shortcut: 'f')]
-    bool $force = false,
-): void {
-    io()->title('Destroying infrastructure');
+    $event = new RegisterServiceEvent();
+    $dispatcher->dispatch($event);
 
-    if (!$force) {
-        io()->warning('This will permanently remove all containers, volumes, networks... created for this project.');
-        io()->note('You can use the --force option to avoid this confirmation.');
-        if (!io()->confirm('Are you sure?', false)) {
-            io()->comment('Aborted.');
+    $compose = [
+        'services' => [],
+    ];
 
-            return;
+    $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
+    $c = $c->withData(['user_id' => $userId]);
+
+    foreach ($event->services as $name => $service) {
+        $compose = $service->updateCompose($c, $compose);
+    }
+
+    $yamlContent = yaml_dump($compose, inline: 5);
+
+    file_put_contents(
+        $c->workingDirectory . '/compose.yaml',
+        <<<YAML
+        # This file is generated by Castor. Do not edit it manually.
+        
+        YAML
+    );
+    file_put_contents($c->workingDirectory . '/compose.yaml', $yamlContent, FILE_APPEND);
+
+    // Handle tasks for each eservice
+    $expressionLanguage = new ExpressionLanguage($container->contextRegistry);
+
+    foreach ($event->services as $service) {
+        foreach ($service->getTasks() as $task) {
+            $closure = $task['function'];
+            $asTask = $task['task'];
+            $function = new \ReflectionFunction($closure);
+            $descriptor = new TaskDescriptor($asTask, $function);
+            $command = new TaskCommand($descriptor, $expressionLanguage, $container->eventDispatcher, $container->contextRegistry, $container->slugger, $container->fs);
+
+            $container->application->add($command);
         }
     }
-
-    docker_compose(['down', '--remove-orphans', '--volumes', '--rmi=local']);
 }
