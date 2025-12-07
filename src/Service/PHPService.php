@@ -56,6 +56,7 @@ class PHPService implements ServiceInterface
     public function updateCompose(Context $context, array $compose): array
     {
         $userId = $context->data['user_id'] ?? 1000;
+        $projectName = $context->data['project_name'] ?? 'app';
 
         $compose['services'][$this->name] = [
             'build' => [
@@ -101,13 +102,15 @@ class PHPService implements ServiceInterface
 
             $compose['services'][$this->name]['labels'] = [
                 'traefik.enable=true',
-                "traefik.http.routers.{$this->name}-frontend.rule=Host({$projectDomains})",
-                "traefik.http.routers.{$this->name}-frontend.tls=true",
-                "traefik.http.routers.{$this->name}-frontend-unsecure.rule=Host({$projectDomains})",
+                "traefik.http.routers.{$projectName}-{$this->name}.rule=Host({$projectDomains})",
+                "traefik.http.routers.{$projectName}-{$this->name}.entrypoints=https",
+                "traefik.http.routers.{$projectName}-{$this->name}.tls=true",
+                "traefik.http.routers.{$projectName}-{$this->name}-unsecure.rule=Host({$projectDomains})",
+                "traefik.http.services.{$projectName}-{$this->name}.loadbalancer.server.port=80",
             ];
 
             if (!$this->allowHttpAccess) {
-                $compose['services'][$this->name]['labels'][] = "traefik.http.routers.{$this->name}-frontend-unsecure.middlewares=redirect-to-https@file";
+                $compose['services'][$this->name]['labels'][] = "traefik.http.routers.{$projectName}-{$this->name}.middlewares=redirect-to-https@file";
             }
         }
 

@@ -9,6 +9,7 @@ use Symfony\Component\Process\ExecutableFinder;
 use function Castor\capture;
 use function Castor\context;
 use function Castor\fs;
+use function Castor\get_cache;
 use function Castor\io;
 use function Castor\run;
 
@@ -16,7 +17,6 @@ class TraefikRouterService implements ServiceInterface
 {
     public function __construct(
         protected string $sharedHomeDirectory = '.home',
-        protected string $rootDomain = 'local.castor',
         /** @var string[] */
         protected array $extraDomains = [],
     ) {
@@ -35,8 +35,6 @@ class TraefikRouterService implements ServiceInterface
 
     public function updateCompose(Context $context, array $compose): array
     {
-        $userId = $context->data['user_id'] ?? 1000;
-
         $compose['services'][$this->getName()] = [
             'build' => __DIR__ . '/../Resources/router',
             'volumes' => [
@@ -48,11 +46,8 @@ class TraefikRouterService implements ServiceInterface
                 '443:443',
                 '8080:8080',
             ],
-            'networks' => [
-                'default',
-            ],
             'profiles' => [
-                'default',
+                'router',
             ],
         ];
 
@@ -67,11 +62,32 @@ class TraefikRouterService implements ServiceInterface
                 $this->generateCertificates($force);
             },
         ];
+
+        yield [
+            'task' => new AsTask('enable', 'router', description: 'Enable router service'),
+            'function' => function () {
+                $routerCache = get_cache()->getItem('infrastructure.router.enabled');
+                $routerCache->set(true);
+
+                get_cache()->save($routerCache);
+            },
+        ];
+
+        yield [
+            'task' => new AsTask('disable', 'router', description: 'Disable router service'),
+            'function' => function () {
+                $routerCache = get_cache()->getItem('infrastructure.router.enabled');
+                $routerCache->set(false);
+
+                get_cache()->save($routerCache);
+            },
+        ];
     }
 
     private function generateCertificates(bool $force = false): void
     {
         $sslDir = $this->sharedHomeDirectory . '/certs';
+        $rootDomain = context()->data['root_domain'] ?? 'castor.local';
 
         if (file_exists("{$sslDir}/cert.pem") && !$force) {
             io()->comment('SSL certificates already exists.');
@@ -114,8 +130,8 @@ class TraefikRouterService implements ServiceInterface
                 'mkcert',
                 '-cert-file', "{$sslDir}/cert.pem",
                 '-key-file', "{$sslDir}/key.pem",
-                $this->rootDomain,
-                "*.{$this->rootDomain}",
+                $rootDomain,
+                "*.{$rootDomain}",
                 ...$this->extraDomains,
             ]);
 

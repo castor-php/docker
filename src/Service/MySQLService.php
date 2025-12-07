@@ -8,27 +8,26 @@ use Castor\Context;
 use function Castor\Docker\docker_compose;
 use function Castor\context;
 
-class PostgresService implements DatabaseServiceInterface
+class MySQLService implements DatabaseServiceInterface
 {
     public function getName(): string
     {
-        return 'postgres';
+        return 'mysql';
     }
 
     public function updateCompose(Context $context, array $compose): array
     {
-        $compose['volumes']['postgres_data'] = [];
-        $compose['services']['postgres'] = [
-            'image' => 'postgres:16',
+        $compose['volumes']['mysql-data'] = [];
+        $compose['services']['mysql'] = [
+            'image' => 'mysql:8',
             'environment' => [
-                'POSTGRES_USER' => 'app',
-                'POSTGRES_PASSWORD' => 'app',
+                'MYSQL_ALLOW_EMPTY_PASSWORD' => '1',
             ],
             'volumes' => [
-                'postgres_data:/var/lib/postgresql/data',
+                'mysql-data:/var/lib/mysql',
             ],
             'healthcheck' => [
-                'test' => ['CMD-SHELL', 'pg_isready -U app'],
+                'test' => 'mysqladmin ping -h localhost',
                 'interval' => '5s',
                 'timeout' => '5s',
                 'retries' => 5,
@@ -41,16 +40,16 @@ class PostgresService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('psql', 'db', 'Connect to the PostgreSQL database'),
+            'task' => new AsTask('mysql', 'db', 'Connect to the MySQL database'),
             'function' => function () {
-                docker_compose(['exec', 'postgres', 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
+                docker_compose(['exec', 'mysql', 'mysql', '-u', 'root'], c: context()->toInteractive());
             },
         ];
     }
 
     public function getDatabaseURL(): string
     {
-        return 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8';
+        return 'mysql://app:app@mysql:3306/app';
     }
 
     public function hasHealthCheck(): bool

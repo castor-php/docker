@@ -8,14 +8,31 @@ use Castor\Container;
 use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
 use Castor\Docker\Event\RegisterServiceEvent;
+use Castor\Docker\Service\TraefikRouterService;
 use Castor\Event\AfterBootEvent;
 use Castor\ExpressionLanguage;
 use Symfony\Component\Process\Process;
 
 use function Castor\context;
+use function Castor\get_cache;
 use function Castor\run;
 use function Castor\variable;
 use function Castor\yaml_dump;
+
+/**
+ * @return list<string>
+ */
+function get_default_profiles(): array
+{
+    $profiles = ['default'];
+    $routerCache = get_cache()->getItem('infrastructure.router.enabled');
+
+    if ($routerCache->isHit() && $routerCache->get() === true) {
+        $profiles[] = 'router';
+    }
+
+    return $profiles;
+}
 
 /**
  * @param list<string> $subCommand
@@ -24,7 +41,7 @@ use function Castor\yaml_dump;
 function docker_compose(array $subCommand, ?Context $c = null, array $profiles = []): Process
 {
     $c ??= context();
-    $profiles = $profiles ?: ['default'];
+    $profiles = $profiles ?: get_default_profiles();
 
     $c = $c
         ->withTimeout(null)
@@ -37,11 +54,6 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         'docker',
         'compose',
     ];
-
-    if (isset($c['project_name'])) {
-        $command[] = '-p';
-        $command[] = $c['project_name'];
-    }
 
     foreach ($profiles as $profile) {
         $command[] = '--profile';
@@ -119,9 +131,12 @@ function initialize(AfterBootEvent $afterBootEvent): void
     $dispatcher = $container->eventDispatcher;
 
     $event = new RegisterServiceEvent();
+    $event->addService(new TraefikRouterService());
+
     $dispatcher->dispatch($event);
 
     $compose = [
+        'name' => $c['project_name'] ?? 'project',
         'volumes' => [],
         'services' => [],
         'include' => [
