@@ -1,5 +1,5 @@
 .castor.stub.php
 .castor/
 castor.composer.lock
-compose.yaml
+compose.generated.yaml
 .home

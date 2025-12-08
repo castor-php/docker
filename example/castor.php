@@ -17,7 +17,6 @@ use Castor\Docker\Service\SymfonyService;
 function default_context(): Context
 {
     return new Context([
-        'project_name' => 'castor-docker-demo',
         'root_domain' => 'project.test',
     ]);
 }

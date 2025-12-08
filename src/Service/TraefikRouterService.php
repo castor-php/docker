@@ -8,6 +8,7 @@ use Symfony\Component\Process\ExecutableFinder;
 
 use function Castor\capture;
 use function Castor\context;
+use function Castor\Docker\docker_compose;
 use function Castor\fs;
 use function Castor\get_cache;
 use function Castor\io;
@@ -70,6 +71,7 @@ class TraefikRouterService implements ServiceInterface
                 $routerCache->set(true);
 
                 get_cache()->save($routerCache);
+                docker_compose(['up', '-d', 'router']);
             },
         ];
 
@@ -80,6 +82,7 @@ class TraefikRouterService implements ServiceInterface
                 $routerCache->set(false);
 
                 get_cache()->save($routerCache);
+                docker_compose(['stop', 'router']);
             },
         ];
     }
