@@ -30,7 +30,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH \
     -ldflags='-s -w -extldflags "-static"' \
     -o twig-dockerfile-frontend .
 
-FROM ubuntu:24.04
+FROM bitnami/minideb:trixie
 
 # BuildKit frontend capabilities (mirrors upstream Dockerfile frontend)
 # Ref: https://github.com/moby/buildkit/blob/master/frontend/dockerfile/cmd/dockerfile-frontend/Dockerfile

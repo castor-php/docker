@@ -2,4 +2,9 @@
 FROM ubuntu:22.04
 
 # Install necessary packages
-RUN apt-get update && apt-get install -y curl
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update
+{% for package in packages %}
+RUN apt install -y {{ package }}
+{% endfor %}
