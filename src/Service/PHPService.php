@@ -33,6 +33,7 @@ class PHPService implements ServiceInterface
         /** @var string[] */
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
+        protected string $dockerFile = __DIR__.'/../Resources/php/Dockerfile',
     ) {
     }
 
@@ -55,6 +56,13 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
+    public function withDockerfile(string $path): self
+    {
+        $this->dockerFile = $path;
+
+        return $this;
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -70,18 +78,23 @@ class PHPService implements ServiceInterface
     {
         $userId = $context->data['user_id'] ?? 1000;
         $projectName = $context->data['project_name'] ?? 'app';
+        $build = [
+            'context' => __DIR__ . '/../Resources/php',
+            'dockerfile' => $this->dockerFile,
+            'target' => 'frontend',
+            'additional_contexts' => [
+                'original' =>  __DIR__ . '/../Resources/php',
+            ],
+            'cache_from' => [
+                'type=registry,ref=${REGISTRY:-}/'. $this->name . ':cache',
+            ],
+            'args' => [
+                'php_version' => $this->version,
+            ],
+        ];
 
         $compose['services'][$this->name] = [
-            'build' => [
-                'context' => __DIR__ . '/../Resources/php',
-                'target' => 'frontend',
-                'cache_from' => [
-                    'type=registry,ref=${REGISTRY:-}/'. $this->name . ':cache',
-                ],
-                'args' => [
-                    'PHP_VERSION' => $this->version,
-                ],
-            ],
+            'build' => $build,
             'user' => "{$userId}:{$userId}",
             'volumes' => [
                 $this->directory . ":/var/www:cached",
@@ -91,16 +104,7 @@ class PHPService implements ServiceInterface
         ];
 
         $compose['services'][$this->name . '-builder'] = [
-            'build' => [
-                'context' => __DIR__ . '/../Resources/php',
-                'target' => 'builder',
-                'cache_from' => [
-                    'type=registry,ref=${REGISTRY:-}/'. $this->name . '-builder:cache',
-                ],
-                'args' => [
-                    'PHP_VERSION' => $this->version,
-                ],
-            ],
+            'build' => $build,
             'user' => "{$userId}:{$userId}",
             'init' => true,
             'volumes' => [
@@ -140,16 +144,7 @@ class PHPService implements ServiceInterface
 
         foreach ($this->workers as $workerName => $command) {
             $compose['services'][$this->name . '-worker-' . $workerName] = [
-                'build' => [
-                    'context' => __DIR__ . '/../Resources/php',
-                    'target' => 'worker',
-                    'cache_from' => [
-                        'type=registry,ref=${REGISTRY:-}/'. $this->name . ':cache',
-                    ],
-                    'args' => [
-                        'PHP_VERSION' => $this->version,
-                    ],
-                ],
+                'build' => $build,
                 'user' => "{$userId}:{$userId}",
                 'volumes' => [
                     $this->directory . ":/var/www:cached",

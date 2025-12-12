@@ -41,17 +41,26 @@ function transform_docker_file(string $options): void
         }
     }
 
-    $loader = new RpcTwigLoader($socket, $dockerfile);
-    $twig = new \Twig\Environment($loader);
+    $loader = new RpcTwigLoader($socket, clean_dockerfile($dockerfile));
+    $twig = new \Twig\Environment($loader, [
+        'debug' => true,
+    ]);
+    $twig->addExtension(new \Twig\Extension\DebugExtension());
 
-
-    echo $twig->render('Dockerfile', $args);
+    echo $twig->render('.', $args);
     echo "\n";
 }
 
-function dump_dockerfile(string $value): void
+function clean_dockerfile(string $value): string
 {
-    echo "RUN echo '" . $value . "'\n";
+    // remove all first lines starting with '#'
+    $lines = explode("\n", $value);
+
+    $cleanedLines = array_filter($lines, function ($line) {
+        return !str_starts_with(trim($line), '#');
+    });
+
+    return implode("\n", $cleanedLines);
 }
 
 class RpcTwigLoader implements \Twig\Loader\LoaderInterface
@@ -63,7 +72,7 @@ class RpcTwigLoader implements \Twig\Loader\LoaderInterface
         string $content
     )
     {
-        $this->templates['Dockerfile'] = new \Twig\Source($content, "Dockerfile");
+        $this->templates['.'] = new \Twig\Source($content, ".");
     }
 
     public function getSourceContext(string $name): \Twig\Source
@@ -99,14 +108,15 @@ class RpcTwigLoader implements \Twig\Loader\LoaderInterface
         }
 
         $context = "context";
+        $loadName = $name;
 
         if (str_starts_with($name, "@")) {
             $parts = explode("/", $name, 2);
             $context = substr($parts[0], 1); // remove @
-            $name = $parts[1] ?? "";
+            $loadName = $parts[1] ?? "";
         }
 
-        $content = $this->getFileFromServer($context, $name);
+        $content = $this->getFileFromServer($context, $loadName);
 
         if ($content === "") {
             return null;

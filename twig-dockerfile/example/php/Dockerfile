@@ -50,6 +50,7 @@ ENV HOME=/home/app
 ENV COMPOSER_MEMORY_LIMIT=-1
 
 WORKDIR /var/www
+
 {% endblock %}
 
 {% block frontend %}
@@ -131,18 +132,6 @@ RUN curl -L --output /usr/local/bin/pie https://github.com/php/pie/releases/down
 
 # Autocompletion
 ADD https://raw.githubusercontent.com/symfony/symfony/refs/heads/7.3/src/Symfony/Component/Console/Resources/completion.bash /tmp/completion.bash
-
-# Composer symfony/console version is too old, and doest not support "API version feature", so we remove it
-# Hey, while we are at it, let's add some more completion
-RUN sed /tmp/completion.bash \
-        -e "s/{{ COMMAND_NAME }}/composer/g" \
-        -e 's/"-a{{ VERSION }}"//g' \
-        -e "s/{{ VERSION }}/1/g"  \
-        > /etc/bash_completion.d/composer \
-    && sed /tmp/completion.bash \
-        -e "s/{{ COMMAND_NAME }}/console/g" \
-        -e "s/{{ VERSION }}/1/g"  \
-        > /etc/bash_completion.d/console
 
 # Third party tools
 ENV PATH="$PATH:/var/www/tools/bin"
