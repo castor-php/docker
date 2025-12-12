@@ -5,6 +5,5 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt update
-{% for package in packages %}
-RUN apt install -y {{ package }}
-{% endfor %}
+
+{{ include('example/OtherFile.twig') }}
