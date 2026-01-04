@@ -1,0 +1,6 @@
+{
+    "require": {
+        "twig/twig": "^3.22",
+        "spiral/goridge": "^2.4"
+    }
+}

@@ -1,0 +1,9 @@
+# syntax=castor/twig-dockerfile:latest
+FROM ubuntu:22.04
+
+# Install necessary packages
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update
+
+{{ include('example/OtherFile.twig') }}
