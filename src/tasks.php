@@ -15,16 +15,12 @@ use function Castor\variable;
 #[AsTask(description: 'Builds the infrastructure', aliases: ['build'], namespace: 'docker')]
 function build(
     ?string $service = null,
-    ?string $profile = null,
+    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
+    array $profiles = [],
 ): void {
     io()->title('Building infrastructure');
 
     $command = [];
-
-    if ($profile) {
-        $command[] = '--profile';
-        $command[] = $profile;
-    }
 
     $buildArgs = variable('build_args', []);
 
@@ -42,7 +38,7 @@ function build(
         $command[] = $service;
     }
 
-    docker_compose($command);
+    docker_compose($command, profiles: $profiles);
 }
 
 /**
@@ -53,7 +49,12 @@ function up(
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
+    bool $build = false,
 ): void {
+    if ($build) {
+        build($service, $profiles);
+    }
+
     if (!$service && !$profiles) {
         io()->title('Starting infrastructure');
     }
