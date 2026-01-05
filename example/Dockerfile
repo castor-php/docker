@@ -1,4 +1,4 @@
-# syntax=castor/twig-dockerfile:latest
+# syntax=ghcr.io/castor-php/twig-dockerfile:latest
 {% extends '@original/Dockerfile' %}
 
 {% block php_extensions %}
