@@ -33,6 +33,7 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(
         (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1'))
             ->withDatabaseService($postgresService)
+            ->withDockerfile(__DIR__ . '/Dockerfile')
             ->addDomain('app1.project.test')
             ->addDomain('project.test')
             ->addDomain('localhost')
@@ -42,6 +43,7 @@ function register_service(RegisterServiceEvent $event)
 
     $event->addService(
         (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2'))
+            ->withDockerfile(__DIR__ . '/Dockerfile')
             ->withDatabaseService($mysqlService)
             ->addDomain('app2.project.test')
     );

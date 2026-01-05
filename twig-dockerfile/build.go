@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var IsTransforming bool = false
+
 func build(ctx context.Context, c client.Client) (*client.Result, error) {
 	// transform opts into json
 	jsonString, err := json.Marshal(c.BuildOpts().Opts)
@@ -49,6 +51,12 @@ func (s *Transform) Hi(name string, r *string) error {
 }
 
 func (s *Transform) transformDockerfile(dockerfile []byte) ([]byte, error) {
+	if IsTransforming {
+		return dockerfile, nil
+	}
+
+	IsTransforming = true
+
 	cmd := exec.Command("castor", "transform-docker-file", string(s.options))
 	cmd.Stdin = bytes.NewReader(dockerfile)
 
@@ -163,19 +171,26 @@ func loadFileFromContext(ctx context.Context, c client.Client, localCtx string, 
 		localCtx,
 		llb.IncludePatterns([]string{filename}),
 		llb.SessionID(c.BuildOpts().SessionID),
-		llb.SharedKeyHint(defaultDockerfileName),
+		llb.SharedKeyHint("@"+localCtx+"/"+filename),
 	)
-	def, err := src.Marshal(context.TODO())
+
+	def, err := src.Marshal(ctx)
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal local source")
 	}
+
 	res, err := c.Solve(ctx, client.SolveRequest{
 		Definition: def.ToPB(),
+		Evaluate:   false,
 	})
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create solve request")
 	}
+
 	ref, err := res.SingleRef()
+
 	if err != nil {
 		return nil, err
 	}
