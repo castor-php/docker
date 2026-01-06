@@ -17,9 +17,7 @@ class MariaDBService implements DatabaseServiceInterface
         private string $version = '12.1',
         private string $rootPassword = 'root',
         private string $database = 'app',
-    )
-    {
-    }
+    ) {}
 
     public function getName(): string
     {

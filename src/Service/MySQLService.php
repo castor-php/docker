@@ -17,9 +17,7 @@ class MySQLService implements DatabaseServiceInterface
         private string $version = '8',
         private string $rootPassword = 'root',
         private string $database = 'app',
-    )
-    {
-    }
+    ) {}
 
     public function getName(): string
     {

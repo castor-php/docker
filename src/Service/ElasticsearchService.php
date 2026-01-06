@@ -11,9 +11,7 @@ class ElasticsearchService implements ServiceInterface
 {
     public function __construct(
         private readonly string $version = '7.8.0',
-    )
-    {
-    }
+    ) {}
 
     public function getName(): string
     {
