@@ -7,6 +7,7 @@ use Castor\Attribute\AsListener;
 use Castor\Context;
 use Castor\Docker\Event\RegisterServiceEvent;
 use Castor\Docker\Service\ElasticsearchService;
+use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;

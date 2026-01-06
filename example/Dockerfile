@@ -5,4 +5,5 @@
     {{ parent() }}
     "php{{ php_version }}-amqp" \
     "php{{ php_version }}-redis" \
+    "php{{ php_version }}-mysql" \
 {% endblock %}
