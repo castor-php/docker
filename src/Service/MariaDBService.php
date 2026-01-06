@@ -43,7 +43,7 @@ class MariaDBService implements DatabaseServiceInterface
         yield [
             'task' => new AsTask('mariadb', 'db', 'Connect to the MariaDB database'),
             'function' => function (): void {
-                docker_compose(['exec', 'mariadb', 'mariadb', '-u', 'root'], c: context()->toInteractive());
+                docker_compose(['exec', 'mariadb', 'mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },
         ];
     }

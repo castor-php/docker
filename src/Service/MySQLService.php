@@ -43,7 +43,7 @@ class MySQLService implements DatabaseServiceInterface
         yield [
             'task' => new AsTask('mysql', 'db', 'Connect to the MySQL database'),
             'function' => function (): void {
-                docker_compose(['exec', 'mysql', 'mysql', '-u', 'root'], c: context()->toInteractive());
+                docker_compose(['exec', 'mysql', 'mysql', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },
         ];
     }
