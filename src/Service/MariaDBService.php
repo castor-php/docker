@@ -50,7 +50,7 @@ class MariaDBService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@mariadb:3306/' . $this->database;
+        return 'mysql://root:' . $this->rootPassword . '@mariadb:3306/' . $this->database . '?serverVersion=mariadb-' . $this->version . '&charset=utf8mb4';;
     }
 
     public function hasHealthCheck(): bool

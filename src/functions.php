@@ -53,6 +53,8 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         ->withTimeout(null)
         ->withEnvironment([
             'PHP_VERSION' => variable('php_version'),
+            'PROJECT_NAME' => $c->data['project_name'] ?? basename($c->workingDirectory),
+            'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
         ])
     ;
 
