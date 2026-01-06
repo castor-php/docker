@@ -26,5 +26,5 @@ function qa_phpcsfixer(bool $dryRun = false): int
         $args = ['fix', '--dry-run'];
     }
 
-    return php_cs_fixer(arguments: $args, version: '3.90.0')->getExitCode();
+    return php_cs_fixer(arguments: $args, version: '3.92.4')->getExitCode();
 }

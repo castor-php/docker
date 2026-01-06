@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker;
 
 use Castor\Attribute\AsOption;
@@ -12,6 +14,9 @@ use function Castor\context;
 use function Castor\io;
 use function Castor\variable;
 
+/**
+ * @param list<string> $profiles
+ */
 #[AsTask(description: 'Builds the infrastructure', aliases: ['build'], namespace: 'docker')]
 function build(
     ?string $service = null,

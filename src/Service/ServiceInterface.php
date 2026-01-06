@@ -1,20 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 interface ServiceInterface
 {
     public function getName(): string;
 
-    /**
-     * @param array<mixed> $compose The current docker compose configuration.
-     *
-     * @return array<mixed> The updated docker compose configuration.
-     */
-    public function updateCompose(Context $context, array $compose): array;
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder;
 
     /**
      * @return iterable<array{'task': AsTask, 'function': \Closure}>

@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\context;
@@ -15,34 +18,25 @@ class PostgresService implements DatabaseServiceInterface
         return 'postgres';
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $compose['volumes']['postgres_data'] = [];
-        $compose['services']['postgres'] = [
-            'image' => 'postgres:16',
-            'environment' => [
-                'POSTGRES_USER' => 'app',
-                'POSTGRES_PASSWORD' => 'app',
-            ],
-            'volumes' => [
-                'postgres_data:/var/lib/postgresql/data',
-            ],
-            'healthcheck' => [
-                'test' => ['CMD-SHELL', 'pg_isready -U app'],
-                'interval' => '5s',
-                'timeout' => '5s',
-                'retries' => 5,
-            ],
-        ];
-
-        return $compose;
+        return $builder
+            ->volume('postgres_data')
+            ->service('postgres')
+                ->image('postgres:16')
+                ->environment('POSTGRES_USER', 'app')
+                ->environment('POSTGRES_PASSWORD', 'app')
+                ->volume('postgres_data', '/var/lib/postgresql/data')
+                ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
+            ->end()
+        ;
     }
 
     public function getTasks(): iterable
     {
         yield [
             'task' => new AsTask('psql', 'db', 'Connect to the PostgreSQL database'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose(['exec', 'postgres', 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
             },
         ];

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 class ElasticsearchService implements ServiceInterface
 {
@@ -11,48 +14,29 @@ class ElasticsearchService implements ServiceInterface
         return 'elasticsearch';
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
-        $compose['volumes']['elasticsearch-data'] = [];
-        $compose['services']['elasticsearch'] = [
-            'image' => 'elasticsearch:7.8.0',
-            'volumes' => [
-                'elasticsearch-data:/usr/share/elasticsearch/data',
-            ],
-            'environment' => [
-                'discovery.type=single-node',
-            ],
-            'labels' => [
-                'traefik.enable=true',
-                "traefik.http.routers.{$projectName}-elasticsearch.rule=Host(`elasticsearch.{$rootDomain}`)",
-                "traefik.http.routers.{$projectName}-elasticsearch.tls=true",
-            ],
-            'healthcheck' => [
-                'test' => ['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'],
-                'interval' => '5s',
-                'timeout' => '5s',
-                'retries' => 5,
-            ],
-            'profiles' => ['default'],
-        ];
-        $compose['services']['kibana'] = [
-            'image' => 'kibana:7.8.0',
-            'depends_on' => [
-                'elasticsearch',
-            ],
-            'labels' => [
-                'traefik.enable=true',
-                "traefik.http.routers.{$projectName}-kibana.rule=Host(`kibana.{$rootDomain}`)",
-                "traefik.http.routers.{$projectName}-kibana.tls=true",
-                "traefik.http.services.{$projectName}-kibana.loadbalancer.server.port=5601",
-            ],
-            'profiles' => ['default'],
-        ];
+        $builder->volume('elasticsearch-data');
 
-        return $compose;
+        return $builder
+            ->service('elasticsearch')
+                ->image('elasticsearch:7.8.0')
+                ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
+                ->environment('discovery.type', 'single-node')
+                ->withTraefikRouting("{$projectName}-elasticsearch", "elasticsearch.{$rootDomain}", 9200)
+                ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'])
+                ->profile('default')
+            ->end()
+            ->service('kibana')
+                ->image('kibana:7.8.0')
+                ->dependsOn('elasticsearch', ['condition' => 'service_healthy'])
+                ->withTraefikRouting("{$projectName}-kibana", "kibana.{$rootDomain}", 5601)
+                ->profile('default')
+            ->end()
+        ;
     }
 
     public function getTasks(): iterable

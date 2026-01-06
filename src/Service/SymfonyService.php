@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose_run;
 use function Castor\Docker\docker_exit_code;
@@ -21,9 +24,9 @@ class SymfonyService extends PHPService
         return $this;
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        return parent::updateCompose($context, $compose);
+        return parent::updateCompose($context, $builder);
     }
 
     public function getTasks(): iterable
@@ -32,7 +35,7 @@ class SymfonyService extends PHPService
 
         yield [
             'task' => new AsTask('cache-clear', $this->name, 'Clears the application cache'),
-            'function' => function (bool $warm = true) {
+            'function' => function (bool $warm = true): void {
                 docker_compose_run('rm -rf var/cache', $this->name . '-builder');
 
                 if ($warm) {
@@ -43,21 +46,21 @@ class SymfonyService extends PHPService
 
         yield [
             'task' => new AsTask('cache-warmup', $this->name, 'Warms the application cache'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose_run('php bin/console cache:warm', $this->name . '-builder');
             },
         ];
 
         yield [
             'task' => new AsTask('fixtures', $this->name . ':db', 'Loads fixtures'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose_run('php bin/console doctrine:fixture:load', $this->name . '-builder');
             },
         ];
 
         yield [
             'task' => new AsTask('migrate', $this->name . ':db', 'Migrates database schema'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose_run('php bin/console doctrine:database:create --if-not-exists', $this->name . '-builder');
                 docker_compose_run('php bin/console doctrine:migration:migrate -n --allow-no-migration --all-or-nothing', $this->name . '-builder');
             },
@@ -65,20 +68,16 @@ class SymfonyService extends PHPService
 
         yield [
             'task' => new AsTask('symfony', $this->name, 'Run a Symfony console command'),
-            'function' => function (#[AsRawTokens] array $args) {
-                docker_exit_code('php bin/console ' . implode(' ', array_map(fn ($val) => '"' . $val . '"', $args)), $this->name . '-builder');
+            'function' => function (#[AsRawTokens] array $args): void {
+                docker_exit_code('php bin/console ' . implode(' ', array_map(fn($val) => '"' . $val . '"', $args)), $this->name . '-builder');
             },
         ];
 
         yield [
             'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fixes Twig Coding Style'),
-            'function' => function (bool $dryRun = false) {
-                return with(function () use ($dryRun) {
-                    return twig_cs_fixer(array_filter([
-                        $dryRun ? null : '--fix',
-                    ], fn ($val) => null !== $val), $this->twigCsFixerVersion);
-                }, workingDirectory: $this->directory);
-            },
+            'function' => fn(bool $dryRun = false) => with(fn() => twig_cs_fixer(array_filter([
+                $dryRun ? null : '--fix',
+            ], fn($val) => null !== $val), $this->twigCsFixerVersion), workingDirectory: $this->directory),
         ];
     }
 }

@@ -75,6 +75,8 @@ RUN chmod 777 /etc/service/*/supervise/
 RUN phpenmod app-default \
     && phpenmod app-fpm
 
+ENV PHP_VERSION {{ php_version }}
+
 EXPOSE 80
 
 CMD ["runsvdir", "-P", "/etc/service"]
@@ -135,13 +137,13 @@ ADD https://raw.githubusercontent.com/symfony/symfony/refs/heads/7.3/src/Symfony
 # Composer symfony/console version is too old, and doest not support "API version feature", so we remove it
 # Hey, while we are at it, let's add some more completion
 RUN sed /tmp/completion.bash \
-        -e "s/{{ COMMAND_NAME }}/composer/g" \
-        -e 's/"-a{{ VERSION }}"//g' \
-        -e "s/{{ VERSION }}/1/g"  \
+        -e "s/{% verbatim %}{{ COMMAND_NAME }}{% endverbatim %}/composer/g" \
+        -e 's/"-a{% verbatim %}{{ VERSION }}{% endverbatim %}"//g' \
+        -e "s/{% verbatim %}{{ VERSION }}{% endverbatim %}/1/g"  \
         > /etc/bash_completion.d/composer \
     && sed /tmp/completion.bash \
-        -e "s/{{ COMMAND_NAME }}/console/g" \
-        -e "s/{{ VERSION }}/1/g"  \
+        -e "s/{% verbatim %}{{ COMMAND_NAME }}{% endverbatim %}/console/g" \
+        -e "s/{% verbatim %}{{ VERSION }}{% endverbatim %}/1/g"  \
         > /etc/bash_completion.d/console
 
 # Third party tools

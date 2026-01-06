@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 class RedisService implements ServiceInterface
 {
@@ -11,42 +14,27 @@ class RedisService implements ServiceInterface
         return 'redis';
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
-        $compose['volumes']['redis-data'] = [];
-        $compose['volumes']['redis-insight-data'] = [];
-
-        $compose['services']['redis'] = [
-            'image' => 'redis:5',
-            'healthcheck' => [
-                'test' => ['CMD', 'redis-cli', 'ping'],
-                'interval' => '5s',
-                'timeout' => '5s',
-                'retries' => 5,
-            ],
-            'volumes' => [
-                'redis-data:/data',
-            ],
-            'profiles' => ['default'],
-        ];
-
-        $compose['services']['redis-insight'] = [
-            'image' => 'redislabs/redisinsight',
-            'volumes' => [
-                'redis-insight-data:/db',
-            ],
-            'labels' => [
-                'traefik.enable=true',
-                'traefik.http.routers.' . $projectName . '-redis.rule=Host(`redis.' . $rootDomain . '`)',
-                'traefik.http.routers.' . $projectName . '-redis.tls=true',
-            ],
-            'profiles' => ['default'],
-        ];
-
-        return $compose;
+        return $builder
+            ->volume('redis-data')
+            ->volume('redis-insight-data')
+            ->service('redis')
+                ->image('redis:5')
+                ->volume('redis-data', '/data')
+                ->healthcheck(['CMD', 'redis-cli', 'ping'])
+                ->profile('default')
+            ->end()
+            ->service('redis-insight')
+                ->image('redislabs/redisinsight')
+                ->volume('redis-insight-data', '/db')
+                ->withTraefikRouting("{$projectName}-redis", "redis.{$rootDomain}")
+                ->profile('default')
+            ->end()
+        ;
     }
 
     public function getTasks(): iterable

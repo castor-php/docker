@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 class RabbitMQService implements ServiceInterface
 {
@@ -11,33 +14,21 @@ class RabbitMQService implements ServiceInterface
         return 'rabbitmq';
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
-        $compose['volumes']['rabbitmq-data'] = [];
-        $compose['services']['rabbitmq'] = [
-            'build' => __DIR__ . '/../Resources/rabbitmq',
-            'volumes' => [
-                'rabbitmq-data:/var/lib/rabbitmq',
-            ],
-            'labels' => [
-                'traefik.enable=true',
-                "traefik.http.routers.{$projectName}-rabbitmq.rule=Host(`rabbitmq.{$rootDomain}`)",
-                "traefik.http.routers.{$projectName}-rabbitmq.tls=true",
-                "traefik.http.services.rabbitmq.loadbalancer.server.port=15672",
-            ],
-            'healthcheck' => [
-                'test' => "rabbitmqctl eval '{ true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running }, { [], no_alarms } = { rabbit:alarms(), no_alarms }, [] /= rabbit_networking:active_listeners(), rabbitmq_node_is_healthy.' || exit 1",
-                'interval' => '5s',
-                'timeout' => '5s',
-                'retries' => 5,
-            ],
-            'profiles' => ['default'],
-        ];
-
-        return $compose;
+        return $builder
+            ->volume('rabbitmq-data')
+            ->service('rabbitmq')
+                ->build(__DIR__ . '/../Resources/rabbitmq')->end()
+                ->volume('rabbitmq-data', '/var/lib/rabbitmq')
+                ->withTraefikRouting("{$projectName}-rabbitmq", "rabbitmq.{$rootDomain}", 15672)
+                ->healthcheck("rabbitmqctl eval '{ true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running }, { [], no_alarms } = { rabbit:alarms(), no_alarms }, [] /= rabbit_networking:active_listeners(), rabbitmq_node_is_healthy.' || exit 1")
+                ->profile('default')
+            ->end()
+        ;
     }
 
     public function getTasks(): iterable

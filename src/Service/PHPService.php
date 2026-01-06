@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsOption;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose_run;
 use function Castor\io;
@@ -16,7 +19,7 @@ use function Castor\context;
 
 class PHPService implements ServiceInterface
 {
-    private DatabaseServiceInterface|null $databaseService = null;
+    private ?DatabaseServiceInterface $databaseService = null;
 
     /**
      * @var array<string, string>
@@ -33,9 +36,8 @@ class PHPService implements ServiceInterface
         /** @var string[] */
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
-        protected string $dockerFile = __DIR__.'/../Resources/php/Dockerfile',
-    ) {
-    }
+        protected string $dockerFile = __DIR__ . '/../Resources/php/Dockerfile',
+    ) {}
 
     public function addWorker(string $name, string $command): self
     {
@@ -74,95 +76,85 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $userId = $context->data['user_id'] ?? 1000;
         $projectName = $context->data['project_name'] ?? 'app';
-        $build = [
-            'context' => __DIR__ . '/../Resources/php',
-            'dockerfile' => $this->dockerFile,
-            'target' => 'frontend',
-            'additional_contexts' => [
-                'original' =>  __DIR__ . '/../Resources/php',
-            ],
-            'cache_from' => [
-                'type=registry,ref=${REGISTRY:-}/'. $this->name . ':cache',
-            ],
-            'args' => [
-                'php_version' => $this->version,
-            ],
-        ];
 
-        $compose['services'][$this->name] = [
-            'build' => $build,
-            'user' => "{$userId}:{$userId}",
-            'volumes' => [
-                $this->directory . ":/var/www:cached",
-                $this->sharedHomeDirectory . ":/home/app:cached",
-            ],
-            'profiles' => ['default'],
-        ];
+        $appService = $builder
+            ->service($this->name)
+                ->build(__DIR__ . '/../Resources/php')
+                    ->dockerfile($this->dockerFile)
+                    ->target('frontend')
+                    ->additionalContext('original', __DIR__ . '/../Resources/php')
+                    ->cacheFrom('type=registry,ref=${REGISTRY:-}/' . $this->name . ':cache')
+                    ->arg('php_version', $this->version)
+                ->end()
+                ->user("{$userId}:{$userId}")
+                ->volume($this->directory, '/var/www', 'cached')
+                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->profile('default')
+        ;
 
-        $compose['services'][$this->name . '-builder'] = [
-            'build' => $build,
-            'user' => "{$userId}:{$userId}",
-            'init' => true,
-            'volumes' => [
-                $this->directory . ":/var/www:cached",
-                $this->sharedHomeDirectory . ":/home/app:cached",
-            ],
-            'profiles' => ['builder'],
-        ];
+        $buildBuilder = $builder->service($this->name)->build();
+
+        $builderService = $builder
+            ->service($this->name . '-builder')
+                ->build($buildBuilder)
+                    ->target('builder')
+                ->end()
+                ->user("{$userId}:{$userId}")
+                ->init(true)
+                ->volume($this->directory, '/var/www', 'cached')
+                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->profile('builder')
+        ;
 
         if ($this->domains) {
-            $projectDomains = '`' . implode('`) || Host(`', $this->domains) . '`';
-
-            $compose['services'][$this->name]['labels'] = [
-                'traefik.enable=true',
-                "traefik.http.routers.{$projectName}-{$this->name}.rule=Host({$projectDomains})",
-                "traefik.http.routers.{$projectName}-{$this->name}.entrypoints=https",
-                "traefik.http.routers.{$projectName}-{$this->name}.tls=true",
-                "traefik.http.routers.{$projectName}-{$this->name}-unsecure.rule=Host({$projectDomains})",
-                "traefik.http.services.{$projectName}-{$this->name}.loadbalancer.server.port=80",
-            ];
-
-            if (!$this->allowHttpAccess) {
-                $compose['services'][$this->name]['labels'][] = "traefik.http.routers.{$projectName}-{$this->name}.middlewares=redirect-to-https@file";
-            }
+            $appService
+                ->withTraefikRouting("{$projectName}-{$this->name}", $this->domains, 80, $this->allowHttpAccess);
         }
 
         if ($this->databaseService) {
-            $compose['services'][$this->name]['depends_on'][$this->databaseService->getName()] = [
-                'condition' => 'service_healthy',
-            ];
-            $compose['services'][$this->name]['environment'][] = "DATABASE_URL=" . $this->databaseService->getDatabaseURL();
-            $compose['services'][$this->name . '-builder']['depends_on'][$this->databaseService->getName()] = [
-                'condition' => 'service_healthy',
-            ];
-            $compose['services'][$this->name . '-builder']['environment'][] = "DATABASE_URL=" . $this->databaseService->getDatabaseURL();
+            $appService
+                ->dependsOn($this->databaseService->getName(), [
+                    'condition' => 'service_healthy',
+                ])
+                ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
+            ;
+
+            $builderService
+                ->dependsOn($this->databaseService->getName(), [
+                    'condition' => 'service_healthy',
+                ])
+                ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
+            ;
         }
 
         foreach ($this->workers as $workerName => $command) {
-            $compose['services'][$this->name . '-worker-' . $workerName] = [
-                'build' => $build,
-                'user' => "{$userId}:{$userId}",
-                'volumes' => [
-                    $this->directory . ":/var/www:cached",
-                    $this->sharedHomeDirectory . ":/home/app:cached",
-                ],
-                'command' => $command,
-                'profiles' => ['default'],
-            ];
+            $workerService = $builder
+                ->service($this->name . '-worker-' . $workerName)
+                    ->build($buildBuilder)
+                        ->target('worker')
+                    ->end()
+                    ->user("{$userId}:{$userId}")
+                    ->volume($this->directory, '/var/www', 'cached')
+                    ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                    ->command($command)
+                    ->profile('default')
+            ;
 
             if ($this->databaseService) {
-                $compose['services'][$this->name . '-worker-' . $workerName]['depends_on'][$this->databaseService->getName()] = [
-                    'condition' => 'service_healthy',
-                ];
-                $compose['services'][$this->name . '-worker-' . $workerName]['environment'][] = "DATABASE_URL=" . $this->databaseService->getDatabaseURL();
+                $workerService
+                    ->dependsOn($this->databaseService->getName(), [
+                        'condition' => 'service_healthy',
+                    ])
+                    ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
+                ;
             }
         }
 
-        return $compose;
+        return $builder;
     }
 
     // This method return a list of tasks associated to this services
@@ -170,21 +162,21 @@ class PHPService implements ServiceInterface
     {
         yield [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose_run('bash', $this->name . '-builder', c: context()->toInteractive());
             },
         ];
 
         yield [
             'task' => new AsTask('install', $this->name, 'Install PHP dependencies using Composer'),
-            'function' => function () {
+            'function' => function (): void {
                 docker_compose_run('composer install', $this->name . '-builder');
             },
         ];
 
         yield [
             'task' => new AsTask('composer', $this->name, 'Run composer for this service'),
-            'function' => function (#[AsRawTokens] array $args) {
+            'function' => function (#[AsRawTokens] array $args): void {
                 docker_compose_run('composer ' . implode(' ', $args), $this->name . '-builder');
             },
         ];
@@ -195,16 +187,14 @@ class PHPService implements ServiceInterface
 
                 io()->section('Running PHPStan...');
 
-                return with(function () use ($baseline) {
-                    return phpstan(array_values(array_filter([
-                        'analyse',
-                        $this->directory,
-                        '--memory-limit=-1',
-                        $baseline ? '--generate-baseline' : null,
-                        $baseline ? '--allow-empty-baseline' : null,
-                        '-v',
-                    ], fn ($val) => null !== $val)), $this->phpStanVersion);
-                }, workingDirectory: $this->directory);
+                return with(fn() => phpstan(array_values(array_filter([
+                    'analyse',
+                    $this->directory,
+                    '--memory-limit=-1',
+                    $baseline ? '--generate-baseline' : null,
+                    $baseline ? '--allow-empty-baseline' : null,
+                    '-v',
+                ], fn($val) => null !== $val)), $this->phpStanVersion), workingDirectory: $this->directory);
             },
         ];
 
@@ -213,13 +203,11 @@ class PHPService implements ServiceInterface
             'function' => function (bool $dryRun = false) {
                 io()->section('Running PHP CS Fixer...');
 
-                return with(function () use ($dryRun) {
-                    return php_cs_fixer(array_values(array_filter([
-                        'fix',
-                        $dryRun ? '--dry-run' : null,
-                        'src',
-                    ], fn ($val) => null !== $val)), $this->phpCsFixerVersion);
-                }, workingDirectory: $this->directory);
+                return with(fn() => php_cs_fixer(array_values(array_filter([
+                    'fix',
+                    $dryRun ? '--dry-run' : null,
+                    'src',
+                ], fn($val) => null !== $val)), $this->phpCsFixerVersion), workingDirectory: $this->directory);
             },
         ];
     }

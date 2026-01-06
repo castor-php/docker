@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 use Symfony\Component\Process\ExecutableFinder;
 
 use function Castor\capture;
@@ -20,8 +23,7 @@ class TraefikRouterService implements ServiceInterface
         protected string $sharedHomeDirectory = '.home',
         /** @var string[] */
         protected array $extraDomains = [],
-    ) {
-    }
+    ) {}
 
     public function addExtraDomain(string $domain): self
     {
@@ -34,39 +36,33 @@ class TraefikRouterService implements ServiceInterface
         return 'router';
     }
 
-    public function updateCompose(Context $context, array $compose): array
+    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $compose['services'][$this->getName()] = [
-            'build' => __DIR__ . '/../Resources/router',
-            'volumes' => [
-                '/var/run/docker.sock:/var/run/docker.sock',
-                $this->sharedHomeDirectory . ":/home/app:cached",
-            ],
-            'ports' => [
-                '80:80',
-                '443:443',
-                '8080:8080',
-            ],
-            'profiles' => [
-                'router',
-            ],
-        ];
-
-        return $compose;
+        return $builder
+            ->service($this->getName())
+                ->build(__DIR__ . '/../Resources/router')->end()
+                ->volume('/var/run/docker.sock', '/var/run/docker.sock')
+                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->port('80', '80')
+                ->port('443', '443')
+                ->port('8080', '8080')
+                ->profile('router')
+            ->end()
+        ;
     }
 
     public function getTasks(): iterable
     {
         yield [
             'task' => new AsTask('generate-certificates', 'router', description: 'Generates SSL certificates (with mkcert if available or self-signed if not)'),
-            'function' => function (bool $force = false) {
+            'function' => function (bool $force = false): void {
                 $this->generateCertificates($force);
             },
         ];
 
         yield [
             'task' => new AsTask('enable', 'router', description: 'Enable router service'),
-            'function' => function () {
+            'function' => function (): void {
                 $routerCache = get_cache()->getItem('infrastructure.router.enabled');
                 $routerCache->set(true);
 
@@ -77,7 +73,7 @@ class TraefikRouterService implements ServiceInterface
 
         yield [
             'task' => new AsTask('disable', 'router', description: 'Disable router service'),
-            'function' => function () {
+            'function' => function (): void {
                 $routerCache = get_cache()->getItem('infrastructure.router.enabled');
                 $routerCache->set(false);
 
