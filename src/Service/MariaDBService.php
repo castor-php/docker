@@ -11,10 +11,10 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 use function Castor\Docker\docker_compose;
 use function Castor\context;
 
-class MySQLService implements DatabaseServiceInterface
+class MariaDBService implements DatabaseServiceInterface
 {
     public function __construct(
-        private string $version = '8',
+        private string $version = '12.1',
         private string $rootPassword = 'root',
         private string $database = 'app',
     )
@@ -23,19 +23,19 @@ class MySQLService implements DatabaseServiceInterface
 
     public function getName(): string
     {
-        return 'mysql';
+        return 'mariadb';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         return $builder
-            ->volume('mysql-data')
-            ->service('mysql')
-                ->image('mysql:' . $this->version)
-                ->environment('MYSQL_ROOT_PASSWORD', $this->rootPassword)
-                ->environment('MYSQL_DATABASE', $this->database)
-                ->volume('mysql-data', '/var/lib/mysql')
-                ->healthcheck('mysqladmin ping -h localhost')
+            ->volume('mariadb-data')
+            ->service('mariadb')
+                ->image('mariadb:' . $this->version)
+                ->environment('MARIADB_ROOT_PASSWORD', $this->rootPassword)
+                ->environment('MARIADB_DATABASE', $this->database)
+                ->volume('mariadb-data', '/var/lib/mysql')
+                ->healthcheck('mariadb-admin ping -h localhost')
             ->end()
         ;
     }
@@ -43,16 +43,16 @@ class MySQLService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('mysql', 'db', 'Connect to the MySQL database'),
+            'task' => new AsTask('mariadb', 'db', 'Connect to the MariaDB database'),
             'function' => function (): void {
-                docker_compose(['exec', 'mysql', 'mysql', '-u', 'root'], c: context()->toInteractive());
+                docker_compose(['exec', 'mariadb', 'mariadb', '-u', 'root'], c: context()->toInteractive());
             },
         ];
     }
 
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@mysql:3306/' . $this->database;
+        return 'mysql://root:' . $this->rootPassword . '@mariadb:3306/' . $this->database;
     }
 
     public function hasHealthCheck(): bool

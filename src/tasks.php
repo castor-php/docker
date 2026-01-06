@@ -43,6 +43,11 @@ function build(
         $command[] = $service;
     }
 
+    if (!$profiles) {
+        $profiles = get_default_profiles();
+        $profiles[] = 'builder';
+    }
+
     docker_compose($command, profiles: $profiles);
 }
 

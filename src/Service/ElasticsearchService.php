@@ -9,6 +9,12 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 class ElasticsearchService implements ServiceInterface
 {
+    public function __construct(
+        private readonly string $version = '7.8.0',
+    )
+    {
+    }
+
     public function getName(): string
     {
         return 'elasticsearch';
@@ -23,7 +29,7 @@ class ElasticsearchService implements ServiceInterface
 
         return $builder
             ->service('elasticsearch')
-                ->image('elasticsearch:7.8.0')
+                ->image('elasticsearch:' . $this->version)
                 ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
                 ->environment('discovery.type', 'single-node')
                 ->withTraefikRouting("{$projectName}-elasticsearch", "elasticsearch.{$rootDomain}", 9200)
@@ -31,7 +37,7 @@ class ElasticsearchService implements ServiceInterface
                 ->profile('default')
             ->end()
             ->service('kibana')
-                ->image('kibana:7.8.0')
+                ->image('kibana:' . $this->version)
                 ->dependsOn('elasticsearch', ['condition' => 'service_healthy'])
                 ->withTraefikRouting("{$projectName}-kibana", "kibana.{$rootDomain}", 5601)
                 ->profile('default')
