@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
-use Castor\Attribute\AsOption;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
@@ -14,12 +13,16 @@ use function Castor\Docker\docker_compose_run;
 use function Castor\io;
 use function Castor\PHPQa\php_cs_fixer;
 use function Castor\PHPQa\phpstan;
+use function Castor\PHPQa\rector;
 use function Castor\with;
 use function Castor\context;
 
 class PHPService implements ServiceInterface
 {
     private ?DatabaseServiceInterface $databaseService = null;
+
+    /** @var array<string, string> */
+    private array $phpStanExtraDependencies = [];
 
     /**
      * @var array<string, string>
@@ -33,6 +36,7 @@ class PHPService implements ServiceInterface
         protected string $sharedHomeDirectory = '.home',
         protected string $phpStanVersion = '*',
         protected string $phpCsFixerVersion = '*',
+        protected string $rectorVersion = '*',
         /** @var string[] */
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
@@ -73,6 +77,12 @@ class PHPService implements ServiceInterface
     public function withDatabaseService(DatabaseServiceInterface $databaseService): self
     {
         $this->databaseService = $databaseService;
+        return $this;
+    }
+
+    public function addPhpStanExtraDependency(string $package, string $version): self
+    {
+        $this->phpStanExtraDependencies[$package] = $version;
         return $this;
     }
 
@@ -184,31 +194,28 @@ class PHPService implements ServiceInterface
 
         yield [
             'task' => new AsTask('phpstan', $this->name . ':qa', 'Runs PHPStan'),
-            'function' => function (#[AsOption(description: 'Generate baseline file', shortcut: 'b')] bool $baseline = false) {
-
+            'function' => function (#[AsRawTokens] array $args) {
                 io()->section('Running PHPStan...');
 
-                return with(fn() => phpstan(array_values(array_filter([
-                    'analyse',
-                    $this->directory,
-                    '--memory-limit=-1',
-                    $baseline ? '--generate-baseline' : null,
-                    $baseline ? '--allow-empty-baseline' : null,
-                    '-v',
-                ], fn($val) => null !== $val)), $this->phpStanVersion), workingDirectory: $this->directory);
+                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->directory);
             },
         ];
 
         yield [
             'task' => new AsTask('cs', $this->name . ':qa', 'Fixes Coding Style'),
-            'function' => function (bool $dryRun = false) {
+            'function' => function (#[AsRawTokens] array $args) {
                 io()->section('Running PHP CS Fixer...');
 
-                return with(fn() => php_cs_fixer(array_values(array_filter([
-                    'fix',
-                    $dryRun ? '--dry-run' : null,
-                    'src',
-                ], fn($val) => null !== $val)), $this->phpCsFixerVersion), workingDirectory: $this->directory);
+                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->directory);
+            },
+        ];
+
+        yield [
+            'task' => new AsTask('rector', $this->name . ':qa', 'Updates and refactors code using Rector'),
+            'function' => function (#[AsRawTokens] array $args) {
+                io()->section('Running Rector...');
+
+                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->directory);
             },
         ];
     }
