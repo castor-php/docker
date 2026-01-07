@@ -104,7 +104,7 @@ class TraefikRouterService implements ServiceInterface
 
         if ($force) {
             if (file_exists($f = "{$sslDir}/cert.pem")) {
-                io()->comment('Removing existing certificates in infrastructure/docker/services/router/certs/*.pem.');
+                io()->comment("Removing existing certificates in {$sslDir}/*.pem.");
                 unlink($f);
             }
 
@@ -143,9 +143,9 @@ class TraefikRouterService implements ServiceInterface
             return;
         }
 
-        run([__DIR__ . '/../Resources/router/generate-ssl.sh'], context: context()->withQuiet());
+        run([__DIR__ . '/../Resources/router/generate-ssl.sh', $sslDir], context: context()->withQuiet());
 
-        io()->success('Successfully generated self-signed SSL certificates in infrastructure/docker/services/router/certs/*.pem.');
+        io()->success("Successfully generated self-signed SSL certificates in {$sslDir}/*.pem.");
         io()->comment('Consider installing mkcert to generate locally trusted SSL certificates and run "castor docker:generate-certificates --force".');
 
         if ($force) {

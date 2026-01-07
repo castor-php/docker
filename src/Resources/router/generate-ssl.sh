@@ -2,9 +2,8 @@
 
 # Script used in dev to generate a basic SSL cert
 
-BASE=$(dirname $0)
-
-CERTS_DIR=$BASE/certs
+BASE=$(dirname "$0")
+CERTS_DIR=$1
 
 rm -rf $CERTS_DIR
 mkdir -p $CERTS_DIR
