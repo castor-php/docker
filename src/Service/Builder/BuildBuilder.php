@@ -73,6 +73,20 @@ final class BuildBuilder
         return $this;
     }
 
+    public function noCacheFrom(): self
+    {
+        $this->cacheFrom = [];
+
+        return $this;
+    }
+
+    public function withRegistryCache(string $image): self
+    {
+        $this->cacheFrom = ['type=registry,ref=${REGISTRY:-}/' . $image . ':cache'];
+
+        return $this;
+    }
+
     public function end(): ServiceBuilder
     {
         return $this->serviceBuilder;

@@ -1,5 +1,5 @@
 # syntax=ghcr.io/castor-php/twig-dockerfile:latest
-{% extends '@original/Dockerfile' %}
+{% extends 'Dockerfile' %}
 
 {% block php_extensions %}
     {{ parent() }}

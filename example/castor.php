@@ -19,6 +19,7 @@ function default_context(): Context
 {
     return new Context([
         'root_domain' => 'project.test',
+        'registry' => 'ghcr.io/castor-php/docker-example'
     ]);
 }
 
