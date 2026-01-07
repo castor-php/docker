@@ -197,6 +197,7 @@ class PHPService implements ServiceInterface
             'function' => function (#[AsRawTokens] array $args) {
                 io()->section('Running PHPStan...');
 
+                /** @var list<string> $args */
                 return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->directory);
             },
         ];
@@ -206,6 +207,7 @@ class PHPService implements ServiceInterface
             'function' => function (#[AsRawTokens] array $args) {
                 io()->section('Running PHP CS Fixer...');
 
+                /** @var list<string> $args */
                 return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->directory);
             },
         ];
@@ -215,6 +217,7 @@ class PHPService implements ServiceInterface
             'function' => function (#[AsRawTokens] array $args) {
                 io()->section('Running Rector...');
 
+                /** @var list<string> $args */
                 return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->directory);
             },
         ];

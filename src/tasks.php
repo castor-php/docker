@@ -10,7 +10,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 
+use function Castor\capture;
 use function Castor\context;
+use function Castor\exit_code;
 use function Castor\io;
 use function Castor\variable;
 use function Castor\run;
@@ -219,8 +221,7 @@ function push(bool $dryRun = false): void
             targets = [%s]
         }
 
-        EOHCL
-        , implode(', ', array_map(fn ($name) => \sprintf('"%s"', $name), array_keys($targets))));
+        EOHCL, implode(', ', array_map(fn($name) => \sprintf('"%s"', $name), array_keys($targets))));
 
     foreach ($targets as $service => $target) {
         $additionalContexts = "";
@@ -249,8 +250,7 @@ function push(bool $dryRun = false): void
                 }
             }
 
-            EOHCL
-            , $service, $target['context'], $additionalContexts, $target['dockerfile'], $target['reference'], $target['type'], $target['reference'], $target['target'], $args);
+            EOHCL, $service, $target['context'], $additionalContexts, $target['dockerfile'], $target['reference'], $target['type'], $target['reference'], $target['target'], $args);
     }
 
     if ($dryRun) {
@@ -264,11 +264,13 @@ function push(bool $dryRun = false): void
     file_put_contents($bakeFile, $content);
 
     // Run bake
-    run(['docker', 'buildx', 'bake', '-f', $bakeFile]);
+    run(['docker', 'buildx', 'bake', '-f', $bakeFile], context: context()->withEnvironment([
+        'BUILDX_BAKE_ENTITLEMENTS_FS' => '0',
+    ]));
 }
 
 /**
- * @return array<string, array{profiles?: list<string>, build: array{context: string, dockerfile?: string, cache_from?: list<string>, target?: string}}>
+ * @return array<string, array{profiles?: list<string>, build: array{context: string, dockerfile?: string, cache_from?: list<string>, target?: string, additional_contexts?: array<string, string>, args?: array<string, string>}}>
  */
 function get_services(): array
 {
