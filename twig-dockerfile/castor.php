@@ -45,6 +45,13 @@ function transform_docker_file(string $options): void
     $twig = new \Twig\Environment($loader, [
         'debug' => true,
     ]);
+    $twig->addFunction(new \Twig\TwigFunction('copy', function (string $source, string $target) use ($twig, $args) {
+        $content = $twig->render($source, $args);
+
+        echo "COPY <<EOF {$target}\n";
+        echo $content;
+        echo "\nEOF\n";
+    }));
     $twig->addExtension(new \Twig\Extension\DebugExtension());
 
     echo $twig->render('.', $args);

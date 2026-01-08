@@ -24,6 +24,8 @@ class PHPService implements ServiceInterface
     /** @var array<string, string> */
     private array $phpStanExtraDependencies = [];
 
+    private ?string $redirectionIoKey = null;
+
     /**
      * @var array<string, string>
      */
@@ -86,6 +88,12 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
+    public function withRedirectionIoKey(string $key): self
+    {
+        $this->redirectionIoKey = $key;
+        return $this;
+    }
+
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $userId = $context->data['user_id'] ?? 1000;
@@ -104,6 +112,10 @@ class PHPService implements ServiceInterface
                 ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
                 ->profile('default')
         ;
+
+        if ($this->redirectionIoKey !== null) {
+            $appService->build()->arg('redirection_io_key', $this->redirectionIoKey);
+        }
 
         $buildBuilder = $builder->service($this->name)->build();
 

@@ -11,6 +11,7 @@ use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
+use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\SymfonyService;
 
@@ -47,10 +48,12 @@ function register_service(RegisterServiceEvent $event)
         (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2'))
             ->withDockerfile(__DIR__ . '/Dockerfile')
             ->withDatabaseService($mysqlService)
+            ->withRedirectionIoKey("b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652")
             ->addDomain('app2.project.test')
     );
 
     $event->addService(new RabbitMQService());
     $event->addService(new RedisService());
     $event->addService(new ElasticsearchService());
+    $event->addService(new RedirectionioAgentService());
 }

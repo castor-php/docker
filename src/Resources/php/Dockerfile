@@ -55,8 +55,16 @@ WORKDIR /var/www
 {% block frontend %}
 FROM php-base AS frontend
 
+{% if redirection_io_key is defined %}
+RUN curl -sSL https://packages.redirection.io/gpg.key | gpg --dearmor > /usr/share/keyrings/redirection.io.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/redirection.io.gpg] https://packages.redirection.io/deb/stable/2 bookworm main" | tee -a /etc/apt/sources.list.d/packages_redirection_io_deb.list
+{% endif %}
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+{% if redirection_io_key is defined %}
+        libnginx-mod-redirectionio \
+{% endif %}
         nginx \
         "php{{ php_version }}-fpm" \
         runit \
@@ -67,7 +75,9 @@ RUN apt-get update \
 RUN useradd -s /bin/false nginx
 
 COPY frontend/php-configuration /etc/php/{{ php_version }}
-COPY frontend/etc/nginx/. /etc/nginx/
+COPY frontend/etc/nginx/environments /etc/nginx/environments
+{{ copy('frontend/etc/nginx/nginx.conf.twig', '/etc/nginx/nginx.conf') }}
+
 RUN rm -rf /etc/service/
 COPY frontend/etc/service/. /etc/service/
 RUN chmod 777 /etc/service/*/supervise/

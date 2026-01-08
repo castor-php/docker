@@ -9,7 +9,7 @@ final class BuildBuilder
     private ?string $context = null;
     private ?string $dockerfile = null;
     private ?string $target = null;
-    /** @var array<string, string> */
+    /** @var array<string, ?string> */
     private array $args = [];
     /** @var array<string, string> */
     private array $additionalContexts = [];
@@ -52,7 +52,7 @@ final class BuildBuilder
         return $this;
     }
 
-    public function arg(string $key, string $value): self
+    public function arg(string $key, ?string $value): self
     {
         $this->args[$key] = $value;
 

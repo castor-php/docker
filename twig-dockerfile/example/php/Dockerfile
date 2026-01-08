@@ -143,5 +143,7 @@ RUN cat >> /etc/bash.bashrc <<EOF
 PS1='\[\e[01;33m\]\u \[\e[00;32m\]\w\[\e[0m\] '
 EOF
 
+{{ copy('test.php.twig', '/usr/local/bin/test.php') }}
+
 WORKDIR /var/www
 {% endblock %}

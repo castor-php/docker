@@ -42,9 +42,13 @@ func (proxy *dockerfileTransformingLLBProxy) Solve(ctx context.Context, in *pb.S
 
 func (proxy *dockerfileTransformingLLBProxy) ReadFile(ctx context.Context, in *pb.ReadFileRequest, opts ...grpc.CallOption) (*pb.ReadFileResponse, error) {
 	res, err := proxy.client.ReadFile(ctx, in, opts...)
-	if err == nil && in.FilePath == proxy.dockerfile {
+
+	isReadForTwig := ctx.Value("isReadForTwig")
+
+	if err == nil && isReadForTwig == nil {
 		res.Data, err = proxy.transform(res.Data)
 	}
+
 	return res, err
 }
 

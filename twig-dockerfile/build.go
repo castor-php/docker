@@ -9,14 +9,13 @@ import (
 	"net"
 	"net/rpc"
 	"os/exec"
+	"time"
 
 	"github.com/moby/buildkit/client/llb"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/pkg/errors"
 )
-
-var IsTransforming bool = false
 
 func build(ctx context.Context, c client.Client) (*client.Result, error) {
 	// transform opts into json
@@ -51,12 +50,6 @@ func (s *Transform) Hi(name string, r *string) error {
 }
 
 func (s *Transform) transformDockerfile(dockerfile []byte) ([]byte, error) {
-	if IsTransforming {
-		return dockerfile, nil
-	}
-
-	IsTransforming = true
-
 	cmd := exec.Command("castor", "transform-docker-file", string(s.options))
 	cmd.Stdin = bytes.NewReader(dockerfile)
 
@@ -196,7 +189,9 @@ func loadFileFromContext(ctx context.Context, c client.Client, localCtx string, 
 	}
 
 	var xdockerfile []byte
-	xdockerfile, err = ref.ReadFile(ctx, client.ReadRequest{
+
+	readContext := &ReadFileForTwigContext{Parent: ctx}
+	xdockerfile, err = ref.ReadFile(readContext, client.ReadRequest{
 		Filename: filename,
 	})
 
@@ -205,4 +200,28 @@ func loadFileFromContext(ctx context.Context, c client.Client, localCtx string, 
 	}
 
 	return xdockerfile, nil
+}
+
+type ReadFileForTwigContext struct {
+	Parent context.Context
+}
+
+func (rffc *ReadFileForTwigContext) Deadline() (deadline time.Time, ok bool) {
+	return rffc.Parent.Deadline()
+}
+
+func (rffc *ReadFileForTwigContext) Done() <-chan struct{} {
+	return rffc.Parent.Done()
+}
+
+func (rffc *ReadFileForTwigContext) Err() error {
+	return rffc.Parent.Err()
+}
+
+func (rffc *ReadFileForTwigContext) Value(key interface{}) interface{} {
+	if key == "isReadForTwig" {
+		return true
+	}
+
+	return rffc.Parent.Value(key)
 }
