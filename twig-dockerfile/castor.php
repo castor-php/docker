@@ -45,12 +45,12 @@ function transform_docker_file(string $options): void
     $twig = new \Twig\Environment($loader, [
         'debug' => true,
     ]);
-    $twig->addFunction(new \Twig\TwigFunction('copy', function (string $source, string $target) use ($twig, $args) {
+    $twig->addFunction(new \Twig\TwigFunction('copy', function (string $source, string $target, string $heredoc = 'EOF') use ($twig, $args) {
         $content = $twig->render($source, $args);
 
-        echo "COPY <<'EOF' {$target}\n";
+        echo "COPY <<'{$heredoc}' {$target}\n";
         echo $content;
-        echo "\nEOF\n";
+        echo "\n{$heredoc}\n";
     }));
     $twig->addExtension(new \Twig\Extension\DebugExtension());
 
