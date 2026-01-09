@@ -1,9 +1,12 @@
+{% block root %}
 user      nginx;
 pid       /tmp/nginx.pid;
 daemon    off;
 error_log /proc/self/fd/2;
 include /etc/nginx/modules-enabled/*.conf;
+{% endblock %}
 
+{% block http %}
 http {
     access_log /proc/self/fd/1;
     sendfile on;
@@ -31,6 +34,7 @@ http {
     scgi_temp_path /tmp/nginx-scgi_temp_path;
     uwsgi_temp_path /tmp/nginx-uwsgi_temp_path;
 
+{% block server %}
     server {
         listen 0.0.0.0:80;
         root /var/www/public;
@@ -40,6 +44,7 @@ http {
         redirectionio_project_key "{{ redirection_io_key }}";
 {% endif %}
 
+{% block server_locations %}
         location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg)$ {
             access_log off;
             add_header Cache-Control "no-cache";
@@ -76,10 +81,15 @@ http {
             # # commented by default
             # fastcgi_param SCRIPT_NAME \$request_uri;
         }
+{% endblock %}
 
         error_log  /proc/self/fd/2;
         access_log /proc/self/fd/1;
     }
+{% endblock %}
 }
+{% endblock %}
 
+{% block events %}
 events {}
+{% endblock %}
