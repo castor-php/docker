@@ -48,7 +48,7 @@ function transform_docker_file(string $options): void
     $twig->addFunction(new \Twig\TwigFunction('copy', function (string $source, string $target) use ($twig, $args) {
         $content = $twig->render($source, $args);
 
-        echo "COPY <<EOF {$target}\n";
+        echo "COPY <<'EOF' {$target}\n";
         echo $content;
         echo "\nEOF\n";
     }));
