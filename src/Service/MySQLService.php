@@ -34,6 +34,7 @@ class MySQLService implements DatabaseServiceInterface
                 ->environment('MYSQL_DATABASE', $this->database)
                 ->volume('mysql-data', '/var/lib/mysql')
                 ->healthcheck('mysqladmin ping -h localhost')
+                ->profile('default')
             ->end()
         ;
     }

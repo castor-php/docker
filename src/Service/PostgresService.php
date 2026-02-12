@@ -28,6 +28,7 @@ class PostgresService implements DatabaseServiceInterface
                 ->environment('POSTGRES_PASSWORD', 'app')
                 ->volume('postgres_data', '/var/lib/postgresql/data')
                 ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
+                ->profile('default')
             ->end()
         ;
     }
