@@ -6,6 +6,7 @@ use Castor\Attribute\AsContext;
 use Castor\Attribute\AsListener;
 use Castor\Context;
 use Castor\Docker\Event\RegisterServiceEvent;
+use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
@@ -56,4 +57,5 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(new RedisService());
     $event->addService(new ElasticsearchService());
     $event->addService(new RedirectionioAgentService());
+    $event->addService(new ClickhouseService('25.8'));
 }
