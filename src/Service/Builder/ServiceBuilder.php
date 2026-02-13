@@ -17,6 +17,8 @@ final class ServiceBuilder
     /** @var ?array<string, mixed> */
     private ?array $healthcheck = null;
 
+    private ?string $workingDir = null;
+
     /** @var array<string> */
     private array $labels = [];
 
@@ -191,6 +193,13 @@ final class ServiceBuilder
         return $this;
     }
 
+    public function workingDir(string $workingDir): self
+    {
+        $this->workingDir = $workingDir;
+
+        return $this;
+    }
+
     public function end(): ComposeBuilder
     {
         return $this->composeBuilder;
@@ -209,6 +218,10 @@ final class ServiceBuilder
 
         if ($this->build !== null) {
             $result['build'] = $this->build->toArray();
+        }
+
+        if ($this->workingDir !== null) {
+            $result['working_dir'] = $this->workingDir;
         }
 
         if ($this->user !== null) {
