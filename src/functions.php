@@ -15,6 +15,7 @@ use Castor\Docker\Service\TraefikRouterService;
 use Castor\Event\AfterBootEvent;
 use Castor\Event\ContextCreatedEvent;
 use Castor\ExpressionLanguage;
+use Symfony\Component\ErrorHandler\ErrorRenderer\FileLinkFormatter;
 use Symfony\Component\Process\Process;
 
 use function Castor\context;
@@ -223,7 +224,7 @@ function initialize(AfterBootEvent $afterBootEvent): void
             $asTask = $task['task'];
             $function = new \ReflectionFunction($closure);
             $descriptor = new TaskDescriptor($asTask, $function);
-            $command = new TaskCommand($descriptor, $expressionLanguage, $container->eventDispatcher, $container->contextRegistry, $container->slugger, $container->fs);
+            $command = new TaskCommand($descriptor, $expressionLanguage, $container->eventDispatcher, $container->contextRegistry, $container->slugger, $container->fs, new FileLinkFormatter());
 
             if (method_exists($afterBootEvent->application, 'addCommand')) {
                 $afterBootEvent->application->addCommand($command);

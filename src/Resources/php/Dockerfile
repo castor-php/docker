@@ -2,7 +2,7 @@
 # hadolint global ignore=DL3008
 
 {% block php_base %}
-FROM debian:12.8-slim AS php-base
+FROM debian:13.5-slim AS php-base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -13,7 +13,7 @@ RUN apt-get update \
         gnupg \
     && curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb \
     && dpkg -i /tmp/debsuryorg-archive-keyring.deb \
-    && echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ bookworm main" > /etc/apt/sources.list.d/sury.list \
+    && echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ trixie main" > /etc/apt/sources.list.d/sury.list \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
@@ -57,7 +57,7 @@ FROM php-base AS frontend
 
 {% if redirection_io_key is defined %}
 RUN curl -sSL https://packages.redirection.io/gpg.key | gpg --dearmor > /usr/share/keyrings/redirection.io.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/redirection.io.gpg] https://packages.redirection.io/deb/stable/2 bookworm main" | tee -a /etc/apt/sources.list.d/packages_redirection_io_deb.list
+    && echo "deb [signed-by=/usr/share/keyrings/redirection.io.gpg] https://packages.redirection.io/deb/stable/3 trixie main" | tee -a /etc/apt/sources.list.d/packages_redirection_io_deb.list
 {% endif %}
 
 RUN apt-get update \
