@@ -52,7 +52,7 @@ final class DockerfileTransformerTest extends TestCase
             file_put_contents($expectedFile, $actual);
         }
 
-        self::assertStringEqualsFile($expectedFile, $actual, \sprintf(
+        static::assertStringEqualsFile($expectedFile, $actual, \sprintf(
             'Fixture "%s" does not match. Run "UPDATE_SNAPSHOTS=1 vendor/bin/phpunit --testsuite transform" to regenerate, then review the diff.',
             basename($dir),
         ));
@@ -95,11 +95,11 @@ final class DockerfileTransformerTest extends TestCase
             'build-arg:config' => '{"a": 1}',
         ]);
 
-        self::assertSame('hello world', $args['name'], 'Non-JSON values are kept as strings.');
-        self::assertSame(8.4, $args['php_version'], 'Numeric values are JSON-decoded (historical behavior).');
-        self::assertSame(['a' => 1], $args['config'], 'JSON values are decoded to arrays.');
-        self::assertArrayNotHasKey('filename', $args);
-        self::assertArrayNotHasKey('target', $args);
+        static::assertSame('hello world', $args['name'], 'Non-JSON values are kept as strings.');
+        static::assertSame(8.4, $args['php_version'], 'Numeric values are JSON-decoded (historical behavior).');
+        static::assertSame(['a' => 1], $args['config'], 'JSON values are decoded to arrays.');
+        static::assertArrayNotHasKey('filename', $args);
+        static::assertArrayNotHasKey('target', $args);
     }
 
     public function testStripLeadingCommentsOnlyRemovesTheLeadingBlock(): void
@@ -115,9 +115,9 @@ final class DockerfileTransformerTest extends TestCase
 
         $stripped = DockerfileTransformer::stripLeadingComments($dockerfile);
 
-        self::assertStringStartsWith('FROM alpine:3', $stripped);
-        self::assertStringContainsString('# this comment must survive', $stripped);
-        self::assertStringNotContainsString('# syntax=', $stripped);
-        self::assertStringNotContainsString('hadolint', $stripped);
+        static::assertStringStartsWith('FROM alpine:3', $stripped);
+        static::assertStringContainsString('# this comment must survive', $stripped);
+        static::assertStringNotContainsString('# syntax=', $stripped);
+        static::assertStringNotContainsString('hadolint', $stripped);
     }
 }

@@ -17,7 +17,7 @@ final class ServiceBuilderTest extends TestCase
 
     public function testEmptyServiceProducesNoKeys(): void
     {
-        self::assertSame([], $this->service()->toArray());
+        static::assertSame([], $this->service()->toArray());
     }
 
     public function testVolumeWithAndWithoutMode(): void
@@ -27,13 +27,13 @@ final class ServiceBuilderTest extends TestCase
             ->volume('data', '/var/lib/data', 'cached')
         ;
 
-        self::assertSame(['/host:/container', 'data:/var/lib/data:cached'], $service->toArray()['volumes']);
+        static::assertSame(['/host:/container', 'data:/var/lib/data:cached'], $service->toArray()['volumes']);
     }
 
     public function testUserWithGroup(): void
     {
-        self::assertSame('1000:1000', $this->service()->user('1000', '1000')->toArray()['user']);
-        self::assertSame('www-data', $this->service()->user('www-data')->toArray()['user']);
+        static::assertSame('1000:1000', $this->service()->user('1000', '1000')->toArray()['user']);
+        static::assertSame('www-data', $this->service()->user('www-data')->toArray()['user']);
     }
 
     public function testBuildIsReused(): void
@@ -43,8 +43,8 @@ final class ServiceBuilderTest extends TestCase
         $build = $service->build('/context');
         $again = $service->build();
 
-        self::assertSame($build, $again);
-        self::assertSame(['context' => '/context'], $service->toArray()['build']);
+        static::assertSame($build, $again);
+        static::assertSame(['context' => '/context'], $service->toArray()['build']);
     }
 
     public function testBuildFromAnotherBuilderIsCloned(): void
@@ -57,10 +57,10 @@ final class ServiceBuilderTest extends TestCase
         $clone = $compose->service('app-builder')->build($original);
         $clone->target('builder');
 
-        self::assertNotSame($original, $clone);
-        self::assertSame('frontend', $compose->service('app')->toArray()['build']['target'], 'Mutating the clone must not affect the original build.');
-        self::assertSame('builder', $compose->service('app-builder')->toArray()['build']['target']);
-        self::assertSame(['php_version' => '8.4'], $compose->service('app-builder')->toArray()['build']['args'], 'Clone must inherit args from the original build.');
+        static::assertNotSame($original, $clone);
+        static::assertSame('frontend', $compose->service('app')->toArray()['build']['target'], 'Mutating the clone must not affect the original build.');
+        static::assertSame('builder', $compose->service('app-builder')->toArray()['build']['target']);
+        static::assertSame(['php_version' => '8.4'], $compose->service('app-builder')->toArray()['build']['args'], 'Clone must inherit args from the original build.');
     }
 
     public function testTraefikRoutingHttpsOnly(): void
@@ -70,7 +70,7 @@ final class ServiceBuilderTest extends TestCase
             ->toArray()['labels']
         ;
 
-        self::assertSame([
+        static::assertSame([
             'traefik.enable=true',
             'traefik.http.routers.demo-app.rule=Host(`app.demo.test`)',
             'traefik.http.routers.demo-app.tls=true',
@@ -88,7 +88,7 @@ final class ServiceBuilderTest extends TestCase
             ->toArray()['labels']
         ;
 
-        self::assertContains('traefik.http.routers.demo-app.rule=Host(`app.demo.test`) || Host(`demo.test`)', $labels);
+        static::assertContains('traefik.http.routers.demo-app.rule=Host(`app.demo.test`) || Host(`demo.test`)', $labels);
     }
 
     public function testTraefikRoutingWithHttpAccess(): void
@@ -98,15 +98,15 @@ final class ServiceBuilderTest extends TestCase
             ->toArray()['labels']
         ;
 
-        self::assertContains('traefik.http.routers.demo-app.entrypoints=http,https', $labels);
-        self::assertNotContains('traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file', $labels);
+        static::assertContains('traefik.http.routers.demo-app.entrypoints=http,https', $labels);
+        static::assertNotContains('traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file', $labels);
     }
 
     public function testEndReturnsComposeBuilder(): void
     {
         $compose = new ComposeBuilder();
 
-        self::assertSame($compose, $compose->service('app')->end());
-        self::assertSame($compose, $compose->service('app')->build('/ctx')->end()->end());
+        static::assertSame($compose, $compose->service('app')->end());
+        static::assertSame($compose, $compose->service('app')->build('/ctx')->end()->end());
     }
 }

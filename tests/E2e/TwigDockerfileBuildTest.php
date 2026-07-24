@@ -22,7 +22,7 @@ final class TwigDockerfileBuildTest extends TestCase
     public function testDockerBuildWithTwigSyntax(): void
     {
         if (!getenv('RUN_E2E')) {
-            self::markTestSkipped('Set RUN_E2E=1 to run the end-to-end docker build test.');
+            static::markTestSkipped('Set RUN_E2E=1 to run the end-to-end docker build test.');
         }
 
         $root = \dirname(__DIR__, 2);
@@ -34,7 +34,7 @@ final class TwigDockerfileBuildTest extends TestCase
         }
 
         $buildDir = sys_get_temp_dir() . '/twig-dockerfile-e2e-' . getmypid();
-        mkdir($buildDir, 0777, true);
+        mkdir($buildDir, 0o777, true);
 
         try {
             file_put_contents($buildDir . '/Dockerfile', <<<DOCKERFILE
@@ -59,7 +59,7 @@ final class TwigDockerfileBuildTest extends TestCase
 
             $run = $this->runOk(['docker', 'run', '--rm', $tag]);
 
-            self::assertStringContainsString('hello-from-twig-world', $run->getOutput());
+            static::assertStringContainsString('hello-from-twig-world', $run->getOutput());
         } finally {
             array_map('unlink', glob($buildDir . '/*'));
             rmdir($buildDir);
@@ -75,7 +75,7 @@ final class TwigDockerfileBuildTest extends TestCase
         $process = new Process($command, timeout: $timeout, env: $env);
         $process->run();
 
-        self::assertTrue($process->isSuccessful(), \sprintf(
+        static::assertTrue($process->isSuccessful(), \sprintf(
             "Command \"%s\" failed:\n%s\n%s",
             implode(' ', $command),
             $process->getOutput(),

@@ -27,7 +27,7 @@ final class GeneratedComposeTest extends TestCase
         $castor = getenv('CASTOR_BINARY') ?: (new ExecutableFinder())->find('castor');
 
         if (!$castor) {
-            self::markTestSkipped('No castor binary found: install castor or set CASTOR_BINARY.');
+            static::markTestSkipped('No castor binary found: install castor or set CASTOR_BINARY.');
         }
 
         if (!is_dir($exampleDir . '/.castor/vendor')) {
@@ -35,7 +35,7 @@ final class GeneratedComposeTest extends TestCase
             $install->run();
 
             if (!$install->isSuccessful()) {
-                self::markTestSkipped('Could not install the example castor dependencies: ' . $install->getErrorOutput());
+                static::markTestSkipped('Could not install the example castor dependencies: ' . $install->getErrorOutput());
             }
         }
 
@@ -45,14 +45,14 @@ final class GeneratedComposeTest extends TestCase
         $process = new Process([$castor, 'list', '--no-interaction'], $exampleDir, timeout: 120);
         $process->run();
 
-        self::assertTrue($process->isSuccessful(), "castor list failed:\n" . $process->getOutput() . $process->getErrorOutput());
+        static::assertTrue($process->isSuccessful(), "castor list failed:\n" . $process->getOutput() . $process->getErrorOutput());
 
         // guard against a vacuous pass: if the plugin did not boot, nothing was regenerated
-        self::assertStringContainsString('docker:build', $process->getOutput(), 'The docker plugin tasks are missing: the example project did not boot correctly.');
+        static::assertStringContainsString('docker:build', $process->getOutput(), 'The docker plugin tasks are missing: the example project did not boot correctly.');
 
         $fresh = file_get_contents($generatedFile);
 
-        self::assertSame(
+        static::assertSame(
             $this->normalize($committed, $root),
             $this->normalize($fresh, $root),
             'example/compose.generated.yaml is out of date: the code now generates a different compose file. Review the change and commit the regenerated file.',

@@ -1,6 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 use Castor\Attribute\AsTask;
+
 use function Castor\context;
 use function Castor\PHPQa\phpstan;
 use function Castor\PHPQa\php_cs_fixer;

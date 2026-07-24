@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Castor\Attribute\AsTask;
 use Castor\TwigDockerfile\DockerfileTransformer;
 use Castor\TwigDockerfile\TcpTemplateSource;
@@ -14,13 +16,13 @@ require_once __DIR__ . '/src/DockerfileTransformer.php';
 function transform_docker_file(string $options): void
 {
     $options = json_decode($options, true);
-    $dockerfile = stream_get_contents(STDIN);
+    $dockerfile = stream_get_contents(\STDIN);
 
     // connect to the golang rpc server, used to load templates from build contexts
     $socket = fsockopen('127.0.0.1', 6001, $errno, $errstr, 30);
 
     if (!$socket) {
-        fwrite(STDERR, "Error: cannot connect to the frontend server: $errstr ($errno)\n");
+        fwrite(\STDERR, "Error: cannot connect to the frontend server: $errstr ($errno)\n");
         exit(1);
     }
 

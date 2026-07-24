@@ -39,13 +39,13 @@ abstract class SnapshotTestCase extends TestCase
 
         if (getenv('UPDATE_SNAPSHOTS') || !file_exists($file)) {
             if (!is_dir(\dirname($file))) {
-                mkdir(\dirname($file), 0777, true);
+                mkdir(\dirname($file), 0o777, true);
             }
 
             file_put_contents($file, $yaml);
         }
 
-        self::assertStringEqualsFile($file, $yaml, \sprintf(
+        static::assertStringEqualsFile($file, $yaml, \sprintf(
             'Snapshot "%s" does not match. Run "UPDATE_SNAPSHOTS=1 vendor/bin/phpunit" to regenerate it, then review the diff.',
             basename($file),
         ));

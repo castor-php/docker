@@ -11,7 +11,7 @@ final class ComposeBuilderTest extends TestCase
 {
     public function testEmptyCompose(): void
     {
-        self::assertSame(['services' => [], 'volumes' => []], (new ComposeBuilder())->toArray());
+        static::assertSame(['services' => [], 'volumes' => []], (new ComposeBuilder())->toArray());
     }
 
     public function testServiceIsReusedByName(): void
@@ -21,7 +21,7 @@ final class ComposeBuilderTest extends TestCase
         $first = $builder->service('app');
         $second = $builder->service('app');
 
-        self::assertSame($first, $second, 'Requesting the same service name twice must return the same builder so services can be merged.');
+        static::assertSame($first, $second, 'Requesting the same service name twice must return the same builder so services can be merged.');
     }
 
     public function testVolumes(): void
@@ -30,7 +30,7 @@ final class ComposeBuilderTest extends TestCase
         $builder->volume('data');
         $builder->volume('other', ['driver' => 'local']);
 
-        self::assertSame(
+        static::assertSame(
             ['data' => [], 'other' => ['driver' => 'local']],
             $builder->toArray()['volumes'],
         );

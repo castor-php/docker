@@ -32,3 +32,6 @@ jobs:
 
       - name: PHPStan
         run: castor qa:phpstan
+
+      - name: PHP CS Fixer
+        run: castor qa:cs --dry-run

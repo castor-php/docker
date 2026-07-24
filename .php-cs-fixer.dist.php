@@ -18,5 +18,6 @@ return (new Config())
     ->setFinder(
         (new Finder())
             ->in(__DIR__)
+            ->exclude('example')
     )
 ;

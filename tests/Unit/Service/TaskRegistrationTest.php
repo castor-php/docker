@@ -38,7 +38,7 @@ final class TaskRegistrationTest extends TestCase
 
     public function testPhpServiceTasks(): void
     {
-        self::assertSame(
+        static::assertSame(
             ['app:bash', 'app:install', 'app:composer', 'app:qa:phpstan', 'app:qa:cs', 'app:qa:rector'],
             $this->taskNames(new PHPService(name: 'app')),
         );
@@ -46,7 +46,7 @@ final class TaskRegistrationTest extends TestCase
 
     public function testSymfonyServiceTasks(): void
     {
-        self::assertSame(
+        static::assertSame(
             [
                 'app:bash', 'app:install', 'app:composer', 'app:qa:phpstan', 'app:qa:cs', 'app:qa:rector',
                 'app:cache-clear', 'app:cache-warmup', 'app:db:fixtures', 'app:db:migrate', 'app:symfony', 'app:qa:twig-cs',
@@ -57,20 +57,20 @@ final class TaskRegistrationTest extends TestCase
 
     public function testDatabaseServicesTasks(): void
     {
-        self::assertSame(['db:psql'], $this->taskNames(new PostgresService()));
-        self::assertSame(['db:mysql'], $this->taskNames(new MySQLService()));
-        self::assertSame(['db:mariadb'], $this->taskNames(new MariaDBService()));
-        self::assertSame(['db:clickhouse'], $this->taskNames(new ClickhouseService('25.8')));
+        static::assertSame(['db:psql'], $this->taskNames(new PostgresService()));
+        static::assertSame(['db:mysql'], $this->taskNames(new MySQLService()));
+        static::assertSame(['db:mariadb'], $this->taskNames(new MariaDBService()));
+        static::assertSame(['db:clickhouse'], $this->taskNames(new ClickhouseService('25.8')));
     }
 
     public function testGoServiceTasks(): void
     {
-        self::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api', '1.25')));
+        static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api', '1.25')));
     }
 
     public function testTraefikRouterTasks(): void
     {
-        self::assertSame(
+        static::assertSame(
             ['router:generate-certificates', 'router:enable', 'router:disable'],
             $this->taskNames(new TraefikRouterService()),
         );

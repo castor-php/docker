@@ -40,12 +40,12 @@ final class TcpTemplateSourceTest extends TestCase
 
         $source = new TcpTemplateSource($this->client);
 
-        self::assertSame($payload, $source->load('base', 'Dockerfile'));
+        static::assertSame($payload, $source->load('base', 'Dockerfile'));
 
         $length = unpack('N', fread($this->server, 4))[1];
         $request = json_decode(fread($this->server, $length), true);
 
-        self::assertSame(['context' => 'base', 'filename' => 'Dockerfile'], $request);
+        static::assertSame(['context' => 'base', 'filename' => 'Dockerfile'], $request);
     }
 
     public function testReassemblesResponsesLargerThanAStreamChunk(): void
@@ -57,7 +57,7 @@ final class TcpTemplateSourceTest extends TestCase
 
         $source = new TcpTemplateSource($this->client);
 
-        self::assertSame($payload, $source->load('context', 'Dockerfile'));
+        static::assertSame($payload, $source->load('context', 'Dockerfile'));
     }
 
     public function testZeroLengthResponseMeansNotFound(): void
@@ -66,7 +66,7 @@ final class TcpTemplateSourceTest extends TestCase
 
         $source = new TcpTemplateSource($this->client);
 
-        self::assertNull($source->load('context', 'missing'));
+        static::assertNull($source->load('context', 'missing'));
     }
 
     public function testTimeoutWithoutResponseMeansNotFound(): void
@@ -76,7 +76,7 @@ final class TcpTemplateSourceTest extends TestCase
 
         $source = new TcpTemplateSource($this->client);
 
-        self::assertNull($source->load('context', 'missing'));
+        static::assertNull($source->load('context', 'missing'));
     }
 
     public function testTruncatedResponseHeaderMeansNotFound(): void
@@ -86,6 +86,6 @@ final class TcpTemplateSourceTest extends TestCase
 
         $source = new TcpTemplateSource($this->client);
 
-        self::assertNull($source->load('context', 'missing'));
+        static::assertNull($source->load('context', 'missing'));
     }
 }
