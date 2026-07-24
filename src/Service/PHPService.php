@@ -40,6 +40,8 @@ class PHPService implements ServiceInterface
     private ?int $frankenPhpWorkerNum = null;
     private bool $frankenPhpWorkerWatch = true;
 
+    protected string $dockerFile;
+
     public function __construct(
         protected string $name = 'app',
         protected string $directory = '.',
@@ -52,9 +54,9 @@ class PHPService implements ServiceInterface
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
         protected PhpMode $mode = PhpMode::FrankenPhp,
-        protected ?string $dockerFile = null,
+        ?string $dockerFile = null,
     ) {
-        $this->dockerFile ??= match ($this->mode) {
+        $this->dockerFile = $dockerFile ?? match ($this->mode) {
             PhpMode::FrankenPhp => __DIR__ . '/../Resources/php/Dockerfile.frankenphp',
             PhpMode::Fpm => __DIR__ . '/../Resources/php/Dockerfile',
         };
