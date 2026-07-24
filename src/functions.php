@@ -18,6 +18,7 @@ use Castor\ExpressionLanguage;
 use Symfony\Component\ErrorHandler\ErrorRenderer\FileLinkFormatter;
 use Symfony\Component\Process\Process;
 
+use function Castor\capture;
 use function Castor\context;
 use function Castor\get_cache;
 use function Castor\io;
@@ -168,15 +169,39 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
         '--publish', "{$hostPort}:{$hostPort}",
         '--restart', 'unless-stopped',
         // Tag as an orphan of the compose project so "docker:destroy"
-        // ("compose down --remove-orphans") tears it down with the rest.
+        // ("compose down --remove-orphans") tears it down with the rest, and
+        // with our own label so "docker:stop" can find every forwarder.
         '--label', "com.docker.compose.project={$project}",
         '--label', "com.docker.compose.service=expose-{$service}",
+        '--label', 'castor.expose=1',
         'alpine/socat',
         "TCP-LISTEN:{$hostPort},fork,reuseaddr",
         "TCP:{$service}:{$containerPort}",
     ], context: $context->withQuiet());
 
     io()->success("Exposing \"{$service}\" on tcp://127.0.0.1:{$hostPort}");
+}
+
+/**
+ * Stop every "<service>:expose" forwarder container of the current project.
+ * Called by "docker:stop" so the exposed ports go down with the infrastructure.
+ */
+function stop_exposed_services(): void
+{
+    $context = context();
+    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+
+    $ids = trim(capture([
+        'docker', 'ps', '--quiet',
+        '--filter', 'label=castor.expose=1',
+        '--filter', "label=com.docker.compose.project={$project}",
+    ], context: $context->withAllowFailure()));
+
+    if ($ids === '') {
+        return;
+    }
+
+    run(['docker', 'stop', ...explode("\n", $ids)], context: $context->withQuiet()->withAllowFailure());
 }
 
 #[AsListener(ContextCreatedEvent::class)]

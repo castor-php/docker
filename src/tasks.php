@@ -109,6 +109,12 @@ function stop(
     }
 
     docker_compose($command, profiles: $profiles);
+
+    // Expose forwarders are standalone containers (not compose services), so a
+    // full stop must take them down too.
+    if (!$service) {
+        stop_exposed_services();
+    }
 }
 
 /**
