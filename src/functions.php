@@ -133,6 +133,52 @@ function docker_exit_code(
     return $process->getExitCode() ?? 0;
 }
 
+/**
+ * Expose a service's TCP port on the host, or stop exposing it when $stop is true.
+ *
+ * Runs a small socat forwarder container that publishes $hostPort and forwards
+ * it to $service:$containerPort over the project network — handy to reach a
+ * database or broker from the host without publishing a port statically. There
+ * is one forwarder per service: calling this again replaces it, and $stop
+ * removes it. The forwarder is tagged as an orphan of the compose project so
+ * "docker:destroy" tears it down with the rest of the infrastructure.
+ *
+ * Meant to be wired into a service task, e.g. "castor mysql:expose [port] [--stop]".
+ */
+function expose_service_port(string $service, int $containerPort, ?int $hostPort = null, bool $stop = false): void
+{
+    $hostPort ??= $containerPort;
+    $context = context();
+    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+    $name = "{$project}-expose-{$service}";
+
+    // Remove any existing forwarder first (idempotent, and how --stop works).
+    run(['docker', 'rm', '-f', $name], context: $context->withQuiet()->withAllowFailure());
+
+    if ($stop) {
+        io()->success("Stopped exposing the \"{$service}\" service.");
+
+        return;
+    }
+
+    run([
+        'docker', 'run', '--detach',
+        '--name', $name,
+        '--network', "{$project}_default",
+        '--publish', "{$hostPort}:{$hostPort}",
+        '--restart', 'unless-stopped',
+        // Tag as an orphan of the compose project so "docker:destroy"
+        // ("compose down --remove-orphans") tears it down with the rest.
+        '--label', "com.docker.compose.project={$project}",
+        '--label', "com.docker.compose.service=expose-{$service}",
+        'alpine/socat',
+        "TCP-LISTEN:{$hostPort},fork,reuseaddr",
+        "TCP:{$service}:{$containerPort}",
+    ], context: $context->withQuiet());
+
+    io()->success("Exposing \"{$service}\" on tcp://127.0.0.1:{$hostPort}");
+}
+
 #[AsListener(ContextCreatedEvent::class)]
 function on_init_context(ContextCreatedEvent $event): void
 {

@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
+use Castor\Attribute\AsArgument;
+use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
+
+use function Castor\Docker\expose_service_port;
 
 class RedisService implements ServiceInterface
 {
@@ -38,6 +42,15 @@ class RedisService implements ServiceInterface
 
     public function getTasks(): iterable
     {
-        return [];
+        yield [
+            'task' => new AsTask('expose', $this->getName(), description: 'Expose the redis service over TCP on the host (--stop to stop)'),
+            'function' => function (
+                #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
+                ?int $port = null,
+                bool $stop = false,
+            ): void {
+                expose_service_port($this->getName(), 6379, $port, $stop);
+            },
+        ];
     }
 }

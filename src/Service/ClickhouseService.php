@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
+use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
+use function Castor\Docker\expose_service_port;
 use function Castor\context;
 
 readonly class ClickhouseService implements ServiceInterface
@@ -63,6 +65,17 @@ readonly class ClickhouseService implements ServiceInterface
             'task' => new AsTask('clickhouse', 'db', 'Connect to the Clickhouse database'),
             'function' => function (): void {
                 docker_compose(['exec', 'clickhouse', 'clickhouse-client', '-d', 'app'], c: context()->toInteractive());
+            },
+        ];
+
+        yield [
+            'task' => new AsTask('expose', $this->getName(), description: 'Expose the clickhouse service (native protocol) over TCP on the host (--stop to stop)'),
+            'function' => function (
+                #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
+                ?int $port = null,
+                bool $stop = false,
+            ): void {
+                expose_service_port($this->getName(), 9000, $port, $stop);
             },
         ];
     }

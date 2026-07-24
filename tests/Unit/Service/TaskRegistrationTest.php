@@ -57,10 +57,10 @@ final class TaskRegistrationTest extends TestCase
 
     public function testDatabaseServicesTasks(): void
     {
-        static::assertSame(['db:psql'], $this->taskNames(new PostgresService()));
-        static::assertSame(['db:mysql'], $this->taskNames(new MySQLService()));
-        static::assertSame(['db:mariadb'], $this->taskNames(new MariaDBService()));
-        static::assertSame(['db:clickhouse'], $this->taskNames(new ClickhouseService('25.8')));
+        static::assertSame(['db:psql', 'postgres:expose'], $this->taskNames(new PostgresService()));
+        static::assertSame(['db:mysql', 'mysql:expose'], $this->taskNames(new MySQLService()));
+        static::assertSame(['db:mariadb', 'mariadb:expose'], $this->taskNames(new MariaDBService()));
+        static::assertSame(['db:clickhouse', 'clickhouse:expose'], $this->taskNames(new ClickhouseService('25.8')));
     }
 
     public function testGoServiceTasks(): void

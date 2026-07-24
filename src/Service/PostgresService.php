@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
+use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
+use function Castor\Docker\expose_service_port;
 use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface
@@ -39,6 +41,17 @@ class PostgresService implements DatabaseServiceInterface
             'task' => new AsTask('psql', 'db', 'Connect to the PostgreSQL database'),
             'function' => function (): void {
                 docker_compose(['exec', 'postgres', 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
+            },
+        ];
+
+        yield [
+            'task' => new AsTask('expose', $this->getName(), description: 'Expose the postgres service over TCP on the host (--stop to stop)'),
+            'function' => function (
+                #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
+                ?int $port = null,
+                bool $stop = false,
+            ): void {
+                expose_service_port($this->getName(), 5432, $port, $stop);
             },
         ];
     }

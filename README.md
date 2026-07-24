@@ -282,10 +282,27 @@ new CaddyRouterService(
 - Named volume: `router-data` (issued certificates and local CA)
 - Exposes ports: 80 (HTTP), 443 (HTTPS)
 
-The router handles HTTP/HTTPS only. Raw TCP services (databases, Redis, …) can't
-be hostname-routed, so reach them directly on their container (e.g. connect to
-`postgres:5432` from another container, or publish the port on the service in
-your `compose.override.yaml` if you need host access).
+The router handles HTTP/HTTPS only — raw TCP protocols can't be hostname-routed.
+Non-backend services (databases, Redis, RabbitMQ, Elasticsearch, ClickHouse,
+Mailpit) therefore expose an opt-in `<service>:expose` task instead:
+
+```bash
+# Publish the service's port on the host (postgres → localhost:5432)
+castor postgres:expose
+
+# Pick a different host port (e.g. to avoid a clash with a local server)
+castor mysql:expose 3307
+
+# Stop exposing it
+castor postgres:expose --stop
+```
+
+Each task runs a small `socat` forwarder container that publishes the port on
+demand and forwards to the service over the project network — nothing is opened
+on the host until you ask. The forwarders are tagged as part of the compose
+project, so `castor docker:destroy` removes them along with everything else.
+Under the hood the task calls the `expose_service_port()` helper, which your own
+services can reuse.
 
 ## Docker Tasks
 
