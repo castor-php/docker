@@ -77,7 +77,7 @@ function up(
         io()->title('Starting infrastructure');
     }
 
-    $command = ['up', '--detach', '--no-build'];
+    $command = ['up', '--detach', '--no-build', '--remove-orphans'];
 
     if ($service) {
         $command[] = $service;
@@ -221,6 +221,81 @@ function service_install(
     $installer->postUp($answers);
 
     io()->success(\sprintf('"%s" is installed and running.', $installer->getName()));
+}
+
+#[AsTask(description: 'Remove a service from castor.php and tear down its containers', namespace: 'docker:service', name: 'remove')]
+function service_remove(
+    #[AsArgument(description: 'The registered service to remove (omit to list them)')]
+    ?string $name = null,
+    #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
+    ?string $file = null,
+): void {
+    $c = context();
+    $services = collect_services();
+
+    /** @var array<string, ServiceInterface> $registered */
+    $registered = [];
+    foreach ($services as $service) {
+        if ($service->getName() !== 'router') {
+            $registered[$service->getName()] = $service;
+        }
+    }
+
+    if ($name === null || !isset($registered[$name])) {
+        if ($name !== null) {
+            io()->error(\sprintf('No registered service named "%s".', $name));
+        }
+
+        io()->section('Registered services');
+        foreach (array_keys($registered) as $registeredName) {
+            io()->writeln('  <info>' . $registeredName . '</info>');
+        }
+
+        return;
+    }
+
+    $service = $registered[$name];
+    $file ??= $c->workingDirectory . '/castor.php';
+
+    if (!is_file($file)) {
+        io()->error(\sprintf('%s does not exist.', $file));
+
+        return;
+    }
+
+    io()->title(\sprintf('Removing "%s"', $name));
+
+    $editor = new ListenerEditor((string) file_get_contents($file));
+
+    try {
+        $removed = $editor->removeService($service::class, $name);
+    } catch (\RuntimeException $e) {
+        io()->error($e->getMessage());
+
+        return;
+    }
+
+    if (!$removed) {
+        io()->error(\sprintf('Could not find the registration of "%s" in %s.', $name, basename($file)));
+
+        return;
+    }
+
+    file_put_contents($file, $editor->getSource());
+    io()->success(\sprintf('Removed "%s" from %s.', $name, basename($file)));
+
+    // Regenerate the compose file without the service, then drop its (now orphan)
+    // containers. Named volumes are kept, so the data survives a re-install.
+    $remaining = array_filter($services, static fn(ServiceInterface $s): bool => $s->getName() !== $name);
+    generate_compose_file($c, $remaining);
+
+    if (isset(get_exposed_services()[$name])) {
+        expose_service_port($name, 0, stop: true);
+    }
+
+    docker_compose(['up', '--detach', '--no-build', '--remove-orphans']);
+
+    io()->success(\sprintf('"%s" removed.', $name));
 }
 
 #[AsTask(description: 'Cleans the infrastructure (remove container, volume, networks)', aliases: ['destroy'], namespace: 'docker')]

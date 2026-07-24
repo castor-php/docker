@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Installer;
 
+use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
+use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\MethodCall;
@@ -15,6 +17,7 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Param;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Declare_;
 use PhpParser\Node\Stmt\Expression;
@@ -22,6 +25,7 @@ use PhpParser\Node\Stmt\Function_;
 use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\UseItem;
+use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\CloningVisitor;
 use PhpParser\ParserFactory;
@@ -207,9 +211,199 @@ final class ListenerEditor
         return null;
     }
 
+    /**
+     * Remove the registration of the given service (matched by class, and by the
+     * "name:" argument when present) from the listener, dropping a now-unused
+     * variable assignment and imports. Returns false when it is not registered.
+     *
+     * @throws \RuntimeException when the service is referenced by another one (e.g. a linked database)
+     */
+    public function removeService(string $class, string $name): bool
+    {
+        $listener = $this->findListener();
+
+        if ($listener === null) {
+            return false;
+        }
+
+        $short = substr((string) strrchr('\\' . ltrim($class, '\\'), '\\'), 1);
+
+        foreach ($listener->stmts as $index => $statement) {
+            if (
+                !$statement instanceof Expression
+                || !$statement->expr instanceof MethodCall
+                || !$statement->expr->name instanceof Identifier
+                || $statement->expr->name->name !== 'addService'
+                || \count($statement->expr->args) !== 1
+                || !($arg = $statement->expr->args[0]) instanceof Arg
+            ) {
+                continue;
+            }
+
+            $value = $arg->value;
+
+            // addService($variable) with a matching "$variable = new X(...)".
+            if ($value instanceof Variable && \is_string($value->name)) {
+                $assignIndex = $this->findAssignment($listener, $value->name, $short, $name);
+
+                if ($assignIndex === null) {
+                    continue;
+                }
+
+                if ($this->variableUsedElsewhere($listener, $value->name, [$assignIndex, $index])) {
+                    throw new \RuntimeException(\sprintf('"%s" is referenced by another service (e.g. linked as a database); remove or unlink that service first.', $name));
+                }
+
+                $assignment = $listener->stmts[$assignIndex];
+                $shortNames = $assignment instanceof Expression && $assignment->expr instanceof Assign
+                    ? $this->classShortNames($assignment->expr->expr)
+                    : [$short];
+
+                $indexes = [$index, $assignIndex];
+                rsort($indexes);
+                foreach ($indexes as $remove) {
+                    array_splice($listener->stmts, $remove, 1);
+                }
+
+                $this->removeUnusedImports($shortNames);
+
+                return true;
+            }
+
+            // addService(new X(...)) or addService((new X(...))->...()).
+            $new = $this->chainBaseNew($value);
+
+            if ($new !== null && $new->class instanceof Name && $new->class->getLast() === $short && $this->newMatchesName($new, $name)) {
+                array_splice($listener->stmts, $index, 1);
+                $this->removeUnusedImports($this->classShortNames($value));
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function getSource(): string
     {
         return (new PrettyPrinter\Standard())->printFormatPreserving($this->newStmts, $this->oldStmts, $this->oldTokens);
+    }
+
+    private function chainBaseNew(Expr $expr): ?New_
+    {
+        while ($expr instanceof MethodCall) {
+            $expr = $expr->var;
+        }
+
+        return $expr instanceof New_ ? $expr : null;
+    }
+
+    private function newMatchesName(New_ $new, string $name): bool
+    {
+        foreach ($new->args as $arg) {
+            if ($arg instanceof Arg && $arg->name instanceof Identifier && $arg->name->name === 'name') {
+                return $arg->value instanceof String_ && $arg->value->value === $name;
+            }
+        }
+
+        return true;
+    }
+
+    private function findAssignment(Function_ $listener, string $variable, string $short, string $name): ?int
+    {
+        foreach ($listener->stmts as $index => $statement) {
+            if (
+                $statement instanceof Expression
+                && $statement->expr instanceof Assign
+                && $statement->expr->var instanceof Variable
+                && $statement->expr->var->name === $variable
+                && ($new = $this->chainBaseNew($statement->expr->expr)) !== null
+                && $new->class instanceof Name
+                && $new->class->getLast() === $short
+                && $this->newMatchesName($new, $name)
+            ) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param int[] $exceptIndexes
+     */
+    private function variableUsedElsewhere(Function_ $listener, string $variable, array $exceptIndexes): bool
+    {
+        $finder = new NodeFinder();
+
+        foreach ($listener->stmts as $index => $statement) {
+            if (\in_array($index, $exceptIndexes, true)) {
+                continue;
+            }
+
+            if ($finder->findFirst($statement, static fn(Node $node): bool => $node instanceof Variable && $node->name === $variable) !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function classShortNames(Node $node): array
+    {
+        $names = [];
+
+        foreach ((new NodeFinder())->findInstanceOf($node, Name::class) as $name) {
+            $names[$name->getLast()] = true;
+        }
+
+        return array_keys($names);
+    }
+
+    /**
+     * @param list<string> $shortNames
+     */
+    private function removeUnusedImports(array $shortNames): void
+    {
+        $statements = $this->containerStmts();
+        $changed = false;
+
+        foreach ($statements as $index => $statement) {
+            if (!$statement instanceof Use_ || \count($statement->uses) !== 1) {
+                continue;
+            }
+
+            $short = $statement->uses[0]->name->getLast();
+
+            if (\in_array($short, $shortNames, true) && !$this->isClassUsed($short)) {
+                unset($statements[$index]);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $this->setContainerStmts(array_values($statements));
+        }
+    }
+
+    private function isClassUsed(string $short): bool
+    {
+        $finder = new NodeFinder();
+
+        foreach ($this->containerStmts() as $statement) {
+            if ($statement instanceof Use_) {
+                continue;
+            }
+
+            if ($finder->findFirst($statement, static fn(Node $node): bool => $node instanceof Name && $node->getLast() === $short) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isNewOf(mixed $expr, string $short): bool

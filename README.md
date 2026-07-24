@@ -89,9 +89,24 @@ and if it needs a database you're offered to link an existing one or install a
 new one on the spot. Pass `--no-interaction` to accept the defaults, or `--file`
 to target a listener file other than `castor.php`.
 
-Your code is edited with a format-preserving AST rewrite, so only the added
-lines change. Other plugins can contribute their own installers by listening to
-`RegisterServiceInstallerEvent`.
+Removing works the same way — it unregisters the service from your listener
+(dropping a now-unused variable and imports) and tears down its containers,
+keeping named volumes so the data survives a re-install:
+
+```bash
+# List the registered services
+castor docker:service:remove
+
+# Remove one
+castor docker:service:remove mailpit
+```
+
+A database that another service links to is protected — you're asked to remove
+or unlink the dependent service first.
+
+Your code is edited with a format-preserving AST rewrite, so only the added or
+removed lines change. Other plugins can contribute their own installers by
+listening to `RegisterServiceInstallerEvent`.
 
 ## Available Services
 
