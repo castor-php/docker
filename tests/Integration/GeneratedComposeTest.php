@@ -10,16 +10,22 @@ use Symfony\Component\Process\Process;
 
 /**
  * Boots the real castor binary in example/ (which regenerates
- * compose.generated.yaml) and checks the result matches the committed file.
- * The committed compose.generated.yaml in example/ IS the snapshot: when this
- * test fails, review and commit the new file.
+ * compose.generated.yaml) and checks the result against a committed,
+ * normalized snapshot. Regenerate with UPDATE_SNAPSHOTS=1, then review the
+ * diff.
  *
  * Requires a castor binary (CASTOR_BINARY env var, or "castor" in PATH).
- * Note: vendor/bin/castor does not work here, it does not act as a project
- * runner when castor is installed as a dependency of this repository.
+ * Notes:
+ *  - vendor/bin/castor does not work here, it does not act as a project
+ *    runner when castor is installed as a dependency of this repository;
+ *  - the boot must go through a real task command ("docker:build --help"):
+ *    for "castor list" castor sets up a bare context without dispatching
+ *    ContextCreatedEvent, so the generated file would lose the project name.
  */
 final class GeneratedComposeTest extends TestCase
 {
+    private const SNAPSHOT = __DIR__ . '/../snapshots/example-compose.generated.yaml';
+
     public function testExampleGeneratedComposeIsUpToDate(): void
     {
         $root = \dirname(__DIR__, 2);
@@ -39,23 +45,22 @@ final class GeneratedComposeTest extends TestCase
             }
         }
 
-        $generatedFile = $exampleDir . '/compose.generated.yaml';
-        $committed = file_get_contents($generatedFile);
-
-        $process = new Process([$castor, 'list', '--no-interaction'], $exampleDir, timeout: 120);
+        $process = new Process([$castor, 'docker:build', '--help', '--no-interaction'], $exampleDir, timeout: 120);
         $process->run();
 
-        static::assertTrue($process->isSuccessful(), "castor list failed:\n" . $process->getOutput() . $process->getErrorOutput());
+        // if the plugin did not boot, the docker:build command does not even exist
+        static::assertTrue($process->isSuccessful(), "castor docker:build --help failed:\n" . $process->getOutput() . $process->getErrorOutput());
 
-        // guard against a vacuous pass: if the plugin did not boot, nothing was regenerated
-        static::assertStringContainsString('docker:build', $process->getOutput(), 'The docker plugin tasks are missing: the example project did not boot correctly.');
+        $fresh = $this->normalize(file_get_contents($exampleDir . '/compose.generated.yaml'), $root);
 
-        $fresh = file_get_contents($generatedFile);
+        if (getenv('UPDATE_SNAPSHOTS') || !file_exists(self::SNAPSHOT)) {
+            file_put_contents(self::SNAPSHOT, $fresh);
+        }
 
-        static::assertSame(
-            $this->normalize($committed, $root),
-            $this->normalize($fresh, $root),
-            'example/compose.generated.yaml is out of date: the code now generates a different compose file. Review the change and commit the regenerated file.',
+        static::assertStringEqualsFile(
+            self::SNAPSHOT,
+            $fresh,
+            'The example project now generates a different compose file. Review the diff, then regenerate the snapshot with "UPDATE_SNAPSHOTS=1 vendor/bin/phpunit --testsuite integration".',
         );
     }
 
