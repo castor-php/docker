@@ -14,7 +14,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          tools: composer
+          tools: composer, castor
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
@@ -22,16 +22,32 @@ jobs:
       - name: Unit and transform tests
         run: vendor/bin/phpunit --testsuite unit,transform
 
-      - name: Install castor
-        run: |
-          curl -fsSL https://github.com/jolicode/castor/releases/download/v1.6.1/castor.linux-amd64 -o /usr/local/bin/castor
-          chmod +x /usr/local/bin/castor
-
       - name: Integration tests
         run: vendor/bin/phpunit --testsuite integration
 
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer, castor
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
       - name: PHPStan
         run: castor qa:phpstan
+
+  cs-fixer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Castor
+        uses: castor-php/setup-castor@v1.0.0
 
       - name: PHP CS Fixer
         run: castor qa:cs --dry-run
