@@ -39,6 +39,7 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(
         (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1', mode: PhpMode::FrankenPhp))
             ->withDatabaseService($postgresService)
+            ->addExtension('amqp')
             ->addExtension('redis')
             ->addDomain('app1.project.test')
             ->addDomain('project.test')
