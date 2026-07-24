@@ -67,6 +67,32 @@ castor docker:build
 castor docker:up
 ```
 
+## Installing Services
+
+Instead of editing your `castor.php` by hand, you can install a service from the
+command line — it registers the service in your `RegisterServiceEvent` listener
+(creating the listener if there is none) and then builds and starts it:
+
+```bash
+# List the installable services
+castor docker:service:install
+
+# Install one
+castor docker:service:install mariadb
+castor docker:service:install symfony
+```
+
+Depending on the service, you'll be asked a few questions (app name, directory,
+PHP version, …). Some services do more on install — a Symfony app is scaffolded
+with `composer create-project symfony/skeleton` inside its own builder container,
+and if it needs a database you're offered to link an existing one or install a
+new one on the spot. Pass `--no-interaction` to accept the defaults, or `--file`
+to target a listener file other than `castor.php`.
+
+Your code is edited with a format-preserving AST rewrite, so only the added
+lines change. Other plugins can contribute their own installers by listening to
+`RegisterServiceInstallerEvent`.
+
 ## Available Services
 
 ### SymfonyService

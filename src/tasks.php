@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Castor\Docker;
 
+use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsOption;
 use Castor\Attribute\AsTask;
+use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
+use Castor\Docker\Installer\ListenerEditor;
+use Castor\Docker\Installer\NeedsDatabase;
+use Castor\Docker\Service\ServiceInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -150,6 +155,72 @@ function logs(
 function ps(): void
 {
     docker_compose(['ps']);
+}
+
+#[AsTask(description: 'Install a service, register it in castor.php, then build and start it', namespace: 'docker:service', name: 'install')]
+function service_install(
+    #[AsArgument(description: 'The service to install (omit to list the available ones)')]
+    ?string $name = null,
+    #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
+    ?string $file = null,
+): void {
+    $installers = collect_service_installers();
+
+    if ($name === null || !isset($installers[$name])) {
+        if ($name !== null) {
+            io()->error(\sprintf('Unknown service "%s".', $name));
+        }
+
+        io()->section('Available services');
+        foreach ($installers as $installer) {
+            io()->writeln(\sprintf('  <info>%s</info> — %s', $installer->getName(), $installer->getDescription()));
+        }
+
+        return;
+    }
+
+    $installer = $installers[$name];
+    $c = context();
+    $file ??= $c->workingDirectory . '/castor.php';
+
+    io()->title(\sprintf('Installing "%s"', $installer->getName()));
+
+    $answers = ask_installer_inputs($installer);
+
+    $source = is_file($file) ? (file_get_contents($file) ?: "<?php\n") : "<?php\n";
+    $editor = new ListenerEditor($source);
+
+    /** @var ServiceInterface[] $extraServices */
+    $extraServices = [];
+
+    if ($installer instanceof NeedsDatabase) {
+        $database = resolve_database_link($editor, $installers);
+        $answers['database'] = $database['variable'];
+        $answers['database_instance'] = $database['instance'];
+        $extraServices = $database['services'];
+    }
+
+    $builder = new ServiceStatementBuilder($editor->getEventVariable());
+    $installer->buildStatements($builder, $answers);
+    $editor->addImports($builder->getImports());
+    $editor->addStatements($builder->getStatements());
+
+    file_put_contents($file, $editor->getSource());
+    io()->success(\sprintf('Registered "%s" in %s.', $installer->getName(), basename($file)));
+
+    // Host-side preparation, then regenerate the compose file in-process with the
+    // freshly created instances so build/up see the new services immediately.
+    $installer->prepare($answers);
+
+    $services = [...collect_services(), ...$extraServices, $installer->createInstance($answers)];
+    generate_compose_file($c, $services);
+
+    build();
+    $installer->scaffold($answers);
+    up();
+    $installer->postUp($answers);
+
+    io()->success(\sprintf('"%s" is installed and running.', $installer->getName()));
 }
 
 #[AsTask(description: 'Cleans the infrastructure (remove container, volume, networks)', aliases: ['destroy'], namespace: 'docker')]
