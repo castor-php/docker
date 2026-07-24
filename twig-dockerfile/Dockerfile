@@ -4,7 +4,7 @@ ARG TARGETARCH
 # fetch castor from github
 WORKDIR /app
 RUN apt  update && apt install -y git ca-certificates curl
-RUN curl -LO https://github.com/jolicode/castor/releases/download/v1.1.0/castor.linux-amd64 && \
+RUN curl -LO https://github.com/jolicode/castor/releases/download/v1.6.1/castor.linux-amd64 && \
     mv castor.linux-amd64 /app/castor && \
     chmod +x /app/castor
 
@@ -18,7 +18,7 @@ RUN /app/castor composer install --no-dev --optimize-autoloader
 FROM alpine:3 AS certs
 RUN apk --no-cache add ca-certificates
 
-FROM golang:1.25 AS build-frontend
+FROM golang:1.26 AS build-frontend
 ARG TARGETARCH
 WORKDIR /app
 
