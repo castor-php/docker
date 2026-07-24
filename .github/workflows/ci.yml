@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request: ~
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Unit and transform tests
+        run: vendor/bin/phpunit --testsuite unit,transform
+
+      - name: Install castor
+        run: |
+          curl -fsSL https://github.com/jolicode/castor/releases/download/v1.6.1/castor.linux-amd64 -o /usr/local/bin/castor
+          chmod +x /usr/local/bin/castor
+
+      - name: Integration tests
+        run: vendor/bin/phpunit --testsuite integration
+
+      - name: PHPStan
+        run: castor qa:phpstan

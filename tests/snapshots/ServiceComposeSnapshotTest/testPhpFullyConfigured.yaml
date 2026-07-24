@@ -1,0 +1,112 @@
+services:
+    postgres:
+        image: 'postgres:16'
+        environment:
+            POSTGRES_USER: app
+            POSTGRES_PASSWORD: app
+        volumes:
+            - 'postgres_data:/var/lib/postgresql/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'pg_isready -U app'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    app:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: frontend
+            args:
+                php_version: '8.4'
+                redirection_io_key: test-key
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app:cache'
+        user: '1000:1000'
+        environment:
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - traefik.enable=true
+            - 'traefik.http.routers.demo-app.rule=Host(`app.demo.test`) || Host(`demo.test`)'
+            - traefik.http.routers.demo-app.tls=true
+            - traefik.http.services.demo-app.loadbalancer.server.port=80
+            - 'traefik.http.routers.demo-app.entrypoints=http,https'
+        profiles:
+            - default
+    app-builder:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: builder
+            args:
+                php_version: '8.4'
+                redirection_io_key: test-key
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
+        user: '1000:1000'
+        init: true
+        environment:
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+    app-worker-messenger:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: worker
+            args:
+                php_version: '8.4'
+                redirection_io_key: test-key
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
+        user: '1000:1000'
+        environment:
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+        command: 'php bin/console messenger:consume async'
+    app-worker-scheduler:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: worker
+            args:
+                php_version: '8.4'
+                redirection_io_key: test-key
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
+        user: '1000:1000'
+        environment:
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+        command: 'php bin/console schedule:run'
+volumes:
+    postgres_data: {}

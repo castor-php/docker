@@ -1,0 +1,23 @@
+services:
+    rabbitmq:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/rabbitmq
+        volumes:
+            - 'rabbitmq-data:/var/lib/rabbitmq'
+        healthcheck:
+            test: "rabbitmqctl eval '{ true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running }, { [], no_alarms } = { rabbit:alarms(), no_alarms }, [] /= rabbit_networking:active_listeners(), rabbitmq_node_is_healthy.' || exit 1"
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-rabbitmq.rule=Host(`rabbitmq.demo.test`)
+            - traefik.http.routers.demo-rabbitmq.tls=true
+            - traefik.http.services.demo-rabbitmq.loadbalancer.server.port=15672
+            - traefik.http.routers.demo-rabbitmq-unsecure.rule=Host(`rabbitmq.demo.test`)
+            - traefik.http.routers.demo-rabbitmq-unsecure.entrypoints=http
+            - traefik.http.routers.demo-rabbitmq-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+volumes:
+    rabbitmq-data: {}

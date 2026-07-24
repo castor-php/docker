@@ -1,0 +1,31 @@
+services:
+    redis:
+        image: 'redis:5'
+        volumes:
+            - 'redis-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    redis-insight:
+        image: redislabs/redisinsight
+        volumes:
+            - 'redis-insight-data:/db'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-redis.rule=Host(`redis.demo.test`)
+            - traefik.http.routers.demo-redis.tls=true
+            - traefik.http.routers.demo-redis-unsecure.rule=Host(`redis.demo.test`)
+            - traefik.http.routers.demo-redis-unsecure.entrypoints=http
+            - traefik.http.routers.demo-redis-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+volumes:
+    redis-data: {}
+    redis-insight-data: {}

@@ -1,0 +1,1 @@
+{"install_cmd": "apk update && apk add \"php-cli\" '<php>'"}

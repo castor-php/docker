@@ -3,7 +3,9 @@
     "description": "Castor plugin for docker",
     "type": "library",
     "require-dev": {
-        "jolicode/castor": "^1.1"
+        "jolicode/castor": "^1.1",
+        "phpunit/phpunit": "^13.2",
+        "twig/twig": "^3.28"
     },
     "license": "MIT",
     "autoload": {
@@ -14,6 +16,12 @@
             "src/functions.php",
             "src/tasks.php"
         ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Castor\\Docker\\Tests\\": "tests/",
+            "Castor\\TwigDockerfile\\": "twig-dockerfile/src/"
+        }
     },
     "authors": [
         {

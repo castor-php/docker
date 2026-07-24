@@ -1,0 +1,33 @@
+services:
+    app:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: frontend
+            args:
+                php_version: '8.5'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app:cache'
+        user: '1000:1000'
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+    app-builder:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            target: builder
+            args:
+                php_version: '8.5'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
+        user: '1000:1000'
+        init: true
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+volumes: {}

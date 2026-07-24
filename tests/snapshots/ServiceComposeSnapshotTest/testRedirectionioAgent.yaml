@@ -1,0 +1,7 @@
+services:
+    redirectionio-agent:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/redirectionio-agent
+        profiles:
+            - default
+volumes: {}

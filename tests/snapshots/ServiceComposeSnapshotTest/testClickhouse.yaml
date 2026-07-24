@@ -1,0 +1,35 @@
+services:
+    clickhouse:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            dockerfile: Dockerfile
+            args:
+                clickhouse_version: '25.8'
+                backup: ''
+        environment:
+            CLICKHOUSE_DB: app
+            CLICKHOUSE_USER: app
+            CLICKHOUSE_PASSWORD: app
+            CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+            CLICKHOUSE_KEEPER_HOST: clickhouse-keeper
+        volumes:
+            - 'clickhouse-data:/var/lib/clickhouse'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-clickhouse.rule=Host(`clickhouse.demo.test`)
+            - traefik.http.routers.demo-clickhouse.tls=true
+            - traefik.http.routers.demo-clickhouse-unsecure.rule=Host(`clickhouse.demo.test`)
+            - traefik.http.routers.demo-clickhouse-unsecure.entrypoints=http
+            - traefik.http.routers.demo-clickhouse-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+    clickhouse-keeper:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            dockerfile: Dockerfile.keeper
+            args:
+                clickhouse_version: '25.8'
+        profiles:
+            - default
+volumes:
+    clickhouse-data: {}

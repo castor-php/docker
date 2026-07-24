@@ -1,0 +1,41 @@
+services:
+    elasticsearch:
+        image: 'elasticsearch:7.8.0'
+        environment:
+            discovery.type: single-node
+        volumes:
+            - 'elasticsearch-data:/usr/share/elasticsearch/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:9200/_cat/health || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-elasticsearch.rule=Host(`elasticsearch.demo.test`)
+            - traefik.http.routers.demo-elasticsearch.tls=true
+            - traefik.http.services.demo-elasticsearch.loadbalancer.server.port=9200
+            - traefik.http.routers.demo-elasticsearch-unsecure.rule=Host(`elasticsearch.demo.test`)
+            - traefik.http.routers.demo-elasticsearch-unsecure.entrypoints=http
+            - traefik.http.routers.demo-elasticsearch-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+    kibana:
+        image: 'kibana:7.8.0'
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-kibana.rule=Host(`kibana.demo.test`)
+            - traefik.http.routers.demo-kibana.tls=true
+            - traefik.http.services.demo-kibana.loadbalancer.server.port=5601
+            - traefik.http.routers.demo-kibana-unsecure.rule=Host(`kibana.demo.test`)
+            - traefik.http.routers.demo-kibana-unsecure.entrypoints=http
+            - traefik.http.routers.demo-kibana-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+volumes:
+    elasticsearch-data: {}

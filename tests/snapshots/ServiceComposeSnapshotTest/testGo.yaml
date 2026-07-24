@@ -1,0 +1,22 @@
+services:
+    api:
+        image: 'golang:1.25'
+        working_dir: /app
+        user: '1000:1000'
+        environment:
+            HOME: /home/app
+        volumes:
+            - '/project/api:/app:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.demo-api.rule=Host(`api.demo.test`)
+            - traefik.http.routers.demo-api.tls=true
+            - traefik.http.services.demo-api.loadbalancer.server.port=80
+            - traefik.http.routers.demo-api-unsecure.rule=Host(`api.demo.test`)
+            - traefik.http.routers.demo-api-unsecure.entrypoints=http
+            - traefik.http.routers.demo-api-unsecure.middlewares=redirect-to-https@file
+        profiles:
+            - default
+        command: /app/api
+volumes: {}

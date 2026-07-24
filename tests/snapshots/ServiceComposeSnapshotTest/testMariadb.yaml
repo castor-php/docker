@@ -1,0 +1,17 @@
+services:
+    mariadb:
+        image: 'mariadb:12.1'
+        environment:
+            MARIADB_ROOT_PASSWORD: root
+            MARIADB_DATABASE: app
+        volumes:
+            - 'mariadb-data:/var/lib/mysql'
+        healthcheck:
+            test: 'mariadb-admin ping -h localhost'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+volumes:
+    mariadb-data: {}

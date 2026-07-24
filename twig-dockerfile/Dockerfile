@@ -9,6 +9,7 @@ RUN curl -LO https://github.com/jolicode/castor/releases/download/v1.1.0/castor.
     chmod +x /app/castor
 
 COPY castor.php /app/castor.php
+COPY src /app/src
 COPY castor.composer.json /app/castor.composer.json
 COPY castor.composer.lock /app/castor.composer.lock
 

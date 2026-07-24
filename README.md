@@ -24,7 +24,7 @@ castor composer require castor-php/docker
 
 1. Create a `castor.php` file in your project root:
 
-```docker/example/castor.php#L1-58
+```php
 <?php
 
 namespace project;
