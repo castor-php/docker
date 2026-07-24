@@ -5,13 +5,13 @@ services:
             context: %ROOT%/src/Service/../Resources/router
         volumes:
             - '/var/run/docker.sock:/var/run/docker.sock'
+            - 'router-data:/data'
             - '.home:/home/app:cached'
         profiles:
             - router
         ports:
             - '80:80'
             - '443:443'
-            - '8080:8080'
     postgres:
         image: 'postgres:16'
         environment:
@@ -62,11 +62,12 @@ services:
             - '%ROOT%/example/app1:/var/www:cached'
             - '.home:/home/app:cached'
         labels:
-            - traefik.enable=true
-            - 'traefik.http.routers.castor-docker-demo-app1.rule=Host(`app1.project.test`) || Host(`project.test`) || Host(`localhost`)'
-            - traefik.http.routers.castor-docker-demo-app1.tls=true
-            - traefik.http.services.castor-docker-demo-app1.loadbalancer.server.port=80
-            - 'traefik.http.routers.castor-docker-demo-app1.entrypoints=http,https'
+            - 'caddy=app1.project.test project.test localhost'
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - 'caddy_1=http://app1.project.test http://project.test http://localhost'
+            - 'caddy_1.reverse_proxy={{upstreams 80}}'
         profiles:
             - default
     app1-builder:
@@ -134,13 +135,10 @@ services:
             - '%ROOT%/example/app2:/var/www:cached'
             - '.home:/home/app:cached'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-app2.rule=Host(`app2.project.test`)
-            - traefik.http.routers.castor-docker-demo-app2.tls=true
-            - traefik.http.services.castor-docker-demo-app2.loadbalancer.server.port=80
-            - traefik.http.routers.castor-docker-demo-app2-unsecure.rule=Host(`app2.project.test`)
-            - traefik.http.routers.castor-docker-demo-app2-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-app2-unsecure.middlewares=redirect-to-https@file
+            - caddy=app2.project.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     app2-builder:
@@ -177,13 +175,10 @@ services:
             timeout: 5s
             retries: 5
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-rabbitmq.rule=Host(`rabbitmq.project.test`)
-            - traefik.http.routers.castor-docker-demo-rabbitmq.tls=true
-            - traefik.http.services.castor-docker-demo-rabbitmq.loadbalancer.server.port=15672
-            - traefik.http.routers.castor-docker-demo-rabbitmq-unsecure.rule=Host(`rabbitmq.project.test`)
-            - traefik.http.routers.castor-docker-demo-rabbitmq-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-rabbitmq-unsecure.middlewares=redirect-to-https@file
+            - caddy=rabbitmq.project.test
+            - 'caddy.reverse_proxy={{upstreams 15672}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     redis:
@@ -205,12 +200,10 @@ services:
         volumes:
             - 'redis-insight-data:/db'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-redis.rule=Host(`redis.project.test`)
-            - traefik.http.routers.castor-docker-demo-redis.tls=true
-            - traefik.http.routers.castor-docker-demo-redis-unsecure.rule=Host(`redis.project.test`)
-            - traefik.http.routers.castor-docker-demo-redis-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-redis-unsecure.middlewares=redirect-to-https@file
+            - caddy=redis.project.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     elasticsearch:
@@ -227,13 +220,10 @@ services:
             timeout: 5s
             retries: 5
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-elasticsearch.rule=Host(`elasticsearch.project.test`)
-            - traefik.http.routers.castor-docker-demo-elasticsearch.tls=true
-            - traefik.http.services.castor-docker-demo-elasticsearch.loadbalancer.server.port=9200
-            - traefik.http.routers.castor-docker-demo-elasticsearch-unsecure.rule=Host(`elasticsearch.project.test`)
-            - traefik.http.routers.castor-docker-demo-elasticsearch-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-elasticsearch-unsecure.middlewares=redirect-to-https@file
+            - caddy=elasticsearch.project.test
+            - 'caddy.reverse_proxy={{upstreams 9200}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     kibana:
@@ -242,13 +232,10 @@ services:
             elasticsearch:
                 condition: service_healthy
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-kibana.rule=Host(`kibana.project.test`)
-            - traefik.http.routers.castor-docker-demo-kibana.tls=true
-            - traefik.http.services.castor-docker-demo-kibana.loadbalancer.server.port=5601
-            - traefik.http.routers.castor-docker-demo-kibana-unsecure.rule=Host(`kibana.project.test`)
-            - traefik.http.routers.castor-docker-demo-kibana-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-kibana-unsecure.middlewares=redirect-to-https@file
+            - caddy=kibana.project.test
+            - 'caddy.reverse_proxy={{upstreams 5601}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     redirectionio-agent:
@@ -272,12 +259,10 @@ services:
         volumes:
             - 'clickhouse-data:/var/lib/clickhouse'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-clickhouse.rule=Host(`clickhouse.project.test`)
-            - traefik.http.routers.castor-docker-demo-clickhouse.tls=true
-            - traefik.http.routers.castor-docker-demo-clickhouse-unsecure.rule=Host(`clickhouse.project.test`)
-            - traefik.http.routers.castor-docker-demo-clickhouse-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-clickhouse-unsecure.middlewares=redirect-to-https@file
+            - caddy=clickhouse.project.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     clickhouse-keeper:
@@ -298,17 +283,15 @@ services:
             - '%ROOT%/example/go-app:/app:cached'
             - '.home:/home/app:cached'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.castor-docker-demo-app3.rule=Host(`app3.project.test`)
-            - traefik.http.routers.castor-docker-demo-app3.tls=true
-            - traefik.http.services.castor-docker-demo-app3.loadbalancer.server.port=80
-            - traefik.http.routers.castor-docker-demo-app3-unsecure.rule=Host(`app3.project.test`)
-            - traefik.http.routers.castor-docker-demo-app3-unsecure.entrypoints=http
-            - traefik.http.routers.castor-docker-demo-app3-unsecure.middlewares=redirect-to-https@file
+            - caddy=app3.project.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
         command: /app/app3
 volumes:
+    router-data: {}
     postgres_data: {}
     mysql-data: {}
     rabbitmq-data: {}

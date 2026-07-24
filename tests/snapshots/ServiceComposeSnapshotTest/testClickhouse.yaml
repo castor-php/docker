@@ -15,12 +15,10 @@ services:
         volumes:
             - 'clickhouse-data:/var/lib/clickhouse'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-clickhouse.rule=Host(`clickhouse.demo.test`)
-            - traefik.http.routers.demo-clickhouse.tls=true
-            - traefik.http.routers.demo-clickhouse-unsecure.rule=Host(`clickhouse.demo.test`)
-            - traefik.http.routers.demo-clickhouse-unsecure.entrypoints=http
-            - traefik.http.routers.demo-clickhouse-unsecure.middlewares=redirect-to-https@file
+            - caddy=clickhouse.demo.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     clickhouse-keeper:

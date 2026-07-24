@@ -10,13 +10,10 @@ services:
             timeout: 5s
             retries: 5
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-rabbitmq.rule=Host(`rabbitmq.demo.test`)
-            - traefik.http.routers.demo-rabbitmq.tls=true
-            - traefik.http.services.demo-rabbitmq.loadbalancer.server.port=15672
-            - traefik.http.routers.demo-rabbitmq-unsecure.rule=Host(`rabbitmq.demo.test`)
-            - traefik.http.routers.demo-rabbitmq-unsecure.entrypoints=http
-            - traefik.http.routers.demo-rabbitmq-unsecure.middlewares=redirect-to-https@file
+            - caddy=rabbitmq.demo.test
+            - 'caddy.reverse_proxy={{upstreams 15672}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
 volumes:

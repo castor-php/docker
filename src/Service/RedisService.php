@@ -16,7 +16,6 @@ class RedisService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
         return $builder
@@ -31,7 +30,7 @@ class RedisService implements ServiceInterface
             ->service('redis-insight')
                 ->image('redislabs/redisinsight')
                 ->volume('redis-insight-data', '/db')
-                ->withTraefikRouting("{$projectName}-redis", "redis.{$rootDomain}")
+                ->withHttpRouting("redis.{$rootDomain}")
                 ->profile('default')
             ->end()
         ;

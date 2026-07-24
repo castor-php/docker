@@ -4,11 +4,12 @@ services:
             context: %PACKAGE%/src/Service/../Resources/router
         volumes:
             - '/var/run/docker.sock:/var/run/docker.sock'
+            - 'router-data:/data'
             - '.home:/home/app:cached'
         profiles:
             - router
         ports:
             - '80:80'
             - '443:443'
-            - '8080:8080'
-volumes: {}
+volumes:
+    router-data: {}

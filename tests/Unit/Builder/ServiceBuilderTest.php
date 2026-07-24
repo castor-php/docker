@@ -63,43 +63,41 @@ final class ServiceBuilderTest extends TestCase
         static::assertSame(['php_version' => '8.4'], $compose->service('app-builder')->toArray()['build']['args'], 'Clone must inherit args from the original build.');
     }
 
-    public function testTraefikRoutingHttpsOnly(): void
+    public function testHttpRoutingHttpsOnly(): void
     {
         $labels = $this->service()
-            ->withTraefikRouting('demo-app', 'app.demo.test', 80)
+            ->withHttpRouting('app.demo.test', 80)
             ->toArray()['labels']
         ;
 
         static::assertSame([
-            'traefik.enable=true',
-            'traefik.http.routers.demo-app.rule=Host(`app.demo.test`)',
-            'traefik.http.routers.demo-app.tls=true',
-            'traefik.http.services.demo-app.loadbalancer.server.port=80',
-            'traefik.http.routers.demo-app-unsecure.rule=Host(`app.demo.test`)',
-            'traefik.http.routers.demo-app-unsecure.entrypoints=http',
-            'traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file',
+            'caddy=app.demo.test',
+            'caddy.reverse_proxy={{upstreams 80}}',
+            'caddy.tls=internal',
+            'caddy.tls.on_demand=',
         ], $labels);
     }
 
-    public function testTraefikRoutingMultipleDomains(): void
+    public function testHttpRoutingMultipleDomains(): void
     {
         $labels = $this->service()
-            ->withTraefikRouting('demo-app', ['app.demo.test', 'demo.test'])
+            ->withHttpRouting(['app.demo.test', 'demo.test'])
             ->toArray()['labels']
         ;
 
-        static::assertContains('traefik.http.routers.demo-app.rule=Host(`app.demo.test`) || Host(`demo.test`)', $labels);
+        static::assertContains('caddy=app.demo.test demo.test', $labels);
+        static::assertContains('caddy.reverse_proxy={{upstreams}}', $labels);
     }
 
-    public function testTraefikRoutingWithHttpAccess(): void
+    public function testHttpRoutingWithHttpAccess(): void
     {
         $labels = $this->service()
-            ->withTraefikRouting('demo-app', 'app.demo.test', allowHttpAccess: true)
+            ->withHttpRouting('app.demo.test', 80, allowHttpAccess: true)
             ->toArray()['labels']
         ;
 
-        static::assertContains('traefik.http.routers.demo-app.entrypoints=http,https', $labels);
-        static::assertNotContains('traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file', $labels);
+        static::assertContains('caddy_1=http://app.demo.test', $labels);
+        static::assertContains('caddy_1.reverse_proxy={{upstreams 80}}', $labels);
     }
 
     public function testEndReturnsComposeBuilder(): void

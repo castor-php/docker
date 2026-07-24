@@ -11,7 +11,7 @@ use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
 use Castor\Docker\Event\RegisterServiceEvent;
 use Castor\Docker\Service\Builder\ComposeBuilder;
-use Castor\Docker\Service\TraefikRouterService;
+use Castor\Docker\Service\CaddyRouterService;
 use Castor\Event\AfterBootEvent;
 use Castor\Event\ContextCreatedEvent;
 use Castor\ExpressionLanguage;
@@ -183,7 +183,7 @@ function initialize(AfterBootEvent $afterBootEvent): void
     $dispatcher = $container->eventDispatcher;
 
     $event = new RegisterServiceEvent();
-    $event->addService(new TraefikRouterService());
+    $event->addService(new CaddyRouterService());
 
     $dispatcher->dispatch($event);
 

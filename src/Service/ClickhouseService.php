@@ -28,7 +28,6 @@ readonly class ClickhouseService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
         return $builder
@@ -40,7 +39,7 @@ readonly class ClickhouseService implements ServiceInterface
                     ->arg('backup', (string) $this->backup)
                 ->end()
                 ->volume('clickhouse-data', '/var/lib/clickhouse')
-                ->withTraefikRouting("{$projectName}-clickhouse", "clickhouse.{$rootDomain}")
+                ->withHttpRouting("clickhouse.{$rootDomain}")
                 ->environment('CLICKHOUSE_DB', $this->database)
                 ->environment('CLICKHOUSE_USER', $this->username)
                 ->environment('CLICKHOUSE_PASSWORD', $this->password)

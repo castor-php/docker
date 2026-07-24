@@ -9,13 +9,10 @@ services:
             - '/project/api:/app:cached'
             - '.home:/home/app:cached'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-api.rule=Host(`api.demo.test`)
-            - traefik.http.routers.demo-api.tls=true
-            - traefik.http.services.demo-api.loadbalancer.server.port=80
-            - traefik.http.routers.demo-api-unsecure.rule=Host(`api.demo.test`)
-            - traefik.http.routers.demo-api-unsecure.entrypoints=http
-            - traefik.http.routers.demo-api-unsecure.middlewares=redirect-to-https@file
+            - caddy=api.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
         command: /app/api

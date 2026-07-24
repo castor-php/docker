@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\CaddyRouterService;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoService;
@@ -18,7 +19,6 @@ use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
-use Castor\Docker\Service\TraefikRouterService;
 use Castor\Docker\Tests\SnapshotTestCase;
 
 /**
@@ -82,9 +82,9 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build(new RedirectionioAgentService()));
     }
 
-    public function testTraefikRouter(): void
+    public function testCaddyRouter(): void
     {
-        $this->assertMatchesYamlSnapshot($this->build(new TraefikRouterService()));
+        $this->assertMatchesYamlSnapshot($this->build(new CaddyRouterService()));
     }
 
     public function testGo(): void

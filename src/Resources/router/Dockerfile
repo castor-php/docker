@@ -1,5 +1,6 @@
-FROM traefik:v3.6.1
+FROM lucaslorentz/caddy-docker-proxy:2.13.1-alpine
 
-COPY traefik /etc/traefik
+# Base Caddyfile merged with the configuration generated from the Docker labels.
+COPY Caddyfile /etc/caddy/Caddyfile
 
-VOLUME [ "/etc/ssl/certs" ]
+ENV CADDY_DOCKER_CADDYFILE_PATH=/etc/caddy/Caddyfile

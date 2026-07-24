@@ -39,7 +39,6 @@ final class GoService implements ServiceInterface
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $userId = $context->data['user_id'] ?? 1000;
-        $projectName = $context->data['project_name'] ?? 'app';
 
         $appService = $builder
             ->service($this->name)
@@ -55,7 +54,7 @@ final class GoService implements ServiceInterface
 
         if ($this->domains) {
             $appService
-                ->withTraefikRouting("{$projectName}-{$this->name}", $this->domains, 80, $this->allowHttpAccess);
+                ->withHttpRouting($this->domains, 80, $this->allowHttpAccess);
         }
 
         return $builder;

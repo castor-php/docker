@@ -7,8 +7,8 @@ A powerful Castor plugin that simplifies Docker-based development environments f
 - 🚀 Automatic Docker Compose configuration generation
 - 🔧 Pre-configured services for common infrastructure components
 - 🎯 Service-specific tasks for common operations
-- 🔒 SSL certificate generation (with mkcert support)
-- 🌐 Traefik-based reverse proxy with automatic routing
+- 🔒 On-demand, locally-trusted HTTPS (with mkcert support)
+- 🌐 Caddy-based reverse proxy with automatic routing from Docker labels
 - 📦 Multi-stage Docker builds with registry caching
 - 👥 Multi-application support in a single project
 
@@ -258,30 +258,34 @@ new RedirectionioAgentService()
 **Docker Services Created:**
 - `redirectionio-agent` - Redirection.io agent service
 
-### TraefikRouterService
+### CaddyRouterService
 
-Traefik reverse proxy for routing HTTP/HTTPS traffic to services.
+[Caddy](https://caddyserver.com/) reverse proxy (via [caddy-docker-proxy](https://github.com/lucaslorentz/caddy-docker-proxy)) for routing HTTP/HTTPS traffic to services. Routes are built automatically from the `caddy.*` Docker labels emitted for each service that declares a domain — no static configuration file to maintain.
+
+TLS certificates are minted **on demand** by Caddy's internal issuer the first time a domain is hit, so there is nothing to generate ahead of time. If the [mkcert](https://github.com/FiloSottile/mkcert) root CA is installed on your host, `castor router:enable` copies it into the router so those certificates are trusted by your browsers.
 
 **Configuration:**
 
 ```php
 // Automatically registered, but can be customized
-new TraefikRouterService(
+new CaddyRouterService(
     sharedHomeDirectory: '.home',
-    extraDomains: ['extra.test'],
 )
 ```
 
 **Generated Tasks:**
-- `castor router:enable` - Enable the router service
+- `castor router:enable` - Enable the router service (and copy the mkcert CA if available)
 - `castor router:disable` - Disable the router service
-- `castor router:generate-certificates` - Generate SSL certificates
 
 **Docker Services Created:**
-- `router` - Traefik reverse proxy
-- Exposes ports: 80 (HTTP), 443 (HTTPS), 8080 (Traefik dashboard)
+- `router` - Caddy reverse proxy
+- Named volume: `router-data` (issued certificates and local CA)
+- Exposes ports: 80 (HTTP), 443 (HTTPS)
 
-**Access:** Traefik dashboard available at `http://localhost:8080`
+The router handles HTTP/HTTPS only. Raw TCP services (databases, Redis, …) can't
+be hostname-routed, so reach them directly on their container (e.g. connect to
+`postgres:5432` from another container, or publish the port on the service in
+your `compose.override.yaml` if you need host access).
 
 ## Docker Tasks
 
@@ -539,7 +543,7 @@ Configure versions in your service:
 Services can be organized into profiles:
 
 - `default` - Services that start by default
-- `router` - Traefik reverse proxy
+- `router` - Caddy reverse proxy
 - `builder` - Build and CI/CD services
 
 Control which profiles to use:
@@ -551,23 +555,25 @@ castor docker:build --profiles builder
 
 ## SSL Certificates
 
-The plugin can generate SSL certificates for local HTTPS development:
+The Caddy router provisions TLS certificates **on demand**: the first time a
+domain is requested, Caddy's internal issuer mints a certificate for it. There
+is no certificate to generate or renew manually.
 
 ### With mkcert (Recommended)
 
+To make those certificates trusted by your browsers (no security warning):
+
 1. Install mkcert: https://github.com/FiloSottile/mkcert
-2. Install CA: `mkcert -install`
-3. Generate certificates: `castor router:generate-certificates`
+2. Install the CA in your system trust store: `mkcert -install`
+3. (Re)start the router: `castor router:enable`
 
-### Self-signed Certificates
+`router:enable` copies the mkcert root CA into the router, which then signs the on-demand certificates with it.
 
-If mkcert is not available, the plugin will generate self-signed certificates automatically. You'll need to accept the security warning in your browser.
+### Without mkcert
 
-### Regenerate Certificates
-
-```bash
-castor router:generate-certificates --force
-```
+If mkcert is not available, Caddy falls back to its own local CA. HTTPS still
+works, but you'll need to accept the security warning in your browser (or add
+Caddy's root CA — stored in the `router-data` volume — to your trust store).
 
 ## Environment Variables
 
@@ -583,7 +589,7 @@ The plugin automatically sets these environment variables for your services:
 
 ### Port Conflicts
 
-If ports 80, 443, or 8080 are already in use:
+If ports 80 or 443 are already in use:
 
 1. Stop the conflicting services
 2. Or modify the router port mappings in your `compose.override.yaml`
@@ -604,7 +610,7 @@ The plugin runs containers with your user ID to avoid permission issues. If you 
 ### Router Not Working
 
 1. Enable the router: `castor router:enable`
-2. Generate certificates: `castor router:generate-certificates`
+2. For locally-trusted certificates, install mkcert (`mkcert -install`) and re-run `castor router:enable`
 3. Check that domains resolve to `127.0.0.1` (add to `/etc/hosts` if needed)
 
 ## Examples

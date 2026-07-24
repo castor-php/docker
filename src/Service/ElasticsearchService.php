@@ -20,7 +20,6 @@ class ElasticsearchService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
         return $builder
@@ -29,14 +28,14 @@ class ElasticsearchService implements ServiceInterface
                 ->image('elasticsearch:' . $this->version)
                 ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
                 ->environment('discovery.type', 'single-node')
-                ->withTraefikRouting("{$projectName}-elasticsearch", "elasticsearch.{$rootDomain}", 9200)
+                ->withHttpRouting("elasticsearch.{$rootDomain}", 9200)
                 ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'])
                 ->profile('default')
             ->end()
             ->service('kibana')
                 ->image('kibana:' . $this->version)
                 ->dependsOn('elasticsearch', ['condition' => 'service_healthy'])
-                ->withTraefikRouting("{$projectName}-kibana", "kibana.{$rootDomain}", 5601)
+                ->withHttpRouting("kibana.{$rootDomain}", 5601)
                 ->profile('default')
             ->end()
         ;

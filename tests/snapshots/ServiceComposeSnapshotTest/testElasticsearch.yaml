@@ -13,13 +13,10 @@ services:
             timeout: 5s
             retries: 5
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-elasticsearch.rule=Host(`elasticsearch.demo.test`)
-            - traefik.http.routers.demo-elasticsearch.tls=true
-            - traefik.http.services.demo-elasticsearch.loadbalancer.server.port=9200
-            - traefik.http.routers.demo-elasticsearch-unsecure.rule=Host(`elasticsearch.demo.test`)
-            - traefik.http.routers.demo-elasticsearch-unsecure.entrypoints=http
-            - traefik.http.routers.demo-elasticsearch-unsecure.middlewares=redirect-to-https@file
+            - caddy=elasticsearch.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9200}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     kibana:
@@ -28,13 +25,10 @@ services:
             elasticsearch:
                 condition: service_healthy
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-kibana.rule=Host(`kibana.demo.test`)
-            - traefik.http.routers.demo-kibana.tls=true
-            - traefik.http.services.demo-kibana.loadbalancer.server.port=5601
-            - traefik.http.routers.demo-kibana-unsecure.rule=Host(`kibana.demo.test`)
-            - traefik.http.routers.demo-kibana-unsecure.entrypoints=http
-            - traefik.http.routers.demo-kibana-unsecure.middlewares=redirect-to-https@file
+            - caddy=kibana.demo.test
+            - 'caddy.reverse_proxy={{upstreams 5601}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
 volumes:

@@ -20,13 +20,12 @@ class MailpitService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
         return $builder
             ->service('mailpit')
                 ->image('axllent/mailpit:' . $this->version)
-                ->withTraefikRouting("{$projectName}-mailpit", "mailpit.{$rootDomain}", 8025)
+                ->withHttpRouting("mailpit.{$rootDomain}", 8025)
                 ->profile('default')
             ->end()
         ;

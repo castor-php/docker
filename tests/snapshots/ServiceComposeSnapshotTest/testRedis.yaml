@@ -18,12 +18,10 @@ services:
         volumes:
             - 'redis-insight-data:/db'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-redis.rule=Host(`redis.demo.test`)
-            - traefik.http.routers.demo-redis.tls=true
-            - traefik.http.routers.demo-redis-unsecure.rule=Host(`redis.demo.test`)
-            - traefik.http.routers.demo-redis-unsecure.entrypoints=http
-            - traefik.http.routers.demo-redis-unsecure.middlewares=redirect-to-https@file
+            - caddy=redis.demo.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
 volumes:

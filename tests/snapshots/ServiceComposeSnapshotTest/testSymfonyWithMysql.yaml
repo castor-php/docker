@@ -33,13 +33,10 @@ services:
             - '/project/app:/var/www:cached'
             - '.home:/home/app:cached'
         labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-app.rule=Host(`app.demo.test`)
-            - traefik.http.routers.demo-app.tls=true
-            - traefik.http.services.demo-app.loadbalancer.server.port=80
-            - traefik.http.routers.demo-app-unsecure.rule=Host(`app.demo.test`)
-            - traefik.http.routers.demo-app-unsecure.entrypoints=http
-            - traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file
+            - caddy=app.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
         profiles:
             - default
     app-builder:

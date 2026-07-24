@@ -138,30 +138,30 @@ final class ServiceBuilder
     }
 
     /**
+     * Expose the service over HTTP/HTTPS through the Caddy router
+     * (caddy-docker-proxy) by emitting the matching Docker labels.
+     *
      * @param string|array<string> $domain
      */
-    public function withTraefikRouting(string $serviceName, string|array $domain, ?int $port = null, bool $allowHttpAccess = false): self
+    public function withHttpRouting(string|array $domain, ?int $port = null, bool $allowHttpAccess = false): self
     {
-        if (\is_array($domain)) {
-            $rule =  'Host(`' . implode('`) || Host(`', $domain) . '`)';
-        } else {
-            $rule = "Host(`{$domain}`)";
-        }
+        $domains = \is_array($domain) ? $domain : [$domain];
+        $upstream = $port !== null ? \sprintf('{{upstreams %d}}', $port) : '{{upstreams}}';
 
-        $this->label('traefik.enable', 'true');
-        $this->label("traefik.http.routers.{$serviceName}.rule", $rule);
-        $this->label("traefik.http.routers.{$serviceName}.tls", 'true');
+        // HTTPS site served with a locally-trusted certificate minted on demand
+        // by the Caddy router (see CaddyRouterService). Plain HTTP is redirected
+        // to HTTPS automatically by Caddy.
+        $this->label('caddy', implode(' ', $domains));
+        $this->label('caddy.reverse_proxy', $upstream);
+        $this->label('caddy.tls', 'internal');
+        $this->label('caddy.tls.on_demand', '');
 
-        if ($port !== null) {
-            $this->label("traefik.http.services.{$serviceName}.loadbalancer.server.port", (string) $port);
-        }
-
-        if (!$allowHttpAccess) {
-            $this->label("traefik.http.routers.{$serviceName}-unsecure.rule", $rule);
-            $this->label("traefik.http.routers.{$serviceName}-unsecure.entrypoints", 'http');
-            $this->label("traefik.http.routers.{$serviceName}-unsecure.middlewares", 'redirect-to-https@file');
-        } else {
-            $this->label("traefik.http.routers.{$serviceName}.entrypoints", 'http,https');
+        if ($allowHttpAccess) {
+            // Additionally serve the same upstream over plain HTTP, without the
+            // automatic redirect to HTTPS.
+            $httpDomains = array_map(static fn(string $d): string => "http://{$d}", $domains);
+            $this->label('caddy_1', implode(' ', $httpDomains));
+            $this->label('caddy_1.reverse_proxy', $upstream);
         }
 
         return $this;
