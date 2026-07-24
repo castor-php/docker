@@ -71,7 +71,7 @@ castor docker:up
 
 ### SymfonyService
 
-A comprehensive service for Symfony applications with PHP-FPM, Composer, and various development tools.
+A comprehensive service for Symfony applications with FrankenPHP or PHP-FPM, Composer, and various development tools.
 
 **Configuration:**
 
@@ -80,15 +80,31 @@ A comprehensive service for Symfony applications with PHP-FPM, Composer, and var
     name: 'app',              // Service name
     directory: __DIR__,       // Application directory
     version: '8.5',           // PHP version
+    mode: PhpMode::FrankenPhp, // PhpMode::FrankenPhp (default) or PhpMode::Fpm
 ))
     ->withDatabaseService($databaseService)
-    ->withDockerfile(__DIR__ . '/Dockerfile')
     ->addDomain('app.example.test')
     ->addDomain('example.test')
     ->allowHttpAccess()  // Allow HTTP (default is HTTPS only)
     ->addWorker('messenger', 'php bin/console messenger:consume async')
-    ->withRedirectionIoKey('your-key')
+    ->addExtension('redis')  // Adds "php{version}-redis" (fpm) or the equivalent FrankenPHP extension
+    ->withRedirectionIoKey('your-key') // Only applies in PhpMode::Fpm
+    ->withFrankenPhpWorkerMode('public/index.php', num: 4) // Only applies in PhpMode::FrankenPhp
 ```
+
+**PHP Runtime Modes:**
+- `PhpMode::FrankenPhp` (default) - Serves the app with [FrankenPHP](https://frankenphp.dev/) (`dunglas/frankenphp` image + Caddy). Single process, no PHP-FPM/nginx.
+- `PhpMode::Fpm` - Serves the app with the classic nginx + PHP-FPM stack.
+
+Only the frontend (HTTP-serving) container differs between modes — the builder and worker containers are identical either way. Known limitations of `PhpMode::FrankenPhp`: `withRedirectionIoKey()` has no effect (nginx-only integration), and there is no `/php-fpm-status` monitoring endpoint.
+
+**Extensions:**
+
+By default the following PHP extensions are installed: `apcu`, `bcmath`, `curl`, `iconv`, `intl`, `mbstring`, `pgsql`, `uuid`, `xml`, `zip`. Add more with `->addExtension('name')` — no custom Dockerfile needed anymore.
+
+**FrankenPHP Worker Mode:**
+
+`->withFrankenPhpWorkerMode(string $script = 'public/index.php', ?int $num = null, bool $watch = true)` boots `$script` once and keeps it in memory to handle every request (like Octane), instead of re-interpreting it per request. Only takes effect in `PhpMode::FrankenPhp`. Your application needs a compatible runtime to loop over incoming requests from that script — for Symfony, install [`runtime/frankenphp-symfony`](https://github.com/php-runtime/frankenphp-symfony) and point `$script` at `public/index.php`. `$watch` (enabled by default) restarts the worker automatically when files under the app directory change, which is what you want for local development.
 
 **Generated Tasks:**
 - `castor app:bash` - Open a bash shell in the PHP container
@@ -105,7 +121,7 @@ A comprehensive service for Symfony applications with PHP-FPM, Composer, and var
 - `castor app:db:fixtures` - Load database fixtures
 
 **Docker Services Created:**
-- `app` - PHP-FPM frontend service
+- `app` - FrankenPHP or PHP-FPM frontend service (depending on `mode`)
 - `app-builder` - Builder service for running commands
 - `app-worker-{name}` - Worker services for background jobs
 
@@ -460,17 +476,17 @@ function register_service(RegisterServiceEvent $event)
 
 ### Custom Dockerfile
 
-You can use a custom Dockerfile by extending the base PHP Dockerfile:
+Extra PHP extensions don't need a custom Dockerfile anymore, use `->addExtension('name')` instead (see [SymfonyService](#symfonyservice)).
+
+For deeper customization, you can still provide a custom Dockerfile by extending the base PHP Dockerfile (or `Dockerfile.frankenphp` if you use `PhpMode::FrankenPhp`) and overriding any other block:
 
 ```dockerfile
 # syntax=ghcr.io/castor-php/twig-dockerfile:latest
 {% extends 'Dockerfile' %}
 
-{% block php_extensions %}
+{% block builder %}
     {{ parent() }}
-    "php{{ php_version }}-amqp" \
-    "php{{ php_version }}-redis" \
-    "php{{ php_version }}-mysql" \
+RUN echo "custom builder step"
 {% endblock %}
 ```
 

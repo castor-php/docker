@@ -11,6 +11,7 @@ use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PHPService;
+use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
@@ -97,6 +98,30 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $this->assertMatchesYamlSnapshot($this->build(
             new PHPService(name: 'app', directory: '/project/app'),
+        ));
+    }
+
+    public function testPhpFpmMode(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            new PHPService(name: 'app', directory: '/project/app', mode: PhpMode::Fpm),
+        ));
+    }
+
+    public function testPhpWithExtensions(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new PHPService(name: 'app', directory: '/project/app'))
+                ->addExtension('redis')
+                ->addExtension('amqp'),
+        ));
+    }
+
+    public function testPhpWithFrankenPhpWorkerMode(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new PHPService(name: 'app', directory: '/project/app'))
+                ->withFrankenPhpWorkerMode('public/index.php', num: 4),
         ));
     }
 

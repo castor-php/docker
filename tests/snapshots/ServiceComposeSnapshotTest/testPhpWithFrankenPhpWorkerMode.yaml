@@ -1,18 +1,4 @@
 services:
-    mysql:
-        image: 'mysql:8'
-        environment:
-            MYSQL_ROOT_PASSWORD: root
-            MYSQL_DATABASE: app
-        volumes:
-            - 'mysql-data:/var/lib/mysql'
-        healthcheck:
-            test: 'mysqladmin ping -h localhost'
-            interval: 5s
-            timeout: 5s
-            retries: 5
-        profiles:
-            - default
     app:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
@@ -21,25 +7,15 @@ services:
             args:
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                frankenphp_worker_file: /var/www/public/index.php
+                frankenphp_worker_watch: 'true'
+                frankenphp_worker_num: '4'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
-        environment:
-            DATABASE_URL: 'mysql://root:root@mysql:3306/app'
-        depends_on:
-            mysql:
-                condition: service_healthy
         volumes:
             - '/project/app:/var/www:cached'
             - '.home:/home/app:cached'
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.demo-app.rule=Host(`app.demo.test`)
-            - traefik.http.routers.demo-app.tls=true
-            - traefik.http.services.demo-app.loadbalancer.server.port=80
-            - traefik.http.routers.demo-app-unsecure.rule=Host(`app.demo.test`)
-            - traefik.http.routers.demo-app-unsecure.entrypoints=http
-            - traefik.http.routers.demo-app-unsecure.middlewares=redirect-to-https@file
         profiles:
             - default
     app-builder:
@@ -50,19 +26,16 @@ services:
             args:
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                frankenphp_worker_file: /var/www/public/index.php
+                frankenphp_worker_watch: 'true'
+                frankenphp_worker_num: '4'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
         user: '1000:1000'
         init: true
-        environment:
-            DATABASE_URL: 'mysql://root:root@mysql:3306/app'
-        depends_on:
-            mysql:
-                condition: service_healthy
         volumes:
             - '/project/app:/var/www:cached'
             - '.home:/home/app:cached'
         profiles:
             - builder
-volumes:
-    mysql-data: {}
+volumes: {}

@@ -2,7 +2,7 @@ services:
     app:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
             target: frontend
             args:
                 php_version: '8.5'
@@ -18,7 +18,7 @@ services:
     app-builder:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
             target: builder
             args:
                 php_version: '8.5'

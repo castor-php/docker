@@ -18,10 +18,11 @@ services:
     app:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: frontend
             args:
                 php_version: '8.4'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
                 redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
@@ -45,10 +46,11 @@ services:
     app-builder:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: builder
             args:
                 php_version: '8.4'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
                 redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
@@ -67,10 +69,11 @@ services:
     app-worker-messenger:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: worker
             args:
                 php_version: '8.4'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
                 redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
@@ -89,10 +92,11 @@ services:
     app-worker-scheduler:
         build:
             context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: worker
             args:
                 php_version: '8.4'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
                 redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'

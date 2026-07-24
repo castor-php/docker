@@ -33,6 +33,13 @@ class PHPService implements ServiceInterface
      */
     private array $workers = [];
 
+    /** @var string[] */
+    private array $extensions = ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pgsql', 'uuid', 'xml', 'zip'];
+
+    private ?string $frankenPhpWorkerScript = null;
+    private ?int $frankenPhpWorkerNum = null;
+    private bool $frankenPhpWorkerWatch = true;
+
     public function __construct(
         protected string $name = 'app',
         protected string $directory = '.',
@@ -44,8 +51,14 @@ class PHPService implements ServiceInterface
         /** @var string[] */
         protected array $domains = [],
         protected bool $allowHttpAccess = false,
-        protected string $dockerFile = __DIR__ . '/../Resources/php/Dockerfile',
-    ) {}
+        protected PhpMode $mode = PhpMode::FrankenPhp,
+        protected ?string $dockerFile = null,
+    ) {
+        $this->dockerFile ??= match ($this->mode) {
+            PhpMode::FrankenPhp => __DIR__ . '/../Resources/php/Dockerfile.frankenphp',
+            PhpMode::Fpm => __DIR__ . '/../Resources/php/Dockerfile',
+        };
+    }
 
     public function addWorker(string $name, string $command): self
     {
@@ -102,6 +115,27 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
+    public function addExtension(string $extension): self
+    {
+        $this->extensions[] = $extension;
+        return $this;
+    }
+
+    /**
+     * Enables FrankenPHP worker mode (PhpMode::FrankenPhp only): the given
+     * script is booted once and kept in memory to handle every request,
+     * instead of being re-interpreted on each request. Your application
+     * needs a compatible runtime (e.g. runtime/frankenphp-symfony) to loop
+     * over incoming requests from that script.
+     */
+    public function withFrankenPhpWorkerMode(string $script = 'public/index.php', ?int $num = null, bool $watch = true): self
+    {
+        $this->frankenPhpWorkerScript = $script;
+        $this->frankenPhpWorkerNum = $num;
+        $this->frankenPhpWorkerWatch = $watch;
+        return $this;
+    }
+
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $userId = $context->data['user_id'] ?? 1000;
@@ -114,6 +148,7 @@ class PHPService implements ServiceInterface
                     ->target('frontend')
                     ->withRegistryCache($this->name)
                     ->arg('php_version', $this->version)
+                    ->arg('php_extensions', json_encode(array_values($this->extensions), \JSON_THROW_ON_ERROR))
                 ->end()
                 ->user("{$userId}:{$userId}")
                 ->volume($this->directory, '/var/www', 'cached')
@@ -123,6 +158,17 @@ class PHPService implements ServiceInterface
 
         if ($this->redirectionIoKey !== null) {
             $appService->build()->arg('redirection_io_key', $this->redirectionIoKey);
+        }
+
+        if ($this->mode === PhpMode::FrankenPhp && $this->frankenPhpWorkerScript !== null) {
+            $appService->build()
+                ->arg('frankenphp_worker_file', '/var/www/' . ltrim($this->frankenPhpWorkerScript, '/'))
+                ->arg('frankenphp_worker_watch', $this->frankenPhpWorkerWatch ? 'true' : 'false')
+            ;
+
+            if ($this->frankenPhpWorkerNum !== null) {
+                $appService->build()->arg('frankenphp_worker_num', (string) $this->frankenPhpWorkerNum);
+            }
         }
 
         $buildBuilder = $builder->service($this->name)->build();

@@ -1,0 +1,17 @@
+# syntax=ghcr.io/castor-php/twig-dockerfile:latest
+{% extends 'Dockerfile' %}
+
+{% block frontend %}
+FROM dunglas/frankenphp:php{{ php_version }} AS frontend
+
+{% if php_extensions %}
+RUN install-php-extensions {% for extension in php_extensions %}{{ extension }} {% endfor %}
+{% endif %}
+
+{{ copy('frontend-frankenphp/Caddyfile.twig', '/etc/frankenphp/Caddyfile') }}
+
+ENV PHP_VERSION {{ php_version }}
+ENV SERVER_NAME=:80
+
+EXPOSE 80
+{% endblock %}

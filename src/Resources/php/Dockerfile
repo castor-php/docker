@@ -26,20 +26,11 @@ RUN apt-get update \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-{% block php_extensions %}
-        "php{{ php_version }}-apcu" \
-        "php{{ php_version }}-bcmath" \
         "php{{ php_version }}-cli" \
         "php{{ php_version }}-common" \
-        "php{{ php_version }}-curl" \
-        "php{{ php_version }}-iconv" \
-        "php{{ php_version }}-intl" \
-        "php{{ php_version }}-mbstring" \
-        "php{{ php_version }}-pgsql" \
-        "php{{ php_version }}-uuid" \
-        "php{{ php_version }}-xml" \
-        "php{{ php_version }}-zip" \
-{% endblock %}
+{% for extension in php_extensions %}
+        "php{{ php_version }}-{{ extension }}" \
+{% endfor %}
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 

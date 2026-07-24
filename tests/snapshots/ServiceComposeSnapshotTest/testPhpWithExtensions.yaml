@@ -6,7 +6,7 @@ services:
             target: frontend
             args:
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","redis","amqp"]'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
@@ -22,7 +22,7 @@ services:
             target: builder
             args:
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","redis","amqp"]'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
         user: '1000:1000'

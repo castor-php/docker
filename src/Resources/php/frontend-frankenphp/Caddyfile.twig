@@ -1,0 +1,22 @@
+:80 {
+	root * /var/www/public
+	encode gzip
+{% if frankenphp_worker_file is defined %}
+	php_server {
+		worker {
+			file {{ frankenphp_worker_file }}
+{% if frankenphp_worker_num is defined %}
+			num {{ frankenphp_worker_num }}
+{% endif %}
+{% if frankenphp_worker_watch %}
+			watch
+{% endif %}
+		}
+	}
+{% else %}
+	php_server
+{% endif %}
+	log {
+		output stdout
+	}
+}

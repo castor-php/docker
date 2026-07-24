@@ -11,6 +11,7 @@ use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
+use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
@@ -36,9 +37,9 @@ function register_service(RegisterServiceEvent $event)
     $event->addService($mysqlService);
 
     $event->addService(
-        (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1'))
+        (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1', mode: PhpMode::FrankenPhp))
             ->withDatabaseService($postgresService)
-            ->withDockerfile(__DIR__ . '/Dockerfile')
+            ->addExtension('redis')
             ->addDomain('app1.project.test')
             ->addDomain('project.test')
             ->addDomain('localhost')
@@ -47,9 +48,10 @@ function register_service(RegisterServiceEvent $event)
     );
 
     $event->addService(
-        (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2'))
-            ->withDockerfile(__DIR__ . '/Dockerfile')
+        (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2', mode: PhpMode::Fpm))
             ->withDatabaseService($mysqlService)
+            ->addExtension('amqp')
+            ->addExtension('mysql')
             ->withRedirectionIoKey("b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652")
             ->addDomain('app2.project.test')
     );
