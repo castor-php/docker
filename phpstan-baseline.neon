@@ -1,7 +1,2 @@
 parameters:
 	ignoreErrors:
-		-
-			message: '#^Call to function method_exists\(\) with Castor\\Console\\Application and ''addCommand'' will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: src/functions.php

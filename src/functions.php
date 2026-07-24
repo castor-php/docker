@@ -225,12 +225,7 @@ function initialize(AfterBootEvent $afterBootEvent): void
             $function = new \ReflectionFunction($closure);
             $descriptor = new TaskDescriptor($asTask, $function);
             $command = new TaskCommand($descriptor, $expressionLanguage, $container->eventDispatcher, $container->contextRegistry, $container->slugger, $container->fs, new FileLinkFormatter());
-
-            if (method_exists($afterBootEvent->application, 'addCommand')) {
-                $afterBootEvent->application->addCommand($command);
-            } else {
-                $afterBootEvent->application->add($command);
-            }
+            $afterBootEvent->application->addCommand($command);
         }
     }
 }
