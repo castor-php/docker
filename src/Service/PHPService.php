@@ -21,6 +21,8 @@ class PHPService implements ServiceInterface
 {
     private ?DatabaseServiceInterface $databaseService = null;
 
+    private ?MailpitService $mailerService = null;
+
     /** @var array<string, string> */
     private array $phpStanExtraDependencies = [];
 
@@ -79,6 +81,12 @@ class PHPService implements ServiceInterface
     public function withDatabaseService(DatabaseServiceInterface $databaseService): self
     {
         $this->databaseService = $databaseService;
+        return $this;
+    }
+
+    public function withMailerService(MailpitService $mailerService): self
+    {
+        $this->mailerService = $mailerService;
         return $this;
     }
 
@@ -153,6 +161,18 @@ class PHPService implements ServiceInterface
             ;
         }
 
+        if ($this->mailerService) {
+            $appService
+                ->dependsOn($this->mailerService->getName())
+                ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
+            ;
+
+            $builderService
+                ->dependsOn($this->mailerService->getName())
+                ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
+            ;
+        }
+
         foreach ($this->workers as $workerName => $command) {
             $workerService = $builder
                 ->service($this->name . '-worker-' . $workerName)
@@ -173,6 +193,13 @@ class PHPService implements ServiceInterface
                         'condition' => 'service_healthy',
                     ])
                     ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
+                ;
+            }
+
+            if ($this->mailerService) {
+                $workerService
+                    ->dependsOn($this->mailerService->getName())
+                    ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
                 ;
             }
         }
