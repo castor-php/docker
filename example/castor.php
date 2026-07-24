@@ -6,7 +6,9 @@ use Castor\Attribute\AsContext;
 use Castor\Attribute\AsListener;
 use Castor\Context;
 use Castor\Docker\Event\RegisterServiceEvent;
+use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
+use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PostgresService;
@@ -56,4 +58,7 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(new RedisService());
     $event->addService(new ElasticsearchService());
     $event->addService(new RedirectionioAgentService());
+    $event->addService(new ClickhouseService('25.8'));
+    $event->addService((new GoService('app3', '1.25', __DIR__ . '/go-app'))
+        ->addDomain('app3.project.test'));
 }

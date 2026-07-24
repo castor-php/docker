@@ -1,0 +1,8 @@
+# syntax=ghcr.io/castor-php/twig-dockerfile:latest
+# hadolint global ignore=DL3008
+
+{% block Dockerfile %}
+FROM clickhouse/clickhouse-keeper:{{ clickhouse_version }}
+
+COPY ./config.keeper.xml /etc/clickhouse-keeper/keeper_config.xml
+{% endblock %}

@@ -23,9 +23,8 @@ class ElasticsearchService implements ServiceInterface
         $projectName = $context->data['project_name'] ?? 'app';
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
-        $builder->volume('elasticsearch-data');
-
         return $builder
+            ->volume('elasticsearch-data')
             ->service('elasticsearch')
                 ->image('elasticsearch:' . $this->version)
                 ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
