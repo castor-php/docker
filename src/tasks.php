@@ -87,6 +87,11 @@ function up(
 
         throw $e;
     }
+
+    // Bring back any port that was exposed before (see expose_service_port()).
+    if (!$service) {
+        restore_exposed_services();
+    }
 }
 
 /**

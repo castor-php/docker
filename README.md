@@ -304,6 +304,10 @@ project, so `castor docker:destroy` removes them along with everything else.
 Under the hood the task calls the `expose_service_port()` helper, which your own
 services can reuse.
 
+Exposed services are remembered: `castor docker:stop` takes the forwarders down,
+and the next `castor docker:up` brings them back automatically — you only expose
+a service once, not on every restart (until you `--stop` it).
+
 ## Docker Tasks
 
 The plugin provides several Docker management tasks:

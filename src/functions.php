@@ -145,6 +145,9 @@ function docker_exit_code(
  * "docker:destroy" tears it down with the rest of the infrastructure.
  *
  * Meant to be wired into a service task, e.g. "castor mysql:expose [port] [--stop]".
+ *
+ * The exposed set is remembered in the cache so "docker:up" can restore it (see
+ * restore_exposed_services()) — the user never has to re-expose after a restart.
  */
 function expose_service_port(string $service, int $containerPort, ?int $hostPort = null, bool $stop = false): void
 {
@@ -156,7 +159,12 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
     // Remove any existing forwarder first (idempotent, and how --stop works).
     run(['docker', 'rm', '-f', $name], context: $context->withQuiet()->withAllowFailure());
 
+    $exposed = get_exposed_services();
+
     if ($stop) {
+        unset($exposed[$service]);
+        set_exposed_services($exposed);
+
         io()->success("Stopped exposing the \"{$service}\" service.");
 
         return;
@@ -179,7 +187,61 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
         "TCP:{$service}:{$containerPort}",
     ], context: $context->withQuiet());
 
+    $exposed[$service] = ['container_port' => $containerPort, 'host_port' => $hostPort];
+    set_exposed_services($exposed);
+
     io()->success("Exposing \"{$service}\" on tcp://127.0.0.1:{$hostPort}");
+}
+
+/**
+ * @return array<string, array{container_port: int, host_port: int}>
+ */
+function get_exposed_services(): array
+{
+    $item = get_cache()->getItem('infrastructure.exposed');
+    $value = $item->isHit() ? $item->get() : [];
+
+    if (!\is_array($value)) {
+        return [];
+    }
+
+    /** @var array<string, array{container_port: int, host_port: int}> $value */
+    return $value;
+}
+
+/**
+ * @param array<string, array{container_port: int, host_port: int}> $exposed
+ */
+function set_exposed_services(array $exposed): void
+{
+    $item = get_cache()->getItem('infrastructure.exposed');
+    $item->set($exposed);
+
+    get_cache()->save($item);
+}
+
+/**
+ * Re-create the forwarder of every remembered exposed service, so the exposed
+ * ports come back after "docker:up" without the user re-running each task.
+ * Services whose forwarder is already running are left untouched.
+ */
+function restore_exposed_services(): void
+{
+    $context = context();
+    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+
+    foreach (get_exposed_services() as $service => $ports) {
+        $running = trim(capture(
+            ['docker', 'ps', '--quiet', '--filter', "name=^{$project}-expose-{$service}$", '--filter', 'status=running'],
+            context: $context->withAllowFailure(),
+        ));
+
+        if ($running !== '') {
+            continue;
+        }
+
+        expose_service_port($service, $ports['container_port'], $ports['host_port']);
+    }
 }
 
 /**
