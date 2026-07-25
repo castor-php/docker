@@ -35,4 +35,33 @@ final class ComposeBuilderTest extends TestCase
             $builder->toArray()['volumes'],
         );
     }
+
+    /**
+     * The host directories of the bind mounts are created before docker gets a
+     * chance to create them as root, so they must be told apart from the named
+     * volumes, which docker manages on its own.
+     */
+    public function testBindMountSourcesExcludeNamedVolumes(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->volume('postgres-data');
+
+        $builder
+            ->service('app')
+                ->volume('postgres-data', '/var/lib/postgresql/data')
+                ->volume('.home', '/home/app', 'cached')
+                ->volume('/project/app', '/var/www', 'cached')
+            ->end()
+            ->service('worker')
+                // Already mounted by "app": the same directory is only returned once.
+                ->volume('.home', '/home/app', 'cached')
+                ->volume('/var/run/docker.sock', '/var/run/docker.sock')
+            ->end()
+        ;
+
+        static::assertSame(
+            ['.home', '/project/app', '/var/run/docker.sock'],
+            $builder->getBindMountSources(),
+        );
+    }
 }

@@ -44,6 +44,10 @@ final class FreshProjectTest extends TestCase
             @unlink(self::PROJECT . '/' . $file);
         }
 
+        foreach (['.home', 'api'] as $directory) {
+            @rmdir(self::PROJECT . '/' . $directory);
+        }
+
         // "--help" is enough: the plugin initializes the project on boot, and
         // nothing here should need a running Docker daemon.
         $process = new Process([$castor, 'docker:ps', '--help', '--no-interaction'], self::PROJECT, timeout: 120);
@@ -66,5 +70,14 @@ final class FreshProjectTest extends TestCase
         \assert($generated !== false);
 
         static::assertStringContainsString('postgres', $generated);
+
+        // Docker would create the missing bind mount sources itself, as root:
+        // they have to exist, and belong to the user, before it runs.
+        foreach (['.home', 'api'] as $directory) {
+            $path = self::PROJECT . '/' . $directory;
+
+            static::assertDirectoryExists($path, \sprintf('"%s" is bind-mounted, it must be created before docker does it as root.', $directory));
+            static::assertDirectoryIsWritable($path);
+        }
     }
 }

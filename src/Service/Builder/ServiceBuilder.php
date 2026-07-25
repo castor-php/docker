@@ -73,6 +73,14 @@ final class ServiceBuilder
         return $this;
     }
 
+    /**
+     * @return array<string>
+     */
+    public function getVolumes(): array
+    {
+        return $this->volumes;
+    }
+
     public function label(string $key, string $value): self
     {
         $this->labels[] = "$key=$value";

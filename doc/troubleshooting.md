@@ -20,11 +20,18 @@ services:
 
 ## Permission issues
 
-Containers run with your user ID to avoid root-owned files. If you still hit
-permission errors:
+Containers run with your user ID to avoid root-owned files, and the plugin
+creates the directories the services bind-mount — the shared home directory,
+the application directories — before starting anything, because docker would
+create the missing ones as `root`.
 
-1. check that the `.home` directory is writable;
-2. check the ownership of the mounted application directory.
+A directory created that way by an older version, or by a plain
+`docker compose up`, stays owned by `root`: the plugin warns about it, and you
+take it back with
+
+```bash
+sudo chown -R $(id -u):$(id -g) .home
+```
 
 ## Containers will not start
 

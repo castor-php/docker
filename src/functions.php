@@ -34,11 +34,13 @@ use Castor\Event\AfterBootEvent;
 use Castor\Event\ContextCreatedEvent;
 use Castor\ExpressionLanguage;
 use Symfony\Component\ErrorHandler\ErrorRenderer\FileLinkFormatter;
+use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
 use function Castor\capture;
 use function Castor\context;
+use function Castor\fs;
 use function Castor\get_cache;
 use function Castor\io;
 use function Castor\run;
@@ -361,6 +363,43 @@ function collect_services(): array
 }
 
 /**
+ * Create the host directories the services bind-mount, when they do not exist
+ * yet.
+ *
+ * Docker creates a missing bind mount source itself, but as root: the shared
+ * home directory, an application directory or any other mount would then be
+ * read-only for the very user the containers run as, and would need sudo to be
+ * removed. Creating them first, from the user running castor, avoids it.
+ *
+ * Only paths inside the project are created: a service may mount the docker
+ * socket or any other system path, which is none of our business.
+ */
+function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): void
+{
+    $root = Path::canonicalize($c->workingDirectory);
+
+    foreach ($composeBuilder->getBindMountSources() as $source) {
+        $path = Path::makeAbsolute($source, $root);
+
+        if (!Path::isBasePath($root, $path)) {
+            continue;
+        }
+
+        if (!file_exists($path)) {
+            fs()->mkdir($path);
+
+            continue;
+        }
+
+        // Left over from a previous run, or from an older version of this
+        // plugin: docker created it as root and nothing here can fix it.
+        if (!is_writable($path) && '_complete' !== Container::get()->input->getFirstArgument()) {
+            io()->warning(\sprintf('"%s" is not writable, the containers may fail to write in it. Take its ownership back with "sudo chown -R $(id -u):$(id -g) %s".', $path, $path));
+        }
+    }
+}
+
+/**
  * (Re)write compose.generated.yaml from the given services.
  *
  * @param ServiceInterface[] $services
@@ -372,6 +411,8 @@ function generate_compose_file(Context $c, array $services): void
     foreach ($services as $service) {
         $composeBuilder = $service->updateCompose($c, $composeBuilder);
     }
+
+    create_mount_directories($c, $composeBuilder);
 
     file_put_contents(
         $c->workingDirectory . '/compose.generated.yaml',

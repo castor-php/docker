@@ -40,6 +40,31 @@ final class ComposeBuilder
         return $this;
     }
 
+    /**
+     * The host paths bind-mounted by the services, named volumes excluded.
+     * They may be relative to the project directory.
+     *
+     * @return list<string>
+     */
+    public function getBindMountSources(): array
+    {
+        $sources = [];
+
+        foreach ($this->services as $service) {
+            foreach ($service->getVolumes() as $volume) {
+                $source = explode(':', $volume)[0];
+
+                if ('' === $source || isset($this->volumes[$source])) {
+                    continue;
+                }
+
+                $sources[$source] = true;
+            }
+        }
+
+        return array_keys($sources);
+    }
+
     public function service(string $name): ServiceBuilder
     {
         if (!isset($this->services[$name])) {

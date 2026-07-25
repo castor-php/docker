@@ -4,3 +4,5 @@
 /compose.yaml
 /compose.generated.yaml
 /compose.override.yaml
+/.home/
+/api/

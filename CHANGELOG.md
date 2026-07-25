@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 - 2026-07-25
+
+### Fixed
+
+* Create the host directories bind-mounted by the services — the shared home
+  directory, the application directories, any other mount inside the project —
+  before docker does. Docker creates a missing bind mount source as `root`,
+  which then leaves the containers unable to write in it. A directory left over
+  from an earlier run and not writable is reported instead.
+
 ## 0.1.1 - 2026-07-25
 
 ### Fixed
