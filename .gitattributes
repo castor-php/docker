@@ -3,8 +3,10 @@
 # Everything below is development-only material.
 
 /.github            export-ignore
+/doc                export-ignore
 /example            export-ignore
 /tests              export-ignore
+/tools              export-ignore
 /twig-dockerfile    export-ignore
 
 /.gitattributes           export-ignore
