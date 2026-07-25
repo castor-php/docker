@@ -125,6 +125,7 @@ function do_run(array $command, array $ports = []): Process
         // "include-markdown" directives in doc/.
         '--volume', \sprintf('%s:/mkdocs/doc:cached', root() . '/doc'),
         '--volume', \sprintf('%s:/mkdocs/README.md:cached', root() . '/README.md'),
+        '--volume', \sprintf('%s:/mkdocs/CHANGELOG.md:cached', root() . '/CHANGELOG.md'),
         '--volume', \sprintf('%s:/mkdocs/example:cached', root() . '/example'),
     ];
 

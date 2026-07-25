@@ -20,5 +20,6 @@
     - [Background workers](going-further/workers.md)
     - [Writing your own service](going-further/writing-a-service.md)
 - [Troubleshooting](troubleshooting.md)
+- [Changelog](changelog.md)
 
 <!-- markdownlint-disable-file first-line-h1 -->

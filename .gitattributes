@@ -1,5 +1,6 @@
 # Keep the Composer dist archive to what the plugin needs at runtime: src/ (the
-# PSR-4 code plus the Resources/ build contexts), composer.json and the README.
+# PSR-4 code plus the Resources/ build contexts), composer.json, the README,
+# the LICENSE and the CHANGELOG.
 # Everything below is development-only material.
 
 /.github            export-ignore
