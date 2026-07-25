@@ -83,6 +83,20 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build(new RedirectionioAgentService()));
     }
 
+    public function testRedirectionioAgentAsReverseProxy(): void
+    {
+        $app = new PHPService(name: 'app', directory: '/project/app');
+        $api = new RustService('api', '1.90', '/project/api');
+
+        $agent = (new RedirectionioAgentService(projectKey: 'default-key'))
+            ->addReverseProxy('app.demo.test', $app)
+            ->addReverseProxy('legacy.demo.test', $app, 'legacy-key')
+            ->addReverseProxy('api.demo.test', $api, port: 8080)
+        ;
+
+        $this->assertMatchesYamlSnapshot($this->build($app, $api, $agent));
+    }
+
     public function testCaddyRouter(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(new CaddyRouterService()));
@@ -144,7 +158,6 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
             ->allowHttpAccess()
             ->addWorker('messenger', 'php bin/console messenger:consume async')
             ->addWorker('scheduler', 'php bin/console schedule:run')
-            ->withRedirectionIoKey('test-key')
         ;
 
         $this->assertMatchesYamlSnapshot($this->build($postgres, $php));

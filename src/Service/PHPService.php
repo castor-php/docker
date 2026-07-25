@@ -26,8 +26,6 @@ class PHPService implements ServiceInterface
     /** @var array<string, string> */
     private array $phpStanExtraDependencies = [];
 
-    private ?string $redirectionIoKey = null;
-
     /**
      * @var array<string, string>
      */
@@ -111,12 +109,6 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
-    public function withRedirectionIoKey(string $key): self
-    {
-        $this->redirectionIoKey = $key;
-        return $this;
-    }
-
     public function addExtension(string $extension): self
     {
         $this->extensions[] = $extension;
@@ -156,10 +148,6 @@ class PHPService implements ServiceInterface
                 ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
                 ->profile('default')
         ;
-
-        if ($this->redirectionIoKey !== null) {
-            $appService->build()->arg('redirection_io_key', $this->redirectionIoKey);
-        }
 
         if ($this->mode === PhpMode::FrankenPhp && $this->frankenPhpWorkerScript !== null) {
             $appService->build()

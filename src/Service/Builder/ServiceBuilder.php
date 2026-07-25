@@ -35,6 +35,9 @@ final class ServiceBuilder
     /** @var array<string> */
     private array $ports = [];
 
+    /** @var array<array<string, string>> */
+    private array $configs = [];
+
     private ?BuildBuilder $build = null;
 
     /** @var null|array<string>|string */
@@ -193,6 +196,16 @@ final class ServiceBuilder
         return $this;
     }
 
+    /**
+     * Mount a config declared with ComposeBuilder::config() at the given path.
+     */
+    public function config(string $source, string $target): self
+    {
+        $this->configs[] = ['source' => $source, 'target' => $target];
+
+        return $this;
+    }
+
     public function workingDir(string $workingDir): self
     {
         $this->workingDir = $workingDir;
@@ -262,6 +275,10 @@ final class ServiceBuilder
 
         if (!empty($this->ports)) {
             $result['ports'] = $this->ports;
+        }
+
+        if (!empty($this->configs)) {
+            $result['configs'] = $this->configs;
         }
 
         return $result;

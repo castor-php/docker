@@ -31,7 +31,7 @@ abstract class SnapshotTestCase extends TestCase
      */
     protected function assertMatchesYamlSnapshot(array $data): void
     {
-        $yaml = Yaml::dump($data, 6, 4);
+        $yaml = Yaml::dump($data, 6, 4, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
         // package paths (__DIR__-based resources) are machine-dependent
         $yaml = str_replace(\dirname(__DIR__), '%PACKAGE%', $yaml);
 

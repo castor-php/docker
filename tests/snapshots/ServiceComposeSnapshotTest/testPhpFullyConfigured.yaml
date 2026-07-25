@@ -23,7 +23,6 @@ services:
             args:
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
-                redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
@@ -52,7 +51,6 @@ services:
             args:
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
-                redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
         user: '1000:1000'
@@ -75,7 +73,6 @@ services:
             args:
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
-                redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
         user: '1000:1000'
@@ -98,7 +95,6 @@ services:
             args:
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
-                redirection_io_key: test-key
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
         user: '1000:1000'

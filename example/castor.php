@@ -49,19 +49,22 @@ function register_service(RegisterServiceEvent $event)
             ->addWorker('messenger', 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M')
     );
 
-    $event->addService(
-        (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2', mode: PhpMode::Fpm))
-            ->withDatabaseService($mysqlService)
-            ->addExtension('amqp')
-            ->addExtension('mysql')
-            ->withRedirectionIoKey("b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652")
-            ->addDomain('app2.project.test')
-    );
+    // app2 declares no domain: it is served through the redirection.io agent,
+    // which holds the domain and proxies the traffic to it.
+    $app2Service = (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2', mode: PhpMode::Fpm))
+        ->withDatabaseService($mysqlService)
+        ->addExtension('amqp')
+        ->addExtension('mysql')
+    ;
+    $event->addService($app2Service);
 
     $event->addService(new RabbitMQService());
     $event->addService(new RedisService());
     $event->addService(new ElasticsearchService());
-    $event->addService(new RedirectionioAgentService());
+    $event->addService(
+        (new RedirectionioAgentService())
+            ->addReverseProxy('app2.project.test', $app2Service, 'b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652')
+    );
     $event->addService(new ClickhouseService('25.8'));
     $event->addService((new GoService('app3', '1.25', __DIR__ . '/go-app'))
         ->addDomain('app3.project.test'));

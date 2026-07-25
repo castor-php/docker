@@ -12,6 +12,9 @@ final class ComposeBuilder
     /** @var array<string, array<mixed>>  */
     private array $volumes = [];
 
+    /** @var array<string, string>  */
+    private array $configs = [];
+
     public function __construct() {}
 
     /**
@@ -20,6 +23,19 @@ final class ComposeBuilder
     public function volume(string $name, array $config = []): self
     {
         $this->volumes[$name] = $config;
+
+        return $this;
+    }
+
+    /**
+     * Declare an inline compose config: its content is stored in the generated
+     * compose file and mounted in the services referencing it with
+     * ServiceBuilder::config(), so a configuration file can be generated from
+     * PHP without shipping it in an image.
+     */
+    public function config(string $name, string $content): self
+    {
+        $this->configs[$name] = $content;
 
         return $this;
     }
@@ -45,6 +61,10 @@ final class ComposeBuilder
 
         foreach ($this->services as $name => $serviceBuilder) {
             $compose['services'][$name] = $serviceBuilder->toArray();
+        }
+
+        foreach ($this->configs as $name => $content) {
+            $compose['configs'][$name] = ['content' => $content];
         }
 
         return $compose;

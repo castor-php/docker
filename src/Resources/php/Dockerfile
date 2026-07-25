@@ -46,16 +46,8 @@ WORKDIR /var/www
 {% block frontend %}
 FROM php-base AS frontend
 
-{% if redirection_io_key is defined %}
-RUN curl -sSL https://packages.redirection.io/gpg.key | gpg --dearmor > /usr/share/keyrings/redirection.io.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/redirection.io.gpg] https://packages.redirection.io/deb/stable/3 trixie main" | tee -a /etc/apt/sources.list.d/packages_redirection_io_deb.list
-{% endif %}
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-{% if redirection_io_key is defined %}
-        libnginx-mod-redirectionio \
-{% endif %}
         nginx \
         "php{{ php_version }}-fpm" \
         runit \

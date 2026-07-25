@@ -131,7 +131,6 @@ A comprehensive service for Symfony applications with FrankenPHP or PHP-FPM, Com
     ->allowHttpAccess()  // Allow HTTP (default is HTTPS only)
     ->addWorker('messenger', 'php bin/console messenger:consume async')
     ->addExtension('redis')  // Adds "php{version}-redis" (fpm) or the equivalent FrankenPHP extension
-    ->withRedirectionIoKey('your-key') // Only applies in PhpMode::Fpm
     ->withFrankenPhpWorkerMode('public/index.php', num: 4) // Only applies in PhpMode::FrankenPhp
 ```
 
@@ -139,7 +138,9 @@ A comprehensive service for Symfony applications with FrankenPHP or PHP-FPM, Com
 - `PhpMode::FrankenPhp` (default) - Serves the app with [FrankenPHP](https://frankenphp.dev/) (`dunglas/frankenphp` image + Caddy). Single process, no PHP-FPM/nginx.
 - `PhpMode::Fpm` - Serves the app with the classic nginx + PHP-FPM stack.
 
-Only the frontend (HTTP-serving) container differs between modes — the builder and worker containers are identical either way. Known limitations of `PhpMode::FrankenPhp`: `withRedirectionIoKey()` has no effect (nginx-only integration), and there is no `/php-fpm-status` monitoring endpoint.
+Only the frontend (HTTP-serving) container differs between modes — the builder and worker containers are identical either way. Known limitation of `PhpMode::FrankenPhp`: there is no `/php-fpm-status` monitoring endpoint.
+
+> **Removed in favour of the agent:** `withRedirectionIoKey()` and the nginx `libnginx-mod-redirectionio` module are gone. redirection.io is now plugged in with [`RedirectionioAgentService`](#redirectionioagentservice), which works the same way for every mode and every language.
 
 **Extensions:**
 
@@ -325,16 +326,38 @@ new ElasticsearchService(
 
 ### RedirectionioAgentService
 
-Redirection.io agent for managing HTTP redirections.
+[redirection.io](https://redirection.io/) agent (v3) running as a **reverse proxy** in front of your applications, so it works with any of them — FrankenPHP, PHP-FPM, Go, Rust, … — with no module to install in the application image.
+
+Traffic flows `router -> agent -> application`: the domain is declared on the agent instead of on the application, which therefore does **not** call `addDomain()` any more. One agent handles as many domains as needed, each with its own project key.
 
 **Configuration:**
 
 ```php
-new RedirectionioAgentService()
+$app = new SymfonyService(name: 'app', directory: __DIR__ . '/app');
+$api = new RustService('api', '1.90', __DIR__ . '/api');
+
+$event->addService($app);
+$event->addService($api);
+
+$event->addService(
+    (new RedirectionioAgentService(
+        projectKey: 'default-project-key', // Used by the domains registered without an explicit key
+        instanceName: 'dev',
+        allowHttpAccess: false,            // Also serve plain HTTP, without redirecting to HTTPS
+    ))
+        // ->addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80)
+        ->addReverseProxy('app.project.test', $app)
+        ->addReverseProxy('legacy.project.test', $app, 'another-project-key')
+        ->addReverseProxy('api.project.test', $api, port: 8080)
+);
 ```
 
+The agent configuration is generated from those calls and shipped to the container as an inline compose config (visible in `compose.generated.yaml` under `configs:`), so there is no `agent.yml` to maintain by hand.
+
 **Docker Services Created:**
-- `redirectionio-agent` - Redirection.io agent service
+- `redirectionio-agent` - The agent, routed by Caddy for every registered domain and forwarding to the target services
+
+> **Upgrading:** the nginx module integration (`PHPService::withRedirectionIoKey()` + `libnginx-mod-redirectionio`) has been removed. Replace `->withRedirectionIoKey($key)` and the application's `->addDomain($domain)` with a single `->addReverseProxy($domain, $service, $key)` on the agent.
 
 ### CaddyRouterService
 

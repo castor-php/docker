@@ -7,25 +7,136 @@ namespace Castor\Docker\Service;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
+use function Castor\yaml_dump;
+
+/**
+ * redirection.io agent (v3) running as a reverse proxy in front of the
+ * applications, instead of as a sidecar for the nginx/apache modules.
+ *
+ * Traffic flows router -> agent -> application: the domain is declared on the
+ * agent rather than on the application, so the application itself no longer
+ * needs to be routed by Caddy:
+ *
+ *     $app = new SymfonyService(name: 'app', directory: __DIR__ . '/app');
+ *
+ *     (new RedirectionioAgentService())
+ *         ->addReverseProxy('app.project.test', $app, 'my-project-key');
+ *
+ * A single agent handles as many domains as needed, each with its own
+ * redirection.io project key.
+ */
 class RedirectionioAgentService implements ServiceInterface
 {
+    private const CONFIG_NAME = 'redirectionio-agent';
+    private const CONFIG_PATH = '/etc/redirectionio/agent.yml';
+
+    /** @var list<array{domain: string, target: string, port: int, projectKey: ?string}> */
+    private array $reverseProxies = [];
+
+    public function __construct(
+        /** Project key used for the domains registered without an explicit one. */
+        private readonly ?string $projectKey = null,
+        private readonly string $instanceName = 'dev',
+        private readonly bool $allowHttpAccess = false,
+    ) {}
+
     public function getName(): string
     {
         return 'redirectionio-agent';
     }
 
+    /**
+     * Serve $domain through the agent and forward the traffic to $target, which
+     * is either a service instance or a service name.
+     */
+    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80): self
+    {
+        $this->reverseProxies[] = [
+            'domain' => $domain,
+            'target' => $target instanceof ServiceInterface ? $target->getName() : $target,
+            'port' => $port,
+            'projectKey' => $projectKey ?? $this->projectKey,
+        ];
+
+        return $this;
+    }
+
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        return $builder
-            ->service('redirectionio-agent')
+        $builder->config(self::CONFIG_NAME, $this->generateConfiguration());
+
+        $service = $builder
+            ->service($this->getName())
                 ->build(__DIR__ . '/../Resources/redirectionio-agent')->end()
+                ->config(self::CONFIG_NAME, self::CONFIG_PATH)
                 ->profile('default')
-            ->end()
         ;
+
+        $domains = array_column($this->reverseProxies, 'domain');
+
+        if ($domains) {
+            $service->withHttpRouting(array_values(array_unique($domains)), 80, $this->allowHttpAccess);
+        }
+
+        return $builder;
     }
 
     public function getTasks(): iterable
     {
         return [];
+    }
+
+    /**
+     * Build the agent.yml served to the container as a compose config.
+     */
+    private function generateConfiguration(): string
+    {
+        $virtualHosts = [];
+
+        foreach ($this->reverseProxies as $reverseProxy) {
+            $virtualHost = [
+                'domains' => [$reverseProxy['domain']],
+                'forward' => [
+                    'address' => \sprintf('%s:%d', $reverseProxy['target'], $reverseProxy['port']),
+                    // The applications are reached over the Docker network, in
+                    // plain HTTP: TLS is terminated by the router. Note the
+                    // scalar form is required here, the documented
+                    // "tls: { enabled: false }" map is ignored by the agent.
+                    'tls' => false,
+                ],
+            ];
+
+            if ($reverseProxy['projectKey'] !== null) {
+                $virtualHost['agent'] = ['project_key' => $reverseProxy['projectKey']];
+            }
+
+            $virtualHosts[] = $virtualHost;
+        }
+
+        $configuration = [
+            'instance' => [
+                'name' => $this->instanceName,
+                // Rules and certificates are refetched on boot: nothing worth
+                // persisting for a development environment.
+                'persist' => false,
+            ],
+            'reverse_proxy' => [
+                'listen' => ['tcp://0.0.0.0:80'],
+                // The router sits in front of the agent and sets the legacy
+                // X-Forwarded-* headers, which the agent ignores by default.
+                'trusted_proxies' => [
+                    'forwarded' => true,
+                    'x_forwarded_for' => true,
+                    'x_forwarded_host' => true,
+                    'x_forwarded_proto' => true,
+                ],
+            ],
+        ];
+
+        if ($virtualHosts) {
+            $configuration['reverse_proxy']['virtual_hosts'] = $virtualHosts;
+        }
+
+        return "# This file is generated by Castor. Do not edit it manually.\n" . yaml_dump($configuration, inline: 6);
     }
 }

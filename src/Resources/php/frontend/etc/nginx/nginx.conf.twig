@@ -39,11 +39,6 @@ http {
         listen 0.0.0.0:80;
         root /var/www/public;
 
-{% if redirection_io_key is defined %}
-        redirectionio_pass redirectionio-agent:10301;
-        redirectionio_project_key "{{ redirection_io_key }}";
-{% endif %}
-
 {% block server_locations %}
         location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg)$ {
             access_log off;
