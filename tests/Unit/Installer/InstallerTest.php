@@ -7,6 +7,7 @@ namespace Castor\Docker\Tests\Unit\Installer;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\MariaDBInstaller;
+use Castor\Docker\Installer\RustInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
 use PHPUnit\Framework\TestCase;
 
@@ -62,6 +63,23 @@ final class InstallerTest extends TestCase
         static::assertStringContainsString('use Castor\Docker\Service\SymfonyService;', $result);
         static::assertStringContainsString(
             "\$event->addService((new SymfonyService(name: 'blog', directory: __DIR__ . '/blog', version: '8.4', mode: PhpMode::FrankenPhp))->addDomain('blog.test')->withDatabaseService(\$postgres));",
+            $result,
+        );
+    }
+
+    public function testRustInstaller(): void
+    {
+        $result = $this->install(new RustInstaller(), [
+            'name' => 'api',
+            'directory' => 'api',
+            'version' => '1.90',
+            'port' => 3000,
+            'domain' => 'api.test',
+        ]);
+
+        static::assertStringContainsString('use Castor\Docker\Service\RustService;', $result);
+        static::assertStringContainsString(
+            "\$event->addService((new RustService(name: 'api', version: '1.90', directory: __DIR__ . '/api', port: 3000))->addDomain('api.test'));",
             $result,
         );
     }

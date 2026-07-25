@@ -17,6 +17,7 @@ use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
+use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
 use Castor\Docker\Tests\SnapshotTestCase;
@@ -91,6 +92,13 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $this->assertMatchesYamlSnapshot($this->build(
             (new GoService('api', '1.25', '/project/api'))->addDomain('api.demo.test'),
+        ));
+    }
+
+    public function testRust(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new RustService('api', '1.90', '/project/api'))->addDomain('api.demo.test'),
         ));
     }
 

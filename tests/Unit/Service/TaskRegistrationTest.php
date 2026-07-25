@@ -10,6 +10,7 @@ use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PostgresService;
+use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\CaddyRouterService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
@@ -66,6 +67,14 @@ final class TaskRegistrationTest extends TestCase
     public function testGoServiceTasks(): void
     {
         static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api', '1.25')));
+    }
+
+    public function testRustServiceTasks(): void
+    {
+        static::assertSame(
+            ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
+            $this->taskNames(new RustService('api', '1.90')),
+        );
     }
 
     public function testCaddyRouterTasks(): void

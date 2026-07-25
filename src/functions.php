@@ -23,6 +23,7 @@ use Castor\Docker\Installer\MySQLInstaller;
 use Castor\Docker\Installer\PostgresInstaller;
 use Castor\Docker\Installer\RabbitMQInstaller;
 use Castor\Docker\Installer\RedisInstaller;
+use Castor\Docker\Installer\RustInstaller;
 use Castor\Docker\Installer\ServiceInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -71,7 +72,6 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $c = $c
         ->withTimeout(null)
         ->withEnvironment([
-            'PHP_VERSION' => variable('php_version'),
             'PROJECT_NAME' => $c->data['project_name'] ?? basename($c->workingDirectory),
             'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
             'REGISTRY' => variable('registry'),
@@ -471,6 +471,7 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
     $event->addInstaller(new ClickhouseInstaller());
     $event->addInstaller(new MailpitInstaller());
     $event->addInstaller(new SymfonyInstaller());
+    $event->addInstaller(new RustInstaller());
 }
 
 #[AsListener(AfterBootEvent::class)]

@@ -1,5 +1,15 @@
 parameters:
     level: 8
+    typeAliases:
+        ContextData: '''
+            array{
+                project_name?: string,
+                root_domain?: string,
+                registry?: string,
+                user_id?: int,
+                build_args?: string[]
+            }
+        '''
     paths:
         - src
 

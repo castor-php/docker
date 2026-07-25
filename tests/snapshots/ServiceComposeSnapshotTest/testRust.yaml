@@ -1,0 +1,25 @@
+services:
+    api:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/rust
+            args:
+                rust_version: '1.90'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/api:cache'
+        working_dir: /app
+        user: '1000:1000'
+        environment:
+            HOME: /home/app
+            CARGO_HOME: /home/app/.cargo
+        volumes:
+            - '/project/api:/app:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=api.demo.test
+            - 'caddy.reverse_proxy={{upstreams 8080}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        command: /app/target/debug/api
+volumes: {}

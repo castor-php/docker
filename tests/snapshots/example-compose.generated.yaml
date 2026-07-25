@@ -290,6 +290,29 @@ services:
         profiles:
             - default
         command: /app/app3
+    app4:
+        build:
+            context: %ROOT%/src/Service/../Resources/rust
+            args:
+                rust_version: '1.90'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app4:cache'
+        working_dir: /app
+        user: %UID%
+        environment:
+            HOME: /home/app
+            CARGO_HOME: /home/app/.cargo
+        volumes:
+            - '%ROOT%/example/rust-app:/app:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=app4.project.test
+            - 'caddy.reverse_proxy={{upstreams 8080}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        command: /app/target/debug/app4
 volumes:
     router-data: {}
     postgres_data: {}

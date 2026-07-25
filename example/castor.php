@@ -16,6 +16,7 @@ use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
+use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\SymfonyService;
 
 #[AsContext(default: true)]
@@ -64,4 +65,6 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(new ClickhouseService('25.8'));
     $event->addService((new GoService('app3', '1.25', __DIR__ . '/go-app'))
         ->addDomain('app3.project.test'));
+    $event->addService((new RustService('app4', '1.90', __DIR__ . '/rust-app'))
+        ->addDomain('app4.project.test'));
 }

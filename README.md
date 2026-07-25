@@ -80,13 +80,15 @@ castor docker:service:install
 # Install one
 castor docker:service:install mariadb
 castor docker:service:install symfony
+castor docker:service:install rust
 ```
 
 Depending on the service, you'll be asked a few questions (app name, directory,
 PHP version, …). Some services do more on install — a Symfony app is scaffolded
 with `composer create-project symfony/skeleton` inside its own builder container,
-and if it needs a database you're offered to link an existing one or install a
-new one on the spot. Pass `--no-interaction` to accept the defaults, or `--file`
+a Rust app is created with `cargo init` and gets a dependency-free HTTP server to
+start from, and if it needs a database you're offered to link an existing one or
+install a new one on the spot. Pass `--no-interaction` to accept the defaults, or `--file`
 to target a listener file other than `castor.php`.
 
 Removing works the same way — it unregisters the service from your listener
@@ -165,6 +167,41 @@ By default the following PHP extensions are installed: `apcu`, `bcmath`, `curl`,
 - `app` - FrankenPHP or PHP-FPM frontend service (depending on `mode`)
 - `app-builder` - Builder service for running commands
 - `app-worker-{name}` - Worker services for background jobs
+
+### RustService
+
+A service for Cargo applications. The sources are mounted in the container, `cargo build` runs inside it, and the resulting debug binary is used as the container command.
+
+The image is the official `rust` one plus the `clippy` and `rustfmt` components (the official images ship the *minimal* rustup profile, which leaves them out). The crate registry lives in the shared home directory (`CARGO_HOME=/home/app/.cargo`), so a given crate is downloaded once for the whole project instead of once per service or per rebuild. Build artifacts stay in the project's own `target/` directory.
+
+**Configuration:**
+
+```php
+(new RustService(
+    name: 'api',              // Service name — must match the crate name, the
+                              // container runs target/debug/<name>
+    version: '1.90',          // Rust version (tag of the official rust image)
+    directory: __DIR__ . '/api',
+    domains: [],              // Domains served through the router
+    allowHttpAccess: false,   // Also serve plain HTTP, without redirecting to HTTPS
+    sharedHomeDirectory: '.home',
+    port: 8080,               // Port the application listens on
+))
+    ->addDomain('api.project.test')
+```
+
+**Generated Tasks:**
+- `castor api:build` - Build the application (`cargo build`)
+- `castor api:restart` - Restart the service
+- `castor api:watch` - Rebuild and restart on every change to a `.rs`, `Cargo.toml` or `Cargo.lock` file
+- `castor api:test` - Run the test suite (`cargo test`)
+- `castor api:cargo` - Run any cargo command in the container
+- `castor api:bash` - Open a bash shell in the Rust container
+- `castor api:qa:clippy` - Run Clippy
+- `castor api:qa:fmt` - Run rustfmt
+
+**Docker Services Created:**
+- `api` - The Rust application
 
 ### PostgresService
 
