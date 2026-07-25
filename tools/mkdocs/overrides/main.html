@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block htmltitle %}
+    {% if page.is_homepage %}
+    <title>{{ page.meta.title }}</title>
+    {% elif page.meta and page.meta.title %}
+    <title>{{ page.meta.title }} - Castor Docker plugin</title>
+    {% else %}
+    <title>{{ page.title | striptags }} - Castor Docker plugin</title>
+    {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Castor Docker plugin",
+            "url": "{{ config.site_url }}",
+            "description": "A Castor plugin that generates your Docker Compose stack and the tasks to drive it.",
+            "applicationCategory": "DeveloperTool",
+            "operatingSystem": "All",
+            "programmingLanguage": "PHP",
+            "license": "https://opensource.org/licenses/MIT",
+            "author": {
+                "@type": "Organization",
+                "name": "JoliCode"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            },
+            "downloadUrl": "https://github.com/castor-php/docker",
+            "sameAs": [ "{{ config.repo_url }}", "https://packagist.org/packages/castor-php/docker" ]
+        }
+    </script>
+{% endblock %}
+
+{% block footer %}
+    {{ super() }}
+    {% include "partials/jolicode-footer.html" %}
+{% endblock %}

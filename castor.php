@@ -5,8 +5,11 @@ declare(strict_types=1);
 use Castor\Attribute\AsTask;
 
 use function Castor\context;
+use function Castor\import;
 use function Castor\PHPQa\phpstan;
 use function Castor\PHPQa\php_cs_fixer;
+
+import(__DIR__ . '/tools/mkdocs/castor.php');
 
 #[AsTask(description: 'Run PHPStan', namespace: 'qa', name: 'phpstan', aliases: ['phpstan'])]
 function qa_phpstan(bool $generateBaseline = false): int

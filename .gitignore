@@ -4,3 +4,6 @@ vendor
 .castor.stub.php
 .php-cs-fixer.cache
 .phpunit.cache
+
+# Downloaded by "castor docs:assets"
+/doc/assets/stylesheets/jolicode.css
