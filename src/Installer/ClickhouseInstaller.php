@@ -29,11 +29,12 @@ final class ClickhouseInstaller extends AbstractServiceInstaller
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $builder->addNewServiceAst(ClickhouseService::class, [(string) $answers['version']]);
+        $builder->addNewServiceAst(ClickhouseService::class)
+            ->callMethod('withVersion', [(string) $answers['version']]);
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return new ClickhouseService((string) $answers['version']);
+        return (new ClickhouseService())->withVersion((string) $answers['version']);
     }
 }

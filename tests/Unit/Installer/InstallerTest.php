@@ -44,7 +44,7 @@ final class InstallerTest extends TestCase
         $result = $this->install(new MariaDBInstaller(), ['version' => '11.4']);
 
         static::assertStringContainsString('use Castor\Docker\Service\MariaDBService;', $result);
-        static::assertStringContainsString("\$event->addService(new MariaDBService(version: '11.4'));", $result);
+        static::assertStringContainsString("\$event->addService((new MariaDBService())->withVersion('11.4'));", $result);
     }
 
     public function testSymfonyInstallerWithDatabaseLink(): void
@@ -62,7 +62,7 @@ final class InstallerTest extends TestCase
         static::assertStringContainsString('use Castor\Docker\Service\PhpMode;', $result);
         static::assertStringContainsString('use Castor\Docker\Service\SymfonyService;', $result);
         static::assertStringContainsString(
-            "\$event->addService((new SymfonyService(name: 'blog', directory: __DIR__ . '/blog', version: '8.4', mode: PhpMode::FrankenPhp))->addDomain('blog.test')->withDatabaseService(\$postgres));",
+            "\$event->addService((new SymfonyService('blog'))->withDirectory(__DIR__ . '/blog')->withVersion('8.4')->withMode(PhpMode::FrankenPhp)->withDomain('blog.test')->withDatabaseService(\$postgres));",
             $result,
         );
     }
@@ -79,7 +79,7 @@ final class InstallerTest extends TestCase
 
         static::assertStringContainsString('use Castor\Docker\Service\RustService;', $result);
         static::assertStringContainsString(
-            "\$event->addService((new RustService(name: 'api', version: '1.90', directory: __DIR__ . '/api', port: 3000))->addDomain('api.test'));",
+            "\$event->addService((new RustService('api'))->withDirectory(__DIR__ . '/api')->withVersion('1.90')->withPort(3000)->withDomain('api.test'));",
             $result,
         );
     }

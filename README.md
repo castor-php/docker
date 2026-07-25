@@ -48,14 +48,16 @@ function default_context(): Context
 #[AsListener(RegisterServiceEvent::class)]
 function register_service(RegisterServiceEvent $event)
 {
-    $postgresService = new PostgresService();
+    $postgresService = (new PostgresService())
+    ->withVersion('16')             // PostgreSQL version (default: 16);
     $event->addService($postgresService);
 
     $event->addService(
-        (new SymfonyService(name: 'app', directory: __DIR__))
+        (new SymfonyService('app'))
+            ->withDirectory(__DIR__)
             ->withDatabaseService($postgresService)
-            ->addDomain('myproject.test')
-            ->allowHttpAccess()
+            ->withDomain('myproject.test')
+            ->withHttpAccess()
     );
 }
 ```
@@ -110,6 +112,48 @@ Your code is edited with a format-preserving AST rewrite, so only the added or
 removed lines change. Other plugins can contribute their own installers by
 listening to `RegisterServiceInstallerEvent`.
 
+## Configuring Services
+
+Services take **only their identity in the constructor** — a name for the application services, nothing at all for the others. Everything else is set with fluent `with*()` methods, so you only write the options you actually change:
+
+```php
+(new RustService('api'))
+    ->withVersion('1.90')
+    ->withDirectory(__DIR__ . '/api')
+    ->withDomain('api.project.test')
+```
+
+Those methods come from a small set of traits in `Castor\Docker\Service\Behaviour`, shared by every service that needs the behaviour. Use them in your own services to get the same API for free:
+
+| Trait | Methods | Used by |
+|-------|---------|---------|
+| `HasVersion` | `withVersion()`, `getVersion()` | every versioned service |
+| `HasDomains` | `withDomain(...$domains)`, `getDomains()` | every routed service |
+| `HasHttpAccess` | `withHttpAccess()`, `isHttpAccessAllowed()` | every routed service |
+| `HasHttpRouting` | the two above + `withPort()`, `getPort()`, `applyHttpRouting()` | `PHPService`, `GoService`, `RustService`, `RedirectionioAgentService` |
+| `HasDirectory` | `withDirectory()`, `getDirectory()` | `PHPService`, `GoService`, `RustService` |
+| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, `CaddyRouterService` |
+| `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService` |
+
+`HasVersion` and `HasDockerfile` require the service to declare its own fallback with `getDefaultVersion()` / `getDefaultDockerfile()`, and `HasHttpRouting` lets a service override `getDefaultPort()` (`RustService` returns 8080 that way). Defaults are resolved lazily, when the compose file is generated: `PHPService` picks its Dockerfile from the mode, so `->withMode(PhpMode::Fpm)` works whatever the call order.
+
+> **Upgrading:** constructor arguments other than the name are gone, `addDomain()` is now `withDomain()` (variadic) and `allowHttpAccess()` is now `withHttpAccess()`.
+>
+> ```php
+> // before
+> (new SymfonyService(name: 'app', directory: __DIR__, version: '8.4', mode: PhpMode::Fpm))
+>     ->addDomain('app.test')
+>     ->allowHttpAccess()
+>
+> // after
+> (new SymfonyService('app'))
+>     ->withDirectory(__DIR__)
+>     ->withVersion('8.4')
+>     ->withMode(PhpMode::Fpm)
+>     ->withDomain('app.test')
+>     ->withHttpAccess()
+> ```
+
 ## Available Services
 
 ### SymfonyService
@@ -119,16 +163,13 @@ A comprehensive service for Symfony applications with FrankenPHP or PHP-FPM, Com
 **Configuration:**
 
 ```php
-(new SymfonyService(
-    name: 'app',              // Service name
-    directory: __DIR__,       // Application directory
-    version: '8.5',           // PHP version
-    mode: PhpMode::FrankenPhp, // PhpMode::FrankenPhp (default) or PhpMode::Fpm
-))
+(new SymfonyService('app'))          // Service name, the only constructor argument
+    ->withDirectory(__DIR__)         // Application directory (default: '.')
+    ->withVersion('8.5')             // PHP version (default: 8.5)
+    ->withMode(PhpMode::FrankenPhp)  // PhpMode::FrankenPhp (default) or PhpMode::Fpm
     ->withDatabaseService($databaseService)
-    ->addDomain('app.example.test')
-    ->addDomain('example.test')
-    ->allowHttpAccess()  // Allow HTTP (default is HTTPS only)
+    ->withDomain('app.example.test', 'example.test')
+    ->withHttpAccess()  // Allow HTTP (default is HTTPS only)
     ->addWorker('messenger', 'php bin/console messenger:consume async')
     ->addExtension('redis')  // Adds "php{version}-redis" (fpm) or the equivalent FrankenPHP extension
     ->withFrankenPhpWorkerMode('public/index.php', num: 4) // Only applies in PhpMode::FrankenPhp
@@ -178,17 +219,13 @@ The image is the official `rust` one plus the `clippy` and `rustfmt` components 
 **Configuration:**
 
 ```php
-(new RustService(
-    name: 'api',              // Service name — must match the crate name, the
-                              // container runs target/debug/<name>
-    version: '1.90',          // Rust version (tag of the official rust image)
-    directory: __DIR__ . '/api',
-    domains: [],              // Domains served through the router
-    allowHttpAccess: false,   // Also serve plain HTTP, without redirecting to HTTPS
-    sharedHomeDirectory: '.home',
-    port: 8080,               // Port the application listens on
-))
-    ->addDomain('api.project.test')
+(new RustService('api'))            // Service name — must match the crate name,
+                                    // the container runs target/debug/<name>
+    ->withVersion('1.90')           // Rust version, tag of the official rust image (default: 1)
+    ->withDirectory(__DIR__ . '/api')
+    ->withPort(8080)                // Port the application listens on (default: 8080)
+    ->withDomain('api.project.test')
+    ->withHttpAccess()              // Also serve plain HTTP, without redirecting to HTTPS
 ```
 
 **Generated Tasks:**
@@ -230,11 +267,10 @@ MySQL database service.
 **Configuration:**
 
 ```php
-new MySQLService(
-    version: '8',              // MySQL version
-    rootPassword: 'root',      // Root password
-    database: 'app',           // Database name
-)
+(new MySQLService())
+    ->withVersion('8')              // MySQL version (default: 8)
+    ->withRootPassword('root')      // Root password (default: root)
+    ->withDatabase('app')           // Database name (default: app)
 ```
 
 **Generated Tasks:**
@@ -253,11 +289,10 @@ MariaDB database service.
 **Configuration:**
 
 ```php
-new MariaDBService(
-    version: '12.1',           // MariaDB version
-    rootPassword: 'root',      // Root password
-    database: 'app',           // Database name
-)
+(new MariaDBService())
+    ->withVersion('12.1')           // MariaDB version (default: 12.1)
+    ->withRootPassword('root')      // Root password (default: root)
+    ->withDatabase('app')           // Database name (default: app)
 ```
 
 **Generated Tasks:**
@@ -276,7 +311,8 @@ Redis cache server with RedisInsight web UI.
 **Configuration:**
 
 ```php
-new RedisService()
+(new RedisService())
+    ->withVersion('5')              // Redis version (default: 5)
 ```
 
 **Docker Services Created:**
@@ -310,9 +346,8 @@ Elasticsearch search engine with Kibana.
 **Configuration:**
 
 ```php
-new ElasticsearchService(
-    version: '7.8.0',  // Elasticsearch version
-)
+(new ElasticsearchService())
+    ->withVersion('7.8.0')          // Elasticsearch version (default: 7.8.0)
 ```
 
 **Docker Services Created:**
@@ -328,23 +363,21 @@ new ElasticsearchService(
 
 [redirection.io](https://redirection.io/) agent (v3) running as a **reverse proxy** in front of your applications, so it works with any of them — FrankenPHP, PHP-FPM, Go, Rust, … — with no module to install in the application image.
 
-Traffic flows `router -> agent -> application`: the domain is declared on the agent instead of on the application, which therefore does **not** call `addDomain()` any more. One agent handles as many domains as needed, each with its own project key.
+Traffic flows `router -> agent -> application`: the domain is declared on the agent instead of on the application, which therefore does **not** call `withDomain()` any more. One agent handles as many domains as needed, each with its own project key.
 
 **Configuration:**
 
 ```php
-$app = new SymfonyService(name: 'app', directory: __DIR__ . '/app');
-$api = new RustService('api', '1.90', __DIR__ . '/api');
+$app = (new SymfonyService('app'))->withDirectory(__DIR__ . '/app');
+$api = (new RustService('api'))->withVersion('1.90')->withDirectory(__DIR__ . '/api');
 
 $event->addService($app);
 $event->addService($api);
 
 $event->addService(
-    (new RedirectionioAgentService(
-        projectKey: 'default-project-key', // Used by the domains registered without an explicit key
-        instanceName: 'dev',
-        allowHttpAccess: false,            // Also serve plain HTTP, without redirecting to HTTPS
-    ))
+    (new RedirectionioAgentService())
+        ->withProjectKey('default-project-key') // Used by the domains registered without an explicit key
+        ->withInstanceName('dev')
         // ->addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80)
         ->addReverseProxy('app.project.test', $app)
         ->addReverseProxy('legacy.project.test', $app, 'another-project-key')
@@ -357,7 +390,7 @@ The agent configuration is generated from those calls and shipped to the contain
 **Docker Services Created:**
 - `redirectionio-agent` - The agent, routed by Caddy for every registered domain and forwarding to the target services
 
-> **Upgrading:** the nginx module integration (`PHPService::withRedirectionIoKey()` + `libnginx-mod-redirectionio`) has been removed. Replace `->withRedirectionIoKey($key)` and the application's `->addDomain($domain)` with a single `->addReverseProxy($domain, $service, $key)` on the agent.
+> **Upgrading:** the nginx module integration (`PHPService::withRedirectionIoKey()` + `libnginx-mod-redirectionio`) has been removed. Replace `->withRedirectionIoKey($key)` and the application's `->withDomain($domain)` with a single `->addReverseProxy($domain, $service, $key)` on the agent.
 
 ### CaddyRouterService
 
@@ -369,9 +402,8 @@ TLS certificates are minted **on demand** by Caddy's internal issuer the first t
 
 ```php
 // Automatically registered, but can be customized
-new CaddyRouterService(
-    sharedHomeDirectory: '.home',
-)
+(new CaddyRouterService())
+    ->withSharedHomeDirectory('.home')
 ```
 
 **Generated Tasks:**
@@ -586,16 +618,18 @@ function register_service(RegisterServiceEvent $event)
     $event->addService($mysqlService);
 
     $event->addService(
-        (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1'))
+        (new SymfonyService('app1'))
+            ->withDirectory(__DIR__ . '/app1')
             ->withDatabaseService($postgresService)
-            ->addDomain('app1.project.test')
-            ->addDomain('project.test')
+            ->withDomain('app1.project.test', 'project.test')
     );
 
     $event->addService(
-        (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2'))
+        (new SymfonyService('app2'))
+            ->withDirectory(__DIR__ . '/app2')
+            ->withVersion('8.2')
             ->withDatabaseService($mysqlService)
-            ->addDomain('app2.project.test')
+            ->withDomain('app2.project.test')
     );
 }
 ```
@@ -619,7 +653,7 @@ RUN echo "custom builder step"
 Then reference it in your service:
 
 ```php
-(new SymfonyService(name: 'app', directory: __DIR__))
+(new SymfonyService('app'))->withDirectory(__DIR__)
     ->withDockerfile(__DIR__ . '/Dockerfile')
 ```
 
@@ -628,7 +662,7 @@ Then reference it in your service:
 Add background worker processes to your application:
 
 ```php
-(new SymfonyService(name: 'app', directory: __DIR__))
+(new SymfonyService('app'))->withDirectory(__DIR__)
     ->addWorker('messenger', 'php bin/console messenger:consume async --time-limit=3600')
     ->addWorker('notifications', 'php bin/console app:process-notifications')
 ```
@@ -656,7 +690,7 @@ castor app:qa:twig-cs
 Configure versions in your service:
 
 ```php
-(new SymfonyService(name: 'app', directory: __DIR__))
+(new SymfonyService('app'))->withDirectory(__DIR__)
     ->addPhpStanExtraDependency('phpstan/phpstan-symfony', '^2.0')
 ```
 

@@ -38,29 +38,27 @@ final class RustInstaller extends AbstractServiceInstaller
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $expression = $builder->addNewServiceAst(RustService::class, [
-            'name' => (string) $answers['name'],
-            'version' => (string) $answers['version'],
-            'directory' => Ast::raw(\sprintf("__DIR__ . '/%s'", $answers['directory'])),
-            'port' => (int) $answers['port'],
-        ]);
+        $expression = $builder->addNewServiceAst(RustService::class, [(string) $answers['name']])
+            ->callMethod('withDirectory', [Ast::raw(\sprintf("__DIR__ . '/%s'", $answers['directory']))])
+            ->callMethod('withVersion', [(string) $answers['version']])
+            ->callMethod('withPort', [(int) $answers['port']])
+        ;
 
         if (($answers['domain'] ?? '') !== '') {
-            $expression->callMethod('addDomain', [(string) $answers['domain']]);
+            $expression->callMethod('withDomain', [(string) $answers['domain']]);
         }
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = new RustService(
-            name: (string) $answers['name'],
-            version: (string) $answers['version'],
-            directory: context()->workingDirectory . '/' . $answers['directory'],
-            port: (int) $answers['port'],
-        );
+        $service = (new RustService((string) $answers['name']))
+            ->withDirectory(context()->workingDirectory . '/' . $answers['directory'])
+            ->withVersion((string) $answers['version'])
+            ->withPort((int) $answers['port'])
+        ;
 
         if (($answers['domain'] ?? '') !== '') {
-            $service->addDomain((string) $answers['domain']);
+            $service->withDomain((string) $answers['domain']);
         }
 
         return $service;

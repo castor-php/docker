@@ -29,11 +29,12 @@ final class MariaDBInstaller extends AbstractServiceInstaller implements Databas
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $builder->addNewServiceAst(MariaDBService::class, ['version' => (string) $answers['version']]);
+        $builder->addNewServiceAst(MariaDBService::class)
+            ->callMethod('withVersion', [(string) $answers['version']]);
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return new MariaDBService(version: (string) $answers['version']);
+        return (new MariaDBService())->withVersion((string) $answers['version']);
     }
 }

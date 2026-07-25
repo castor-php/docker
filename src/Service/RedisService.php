@@ -7,12 +7,20 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
 class RedisService implements ServiceInterface
 {
+    use HasVersion;
+
+    protected function getDefaultVersion(): string
+    {
+        return '5';
+    }
+
     public function getName(): string
     {
         return 'redis';
@@ -26,7 +34,7 @@ class RedisService implements ServiceInterface
             ->volume('redis-data')
             ->volume('redis-insight-data')
             ->service('redis')
-                ->image('redis:5')
+                ->image('redis:' . $this->getVersion())
                 ->volume('redis-data', '/data')
                 ->healthcheck(['CMD', 'redis-cli', 'ping'])
                 ->profile('default')

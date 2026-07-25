@@ -41,7 +41,7 @@ final class TaskRegistrationTest extends TestCase
     {
         static::assertSame(
             ['app:bash', 'app:install', 'app:composer', 'app:qa:phpstan', 'app:qa:cs', 'app:qa:rector'],
-            $this->taskNames(new PHPService(name: 'app')),
+            $this->taskNames(new PHPService('app')),
         );
     }
 
@@ -52,7 +52,7 @@ final class TaskRegistrationTest extends TestCase
                 'app:bash', 'app:install', 'app:composer', 'app:qa:phpstan', 'app:qa:cs', 'app:qa:rector',
                 'app:cache-clear', 'app:cache-warmup', 'app:db:fixtures', 'app:db:migrate', 'app:symfony', 'app:qa:twig-cs',
             ],
-            $this->taskNames(new SymfonyService(name: 'app')),
+            $this->taskNames(new SymfonyService('app')),
         );
     }
 
@@ -61,19 +61,19 @@ final class TaskRegistrationTest extends TestCase
         static::assertSame(['db:psql', 'postgres:expose'], $this->taskNames(new PostgresService()));
         static::assertSame(['db:mysql', 'mysql:expose'], $this->taskNames(new MySQLService()));
         static::assertSame(['db:mariadb', 'mariadb:expose'], $this->taskNames(new MariaDBService()));
-        static::assertSame(['db:clickhouse', 'clickhouse:expose'], $this->taskNames(new ClickhouseService('25.8')));
+        static::assertSame(['db:clickhouse', 'clickhouse:expose'], $this->taskNames(new ClickhouseService()));
     }
 
     public function testGoServiceTasks(): void
     {
-        static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api', '1.25')));
+        static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api')));
     }
 
     public function testRustServiceTasks(): void
     {
         static::assertSame(
             ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
-            $this->taskNames(new RustService('api', '1.90')),
+            $this->taskNames(new RustService('api')),
         );
     }
 

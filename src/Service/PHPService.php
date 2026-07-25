@@ -7,6 +7,11 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasDirectory;
+use Castor\Docker\Service\Behaviour\HasDockerfile;
+use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose_run;
@@ -19,6 +24,12 @@ use function Castor\context;
 
 class PHPService implements ServiceInterface
 {
+    use HasDirectory;
+    use HasDockerfile;
+    use HasHttpRouting;
+    use HasSharedHomeDirectory;
+    use HasVersion;
+
     private ?DatabaseServiceInterface $databaseService = null;
 
     private ?MailpitService $mailerService = null;
@@ -38,50 +49,60 @@ class PHPService implements ServiceInterface
     private ?int $frankenPhpWorkerNum = null;
     private bool $frankenPhpWorkerWatch = true;
 
-    protected string $dockerFile;
+    protected PhpMode $mode = PhpMode::FrankenPhp;
+
+    protected string $phpStanVersion = '*';
+    protected string $phpCsFixerVersion = '*';
+    protected string $rectorVersion = '*';
 
     public function __construct(
         protected string $name = 'app',
-        protected string $directory = '.',
-        protected string $version = '8.5',
-        protected string $sharedHomeDirectory = '.home',
-        protected string $phpStanVersion = '*',
-        protected string $phpCsFixerVersion = '*',
-        protected string $rectorVersion = '*',
-        /** @var string[] */
-        protected array $domains = [],
-        protected bool $allowHttpAccess = false,
-        protected PhpMode $mode = PhpMode::FrankenPhp,
-        ?string $dockerFile = null,
-    ) {
-        $this->dockerFile = $dockerFile ?? match ($this->mode) {
+    ) {}
+
+    protected function getDefaultVersion(): string
+    {
+        return '8.5';
+    }
+
+    protected function getDefaultDockerfile(): string
+    {
+        return match ($this->mode) {
             PhpMode::FrankenPhp => __DIR__ . '/../Resources/php/Dockerfile.frankenphp',
             PhpMode::Fpm => __DIR__ . '/../Resources/php/Dockerfile',
         };
     }
 
-    public function addWorker(string $name, string $command): self
+    public function withMode(PhpMode $mode): static
+    {
+        $this->mode = $mode;
+
+        return $this;
+    }
+
+    public function withPhpStanVersion(string $version): static
+    {
+        $this->phpStanVersion = $version;
+
+        return $this;
+    }
+
+    public function withPhpCsFixerVersion(string $version): static
+    {
+        $this->phpCsFixerVersion = $version;
+
+        return $this;
+    }
+
+    public function withRectorVersion(string $version): static
+    {
+        $this->rectorVersion = $version;
+
+        return $this;
+    }
+
+    public function addWorker(string $name, string $command): static
     {
         $this->workers[$name] = $command;
-
-        return $this;
-    }
-
-    public function addDomain(string $domain): self
-    {
-        $this->domains[] = $domain;
-        return $this;
-    }
-
-    public function allowHttpAccess(bool $allow = true): self
-    {
-        $this->allowHttpAccess = $allow;
-        return $this;
-    }
-
-    public function withDockerfile(string $path): self
-    {
-        $this->dockerFile = $path;
 
         return $this;
     }
@@ -91,25 +112,25 @@ class PHPService implements ServiceInterface
         return $this->name;
     }
 
-    public function withDatabaseService(DatabaseServiceInterface $databaseService): self
+    public function withDatabaseService(DatabaseServiceInterface $databaseService): static
     {
         $this->databaseService = $databaseService;
         return $this;
     }
 
-    public function withMailerService(MailpitService $mailerService): self
+    public function withMailerService(MailpitService $mailerService): static
     {
         $this->mailerService = $mailerService;
         return $this;
     }
 
-    public function addPhpStanExtraDependency(string $package, string $version): self
+    public function addPhpStanExtraDependency(string $package, string $version): static
     {
         $this->phpStanExtraDependencies[$package] = $version;
         return $this;
     }
 
-    public function addExtension(string $extension): self
+    public function addExtension(string $extension): static
     {
         $this->extensions[] = $extension;
         return $this;
@@ -122,7 +143,7 @@ class PHPService implements ServiceInterface
      * needs a compatible runtime (e.g. runtime/frankenphp-symfony) to loop
      * over incoming requests from that script.
      */
-    public function withFrankenPhpWorkerMode(string $script = 'public/index.php', ?int $num = null, bool $watch = true): self
+    public function withFrankenPhpWorkerMode(string $script = 'public/index.php', ?int $num = null, bool $watch = true): static
     {
         $this->frankenPhpWorkerScript = $script;
         $this->frankenPhpWorkerNum = $num;
@@ -137,15 +158,15 @@ class PHPService implements ServiceInterface
         $appService = $builder
             ->service($this->name)
                 ->build(__DIR__ . '/../Resources/php')
-                    ->dockerfile($this->dockerFile)
+                    ->dockerfile($this->getDockerfile())
                     ->target('frontend')
                     ->withRegistryCache($this->name)
-                    ->arg('php_version', $this->version)
+                    ->arg('php_version', $this->getVersion())
                     ->arg('php_extensions', json_encode(array_values($this->extensions), \JSON_THROW_ON_ERROR))
                 ->end()
                 ->user("{$userId}:{$userId}")
-                ->volume($this->directory, '/var/www', 'cached')
-                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->volume($this->getDirectory(), '/var/www', 'cached')
+                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                 ->profile('default')
         ;
 
@@ -170,15 +191,12 @@ class PHPService implements ServiceInterface
                 ->end()
                 ->user("{$userId}:{$userId}")
                 ->init(true)
-                ->volume($this->directory, '/var/www', 'cached')
-                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->volume($this->getDirectory(), '/var/www', 'cached')
+                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                 ->profile('builder')
         ;
 
-        if ($this->domains) {
-            $appService
-                ->withHttpRouting($this->domains, 80, $this->allowHttpAccess);
-        }
+        $this->applyHttpRouting($appService);
 
         if ($this->databaseService) {
             $appService
@@ -216,8 +234,8 @@ class PHPService implements ServiceInterface
                         ->withRegistryCache($this->name . '-worker')
                     ->end()
                     ->user("{$userId}:{$userId}")
-                    ->volume($this->directory, '/var/www', 'cached')
-                    ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                    ->volume($this->getDirectory(), '/var/www', 'cached')
+                    ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                     ->command($command)
                     ->profile('default')
             ;
@@ -272,7 +290,7 @@ class PHPService implements ServiceInterface
                 io()->section('Running PHPStan...');
 
                 /** @var list<string> $args */
-                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->directory);
+                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->getDirectory());
             },
         ];
 
@@ -282,7 +300,7 @@ class PHPService implements ServiceInterface
                 io()->section('Running PHP CS Fixer...');
 
                 /** @var list<string> $args */
-                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->directory);
+                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->getDirectory());
             },
         ];
 
@@ -292,7 +310,7 @@ class PHPService implements ServiceInterface
                 io()->section('Running Rector...');
 
                 /** @var list<string> $args */
-                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->directory);
+                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->getDirectory());
             },
         ];
     }

@@ -7,21 +7,48 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
 use function Castor\context;
 
-readonly class ClickhouseService implements ServiceInterface
+class ClickhouseService implements ServiceInterface
 {
-    public function __construct(
-        private string $version,
-        private bool $backup = false,
-        private string $database = 'app',
-        private string $username = 'app',
-        private string $password = 'app',
-    ) {}
+    use HasVersion;
+
+    private bool $backup = false;
+    private string $database = 'app';
+    private string $username = 'app';
+    private string $password = 'app';
+
+    protected function getDefaultVersion(): string
+    {
+        return '25.8';
+    }
+
+    public function withBackup(bool $backup = true): static
+    {
+        $this->backup = $backup;
+
+        return $this;
+    }
+
+    public function withDatabase(string $database): static
+    {
+        $this->database = $database;
+
+        return $this;
+    }
+
+    public function withCredentials(string $username, string $password): static
+    {
+        $this->username = $username;
+        $this->password = $password;
+
+        return $this;
+    }
 
     public function getName(): string
     {
@@ -37,7 +64,7 @@ readonly class ClickhouseService implements ServiceInterface
             ->service('clickhouse')
                 ->build(__DIR__ . '/../Resources/clickhouse')
                     ->dockerfile('Dockerfile')
-                    ->arg('clickhouse_version', $this->version)
+                    ->arg('clickhouse_version', $this->getVersion())
                     ->arg('backup', (string) $this->backup)
                 ->end()
                 ->volume('clickhouse-data', '/var/lib/clickhouse')
@@ -52,7 +79,7 @@ readonly class ClickhouseService implements ServiceInterface
             ->service('clickhouse-keeper')
                 ->build(__DIR__ . '/../Resources/clickhouse')
                     ->dockerfile('Dockerfile.keeper')
-                    ->arg('clickhouse_version', $this->version)
+                    ->arg('clickhouse_version', $this->getVersion())
                 ->end()
                 ->profile('default')
             ->end()

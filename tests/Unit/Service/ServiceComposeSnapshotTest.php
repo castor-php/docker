@@ -75,7 +75,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
 
     public function testClickhouse(): void
     {
-        $this->assertMatchesYamlSnapshot($this->build(new ClickhouseService('25.8')));
+        $this->assertMatchesYamlSnapshot($this->build((new ClickhouseService())->withVersion('25.8')));
     }
 
     public function testRedirectionioAgent(): void
@@ -85,10 +85,11 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
 
     public function testRedirectionioAgentAsReverseProxy(): void
     {
-        $app = new PHPService(name: 'app', directory: '/project/app');
-        $api = new RustService('api', '1.90', '/project/api');
+        $app = (new PHPService('app'))->withDirectory('/project/app');
+        $api = (new RustService('api'))->withVersion('1.90')->withDirectory('/project/api');
 
-        $agent = (new RedirectionioAgentService(projectKey: 'default-key'))
+        $agent = (new RedirectionioAgentService())
+            ->withProjectKey('default-key')
             ->addReverseProxy('app.demo.test', $app)
             ->addReverseProxy('legacy.demo.test', $app, 'legacy-key')
             ->addReverseProxy('api.demo.test', $api, port: 8080)
@@ -105,35 +106,36 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     public function testGo(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            (new GoService('api', '1.25', '/project/api'))->addDomain('api.demo.test'),
+            (new GoService('api'))->withVersion('1.25')->withDirectory('/project/api')->withDomain('api.demo.test'),
         ));
     }
 
     public function testRust(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            (new RustService('api', '1.90', '/project/api'))->addDomain('api.demo.test'),
+            (new RustService('api'))->withVersion('1.90')->withDirectory('/project/api')->withDomain('api.demo.test'),
         ));
     }
 
     public function testPhpMinimal(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            new PHPService(name: 'app', directory: '/project/app'),
+            (new PHPService('app'))->withDirectory('/project/app'),
         ));
     }
 
     public function testPhpFpmMode(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            new PHPService(name: 'app', directory: '/project/app', mode: PhpMode::Fpm),
+            (new PHPService('app'))->withDirectory('/project/app')->withMode(PhpMode::Fpm),
         ));
     }
 
     public function testPhpWithExtensions(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            (new PHPService(name: 'app', directory: '/project/app'))
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
                 ->addExtension('redis')
                 ->addExtension('amqp'),
         ));
@@ -142,7 +144,8 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     public function testPhpWithFrankenPhpWorkerMode(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(
-            (new PHPService(name: 'app', directory: '/project/app'))
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
                 ->withFrankenPhpWorkerMode('public/index.php', num: 4),
         ));
     }
@@ -151,11 +154,12 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $postgres = new PostgresService();
 
-        $php = (new PHPService(name: 'app', directory: '/project/app', version: '8.4'))
+        $php = (new PHPService('app'))
+            ->withDirectory('/project/app')
+            ->withVersion('8.4')
             ->withDatabaseService($postgres)
-            ->addDomain('app.demo.test')
-            ->addDomain('demo.test')
-            ->allowHttpAccess()
+            ->withDomain('app.demo.test', 'demo.test')
+            ->withHttpAccess()
             ->addWorker('messenger', 'php bin/console messenger:consume async')
             ->addWorker('scheduler', 'php bin/console schedule:run')
         ;
@@ -167,9 +171,10 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $mysql = new MySQLService();
 
-        $symfony = (new SymfonyService(name: 'app', directory: '/project/app'))
+        $symfony = (new SymfonyService('app'))
+            ->withDirectory('/project/app')
             ->withDatabaseService($mysql)
-            ->addDomain('app.demo.test')
+            ->withDomain('app.demo.test')
         ;
 
         $this->assertMatchesYamlSnapshot($this->build($mysql, $symfony));

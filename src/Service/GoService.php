@@ -6,6 +6,10 @@ namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasDirectory;
+use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
@@ -15,20 +19,18 @@ use function Castor\watch;
 
 final class GoService implements ServiceInterface
 {
+    use HasDirectory;
+    use HasHttpRouting;
+    use HasSharedHomeDirectory;
+    use HasVersion;
+
     public function __construct(
         private readonly string $name,
-        private readonly string $version,
-        private readonly string $directory = '.',
-        /** @var string[] */
-        private array $domains = [],
-        private bool $allowHttpAccess = false,
-        private string $sharedHomeDirectory = '.home',
     ) {}
 
-    public function addDomain(string $domain): self
+    protected function getDefaultVersion(): string
     {
-        $this->domains[] = $domain;
-        return $this;
+        return '1';
     }
 
     public function getName(): string
@@ -42,20 +44,17 @@ final class GoService implements ServiceInterface
 
         $appService = $builder
             ->service($this->name)
-                ->image('golang:' . $this->version)
+                ->image('golang:' . $this->getVersion())
                 ->user("{$userId}:{$userId}")
-                ->volume($this->directory, '/app', 'cached')
+                ->volume($this->getDirectory(), '/app', 'cached')
                 ->profile('default')
                 ->workingDir('/app')
                 ->command('/app/' . $this->name)
-                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                 ->environment('HOME', '/home/app')
         ;
 
-        if ($this->domains) {
-            $appService
-                ->withHttpRouting($this->domains, 80, $this->allowHttpAccess);
-        }
+        $this->applyHttpRouting($appService);
 
         return $builder;
     }
@@ -79,7 +78,7 @@ final class GoService implements ServiceInterface
         yield [
             'task' => new AsTask('watch', $this->name, 'Watch for changes and rebuild then restart the ' . $this->name . ' application'),
             'function' => function (): void {
-                $watchDirectory = str_starts_with($this->directory, '/') ? $this->directory : context()['root_dir'] . '/' . $this->directory;
+                $watchDirectory = str_starts_with($this->getDirectory(), '/') ? $this->getDirectory() : context()['root_dir'] . '/' . $this->getDirectory();
 
                 watch($watchDirectory, function ($file, $event): void {
                     if (!str_ends_with($file, '.go')) {

@@ -38,20 +38,23 @@ function register_service(RegisterServiceEvent $event)
     $event->addService($mysqlService);
 
     $event->addService(
-        (new SymfonyService(name: 'app1', directory: __DIR__ . '/app1', mode: PhpMode::FrankenPhp))
+        (new SymfonyService('app1'))
+            ->withDirectory(__DIR__ . '/app1')
+            ->withMode(PhpMode::FrankenPhp)
             ->withDatabaseService($postgresService)
             ->addExtension('amqp')
             ->addExtension('redis')
-            ->addDomain('app1.project.test')
-            ->addDomain('project.test')
-            ->addDomain('localhost')
-            ->allowHttpAccess()
+            ->withDomain('app1.project.test', 'project.test', 'localhost')
+            ->withHttpAccess()
             ->addWorker('messenger', 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M')
     );
 
     // app2 declares no domain: it is served through the redirection.io agent,
     // which holds the domain and proxies the traffic to it.
-    $app2Service = (new SymfonyService(name: 'app2', directory: __DIR__ . '/app2', version: '8.2', mode: PhpMode::Fpm))
+    $app2Service = (new SymfonyService('app2'))
+        ->withDirectory(__DIR__ . '/app2')
+        ->withVersion('8.2')
+        ->withMode(PhpMode::Fpm)
         ->withDatabaseService($mysqlService)
         ->addExtension('amqp')
         ->addExtension('mysql')
@@ -65,9 +68,13 @@ function register_service(RegisterServiceEvent $event)
         (new RedirectionioAgentService())
             ->addReverseProxy('app2.project.test', $app2Service, 'b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652')
     );
-    $event->addService(new ClickhouseService('25.8'));
-    $event->addService((new GoService('app3', '1.25', __DIR__ . '/go-app'))
-        ->addDomain('app3.project.test'));
-    $event->addService((new RustService('app4', '1.90', __DIR__ . '/rust-app'))
-        ->addDomain('app4.project.test'));
+    $event->addService((new ClickhouseService())->withVersion('25.8'));
+    $event->addService((new GoService('app3'))
+        ->withVersion('1.25')
+        ->withDirectory(__DIR__ . '/go-app')
+        ->withDomain('app3.project.test'));
+    $event->addService((new RustService('app4'))
+        ->withVersion('1.90')
+        ->withDirectory(__DIR__ . '/rust-app')
+        ->withDomain('app4.project.test'));
 }

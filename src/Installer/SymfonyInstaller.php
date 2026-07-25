@@ -41,16 +41,15 @@ final class SymfonyInstaller extends AbstractServiceInstaller implements NeedsDa
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $expression = $builder->addNewServiceAst(SymfonyService::class, [
-            'name' => (string) $answers['name'],
-            'directory' => Ast::raw(\sprintf("__DIR__ . '/%s'", $answers['directory'])),
-            'version' => (string) $answers['version'],
-            'mode' => Ast::raw('PhpMode::' . PhpMode::from((string) $answers['mode'])->name),
-        ]);
+        $expression = $builder->addNewServiceAst(SymfonyService::class, [(string) $answers['name']])
+            ->callMethod('withDirectory', [Ast::raw(\sprintf("__DIR__ . '/%s'", $answers['directory']))])
+            ->callMethod('withVersion', [(string) $answers['version']])
+            ->callMethod('withMode', [Ast::raw('PhpMode::' . PhpMode::from((string) $answers['mode'])->name)])
+        ;
         $builder->addImport(PhpMode::class);
 
         if (($answers['domain'] ?? '') !== '') {
-            $expression->callMethod('addDomain', [(string) $answers['domain']]);
+            $expression->callMethod('withDomain', [(string) $answers['domain']]);
         }
 
         if (($answers['database'] ?? null) !== null) {
@@ -60,15 +59,14 @@ final class SymfonyInstaller extends AbstractServiceInstaller implements NeedsDa
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = new SymfonyService(
-            name: (string) $answers['name'],
-            directory: context()->workingDirectory . '/' . $answers['directory'],
-            version: (string) $answers['version'],
-            mode: PhpMode::from((string) $answers['mode']),
-        );
+        $service = (new SymfonyService((string) $answers['name']))
+            ->withDirectory(context()->workingDirectory . '/' . $answers['directory'])
+            ->withVersion((string) $answers['version'])
+            ->withMode(PhpMode::from((string) $answers['mode']))
+        ;
 
         if (($answers['domain'] ?? '') !== '') {
-            $service->addDomain((string) $answers['domain']);
+            $service->withDomain((string) $answers['domain']);
         }
 
         if (($answers['database_instance'] ?? null) instanceof DatabaseServiceInterface) {

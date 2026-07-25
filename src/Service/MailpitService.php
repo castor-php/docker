@@ -7,15 +7,19 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
 class MailpitService implements ServiceInterface
 {
-    public function __construct(
-        private string $version = 'latest',
-    ) {}
+    use HasVersion;
+
+    protected function getDefaultVersion(): string
+    {
+        return 'latest';
+    }
 
     public function getName(): string
     {
@@ -28,7 +32,7 @@ class MailpitService implements ServiceInterface
 
         return $builder
             ->service('mailpit')
-                ->image('axllent/mailpit:' . $this->version)
+                ->image('axllent/mailpit:' . $this->getVersion())
                 ->withHttpRouting("mailpit.{$rootDomain}", 8025)
                 ->profile('default')
             ->end()

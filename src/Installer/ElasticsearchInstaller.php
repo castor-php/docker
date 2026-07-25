@@ -29,11 +29,12 @@ final class ElasticsearchInstaller extends AbstractServiceInstaller
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $builder->addNewServiceAst(ElasticsearchService::class, ['version' => (string) $answers['version']]);
+        $builder->addNewServiceAst(ElasticsearchService::class)
+            ->callMethod('withVersion', [(string) $answers['version']]);
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return new ElasticsearchService((string) $answers['version']);
+        return (new ElasticsearchService())->withVersion((string) $answers['version']);
     }
 }

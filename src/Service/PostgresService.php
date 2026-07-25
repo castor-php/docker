@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
@@ -15,6 +16,13 @@ use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface
 {
+    use HasVersion;
+
+    protected function getDefaultVersion(): string
+    {
+        return '16';
+    }
+
     public function getName(): string
     {
         return 'postgres';
@@ -25,7 +33,7 @@ class PostgresService implements DatabaseServiceInterface
         return $builder
             ->volume('postgres_data')
             ->service('postgres')
-                ->image('postgres:16')
+                ->image('postgres:' . $this->getVersion())
                 ->environment('POSTGRES_USER', 'app')
                 ->environment('POSTGRES_PASSWORD', 'app')
                 ->volume('postgres_data', '/var/lib/postgresql/data')

@@ -7,15 +7,19 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
 class ElasticsearchService implements ServiceInterface
 {
-    public function __construct(
-        private readonly string $version = '7.8.0',
-    ) {}
+    use HasVersion;
+
+    protected function getDefaultVersion(): string
+    {
+        return '7.8.0';
+    }
 
     public function getName(): string
     {
@@ -29,7 +33,7 @@ class ElasticsearchService implements ServiceInterface
         return $builder
             ->volume('elasticsearch-data')
             ->service('elasticsearch')
-                ->image('elasticsearch:' . $this->version)
+                ->image('elasticsearch:' . $this->getVersion())
                 ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
                 ->environment('discovery.type', 'single-node')
                 ->withHttpRouting("elasticsearch.{$rootDomain}", 9200)
@@ -37,7 +41,7 @@ class ElasticsearchService implements ServiceInterface
                 ->profile('default')
             ->end()
             ->service('kibana')
-                ->image('kibana:' . $this->version)
+                ->image('kibana:' . $this->getVersion())
                 ->dependsOn('elasticsearch', ['condition' => 'service_healthy'])
                 ->withHttpRouting("kibana.{$rootDomain}", 5601)
                 ->profile('default')

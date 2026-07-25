@@ -18,7 +18,7 @@ class SymfonyService extends PHPService
 {
     private string $twigCsFixerVersion = '*';
 
-    public function withPhpTwigCsFixerVersion(string $version): self
+    public function withPhpTwigCsFixerVersion(string $version): static
     {
         $this->twigCsFixerVersion = $version;
         return $this;
@@ -77,7 +77,7 @@ class SymfonyService extends PHPService
             'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fixes Twig Coding Style'),
             'function' => fn(bool $dryRun = false) => with(fn() => twig_cs_fixer(array_filter([
                 $dryRun ? null : '--fix',
-            ], fn($val) => null !== $val), $this->twigCsFixerVersion), workingDirectory: $this->directory),
+            ], fn($val) => null !== $val), $this->twigCsFixerVersion), workingDirectory: $this->getDirectory()),
         ];
     }
 }

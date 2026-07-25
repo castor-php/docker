@@ -39,7 +39,7 @@ final class ServiceExpression
     }
 
     /**
-     * Chain a fluent method call, e.g. ->callMethod('addDomain', ['blog.test']).
+     * Chain a fluent method call, e.g. ->callMethod('withDomain', ['blog.test']).
      *
      * @param array<int|string, mixed> $arguments
      */

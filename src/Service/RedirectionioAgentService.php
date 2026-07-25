@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Castor\Docker\Service;
 
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasHttpRouting;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\yaml_dump;
@@ -17,7 +18,7 @@ use function Castor\yaml_dump;
  * agent rather than on the application, so the application itself no longer
  * needs to be routed by Caddy:
  *
- *     $app = new SymfonyService(name: 'app', directory: __DIR__ . '/app');
+ *     $app = (new SymfonyService('app'))->withDirectory(__DIR__ . '/app');
  *
  *     (new RedirectionioAgentService())
  *         ->addReverseProxy('app.project.test', $app, 'my-project-key');
@@ -27,38 +28,51 @@ use function Castor\yaml_dump;
  */
 class RedirectionioAgentService implements ServiceInterface
 {
+    use HasHttpRouting;
     private const CONFIG_NAME = 'redirectionio-agent';
     private const CONFIG_PATH = '/etc/redirectionio/agent.yml';
 
     /** @var list<array{domain: string, target: string, port: int, projectKey: ?string}> */
     private array $reverseProxies = [];
 
-    public function __construct(
-        /** Project key used for the domains registered without an explicit one. */
-        private readonly ?string $projectKey = null,
-        private readonly string $instanceName = 'dev',
-        private readonly bool $allowHttpAccess = false,
-    ) {}
+    /** Project key used for the domains registered without an explicit one. */
+    private ?string $projectKey = null;
+
+    private string $instanceName = 'dev';
 
     public function getName(): string
     {
         return 'redirectionio-agent';
     }
 
+    public function withProjectKey(string $projectKey): static
+    {
+        $this->projectKey = $projectKey;
+
+        return $this;
+    }
+
+    public function withInstanceName(string $instanceName): static
+    {
+        $this->instanceName = $instanceName;
+
+        return $this;
+    }
+
     /**
      * Serve $domain through the agent and forward the traffic to $target, which
      * is either a service instance or a service name.
      */
-    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80): self
+    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80): static
     {
         $this->reverseProxies[] = [
             'domain' => $domain,
             'target' => $target instanceof ServiceInterface ? $target->getName() : $target,
             'port' => $port,
-            'projectKey' => $projectKey ?? $this->projectKey,
+            'projectKey' => $projectKey,
         ];
 
-        return $this;
+        return $this->withDomain($domain);
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
@@ -72,11 +86,7 @@ class RedirectionioAgentService implements ServiceInterface
                 ->profile('default')
         ;
 
-        $domains = array_column($this->reverseProxies, 'domain');
-
-        if ($domains) {
-            $service->withHttpRouting(array_values(array_unique($domains)), 80, $this->allowHttpAccess);
-        }
+        $this->applyHttpRouting($service);
 
         return $builder;
     }
@@ -106,8 +116,12 @@ class RedirectionioAgentService implements ServiceInterface
                 ],
             ];
 
-            if ($reverseProxy['projectKey'] !== null) {
-                $virtualHost['agent'] = ['project_key' => $reverseProxy['projectKey']];
+            // Resolved here and not in addReverseProxy(), so the fallback key
+            // can be set with withProjectKey() at any point.
+            $projectKey = $reverseProxy['projectKey'] ?? $this->projectKey;
+
+            if ($projectKey !== null) {
+                $virtualHost['agent'] = ['project_key' => $projectKey];
             }
 
             $virtualHosts[] = $virtualHost;

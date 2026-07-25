@@ -11,10 +11,10 @@ use PhpParser\Node\Stmt;
  * Fluent helper an installer uses to describe the code it wants added to the
  * RegisterServiceEvent listener, as an AST rather than a string:
  *
- *     $builder->addNewServiceAst(MariaDBService::class, ['version' => '12.1'])
- *         ->callMethod('addDomain', ['db.test']);
+ *     $builder->addNewServiceAst(MariaDBService::class)
+ *         ->callMethod('withVersion', ['12.1']);
  *
- *     $builder->getStatements(); // AST for "$event->addService((new MariaDBService('12.1'))->addDomain('db.test'));"
+ *     $builder->getStatements(); // AST for "$event->addService((new MariaDBService())->withVersion('12.1'));"
  *     $builder->getImports();    // ['Castor\Docker\Service\MariaDBService']
  */
 final class ServiceStatementBuilder

@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
@@ -15,11 +16,29 @@ use function Castor\context;
 
 class MySQLService implements DatabaseServiceInterface
 {
-    public function __construct(
-        private string $version = '8',
-        private string $rootPassword = 'root',
-        private string $database = 'app',
-    ) {}
+    use HasVersion;
+
+    private string $rootPassword = 'root';
+    private string $database = 'app';
+
+    protected function getDefaultVersion(): string
+    {
+        return '8';
+    }
+
+    public function withRootPassword(string $password): static
+    {
+        $this->rootPassword = $password;
+
+        return $this;
+    }
+
+    public function withDatabase(string $database): static
+    {
+        $this->database = $database;
+
+        return $this;
+    }
 
     public function getName(): string
     {
@@ -31,7 +50,7 @@ class MySQLService implements DatabaseServiceInterface
         return $builder
             ->volume('mysql-data')
             ->service('mysql')
-                ->image('mysql:' . $this->version)
+                ->image('mysql:' . $this->getVersion())
                 ->environment('MYSQL_ROOT_PASSWORD', $this->rootPassword)
                 ->environment('MYSQL_DATABASE', $this->database)
                 ->volume('mysql-data', '/var/lib/mysql')

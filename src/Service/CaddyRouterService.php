@@ -6,6 +6,7 @@ namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Symfony\Component\Process\ExecutableFinder;
 
@@ -17,9 +18,7 @@ use function Castor\io;
 
 class CaddyRouterService implements ServiceInterface
 {
-    public function __construct(
-        protected string $sharedHomeDirectory = '.home',
-    ) {}
+    use HasSharedHomeDirectory;
 
     public function getName(): string
     {
@@ -39,7 +38,7 @@ class CaddyRouterService implements ServiceInterface
                 ->volume('router-data', '/data')
                 // Shared home holds the optional mkcert CA (certs/) used to mint
                 // locally-trusted certificates on demand.
-                ->volume($this->sharedHomeDirectory, '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                 ->port('80', '80')
                 ->port('443', '443')
                 ->profile('router')
@@ -82,7 +81,7 @@ class CaddyRouterService implements ServiceInterface
      */
     private function installCertificateAuthority(): void
     {
-        $certsDir = $this->sharedHomeDirectory . '/certs';
+        $certsDir = $this->getSharedHomeDirectory() . '/certs';
         $caddyDir = $certsDir . '/caddy';
 
         $mkcert = (new ExecutableFinder())->find('mkcert');

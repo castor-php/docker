@@ -29,11 +29,12 @@ final class MySQLInstaller extends AbstractServiceInstaller implements DatabaseS
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $builder->addNewServiceAst(MySQLService::class, ['version' => (string) $answers['version']]);
+        $builder->addNewServiceAst(MySQLService::class)
+            ->callMethod('withVersion', [(string) $answers['version']]);
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return new MySQLService(version: (string) $answers['version']);
+        return (new MySQLService())->withVersion((string) $answers['version']);
     }
 }
