@@ -9,7 +9,7 @@ Extra PHP extensions do not need a custom Dockerfile, use
 `->addExtension('name')` instead — see [PHP and Symfony](../services/php.md).
 
 For anything deeper, the Dockerfiles shipped by the plugin are
-[Twig templates](https://github.com/castor-php/docker/tree/main/twig-dockerfile)
+[Twig templates](https://github.com/castor-php/twig-dockerfile)
 built by a BuildKit frontend, so you can extend them and override a single
 block instead of copying the whole file:
 

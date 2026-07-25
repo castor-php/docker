@@ -7,7 +7,6 @@
 /example            export-ignore
 /tests              export-ignore
 /tools              export-ignore
-/twig-dockerfile    export-ignore
 
 /.gitattributes           export-ignore
 /.gitignore               export-ignore
