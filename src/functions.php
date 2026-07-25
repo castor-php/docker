@@ -287,14 +287,32 @@ function stop_exposed_services(): void
 #[AsListener(ContextCreatedEvent::class)]
 function on_init_context(ContextCreatedEvent $event): void
 {
-    $context = $event->context;
+    $event->context = initialize_project($event->context);
+}
+
+/**
+ * Create compose.yaml if the project has none, and return the context enriched
+ * with the data the services build on.
+ *
+ * Castor only dispatches ContextCreatedEvent when it instantiates a context
+ * declared with #[AsContext]. A project that declares none never goes through
+ * it — neither does "castor list", whatever the project — so this also runs on
+ * boot, where it is idempotent.
+ */
+function initialize_project(Context $context): Context
+{
     $composeFile = $context->workingDirectory . '/compose.yaml';
     $projectName = basename($context->workingDirectory);
 
     if (!file_exists($composeFile)) {
         io()->title('Initializing Docker Compose file for the context');
 
-        $projectName = io()->ask('Enter your docker compose project name', $projectName);
+        $input = Container::get()->input;
+
+        // Never block on a question while the shell is completing a command.
+        if ($input->isInteractive() && '_complete' !== $input->getFirstArgument()) {
+            $projectName = io()->ask('Enter your docker compose project name', $projectName);
+        }
 
         file_put_contents(
             $composeFile,
@@ -320,7 +338,7 @@ function on_init_context(ContextCreatedEvent $event): void
 
     $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
 
-    $event->context = $context->withData([
+    return $context->withData([
         'project_name' => $projectName,
         'user_id' => $userId,
     ]);
@@ -478,8 +496,20 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
 #[AsListener(AfterBootEvent::class)]
 function initialize(AfterBootEvent $afterBootEvent): void
 {
-    $c = context();
     $container = Container::get();
+    $c = context();
+
+    // "castor list" boots on a bare context (no name) instead of the project
+    // one: resolve the real context, otherwise the compose file would be
+    // regenerated without the project configuration.
+    if ('' === $c->name && $container->contextRegistry->getNames()) {
+        $c = $container->contextRegistry->get($container->contextRegistry->getDefaultName());
+    }
+
+    // The context data is set by on_init_context(), which castor does not
+    // always dispatch: make sure the project is initialized whatever the way in.
+    $c = initialize_project($c);
+    $container->contextRegistry->setCurrentContext($c);
 
     $services = collect_services();
     generate_compose_file($c, $services);

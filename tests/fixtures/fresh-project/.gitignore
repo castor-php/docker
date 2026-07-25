@@ -1,0 +1,6 @@
+/.castor/
+/.castor.stub.php
+/castor.composer.lock
+/compose.yaml
+/compose.generated.yaml
+/compose.override.yaml

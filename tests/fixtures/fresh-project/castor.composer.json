@@ -1,0 +1,14 @@
+{
+    "name": "castor-php/docker-fresh-project",
+    "type": "project",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../../"
+        }
+    ],
+    "require": {
+        "castor-php/docker": "@dev"
+    }
+}

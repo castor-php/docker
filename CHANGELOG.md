@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 - 2026-07-25
+
+### Fixed
+
+* Create `compose.yaml` on a project that declares no `#[AsContext]` function.
+  Castor only dispatches `ContextCreatedEvent` when it instantiates a declared
+  context, so a fresh project never got its compose file and every `docker:*`
+  task failed on the missing file.
+* Stop `castor list` from regenerating `compose.generated.yaml` from a bare
+  context, which dropped the project configuration: the services exposing a UI
+  fell back to the default root domain, and the containers to the default user
+  id.
+
 ## 0.1.0 - 2026-07-25
 
 First release.
