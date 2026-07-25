@@ -34,6 +34,9 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on if it is not already, instead of failing
+          enablement: true
 
       - name: Build site with mkdocs
         run: castor docs:build
