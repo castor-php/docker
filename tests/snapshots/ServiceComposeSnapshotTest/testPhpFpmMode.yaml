@@ -5,6 +5,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
             target: frontend
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:
@@ -21,6 +22,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile
             target: builder
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:

@@ -21,6 +21,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: frontend
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:
@@ -49,6 +50,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: builder
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:
@@ -71,6 +73,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: worker
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:
@@ -93,6 +96,7 @@ services:
             dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: worker
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.4'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
             cache_from:

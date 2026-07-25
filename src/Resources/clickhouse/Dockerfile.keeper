@@ -1,4 +1,4 @@
-# syntax=ghcr.io/castor-php/twig-dockerfile:latest
+# syntax=ghcr.io/castor-php/twig-dockerfile:0.1
 # hadolint global ignore=DL3008
 
 {% block Dockerfile %}

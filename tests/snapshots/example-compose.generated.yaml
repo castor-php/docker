@@ -48,6 +48,7 @@ services:
             dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: frontend
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
             cache_from:
@@ -76,6 +77,7 @@ services:
             dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: builder
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
             cache_from:
@@ -98,6 +100,7 @@ services:
             dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile.frankenphp
             target: worker
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
             cache_from:
@@ -120,6 +123,7 @@ services:
             dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile
             target: frontend
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.2'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","mysql"]'
             cache_from:
@@ -141,6 +145,7 @@ services:
             dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile
             target: builder
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.2'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","mysql"]'
             cache_from:
@@ -249,6 +254,7 @@ services:
             context: %ROOT%/src/Service/../Resources/clickhouse
             dockerfile: Dockerfile
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 clickhouse_version: '25.8'
                 backup: ''
         environment:
@@ -271,6 +277,7 @@ services:
             context: %ROOT%/src/Service/../Resources/clickhouse
             dockerfile: Dockerfile.keeper
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 clickhouse_version: '25.8'
         profiles:
             - default

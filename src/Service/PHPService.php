@@ -158,6 +158,7 @@ class PHPService implements ServiceInterface
         $appService = $builder
             ->service($this->name)
                 ->build(__DIR__ . '/../Resources/php')
+                    ->useTwigFrontend($context)
                     ->dockerfile($this->getDockerfile())
                     ->target('frontend')
                     ->withRegistryCache($this->name)

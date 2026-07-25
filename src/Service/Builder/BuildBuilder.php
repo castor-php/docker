@@ -4,8 +4,20 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service\Builder;
 
+use Castor\Context;
+
 final class BuildBuilder
 {
+    /**
+     * The BuildKit frontend rendering the Dockerfiles shipped by this plugin,
+     * pinned to the MAJOR.MINOR this release is tested against: the frontend
+     * runs inside the build, so an unpinned reference would let a change in
+     * https://github.com/castor-php/twig-dockerfile alter existing projects.
+     *
+     * Override it per project with the "twig_dockerfile_frontend" context data.
+     */
+    public const TWIG_DOCKERFILE_FRONTEND = 'ghcr.io/castor-php/twig-dockerfile:0.1';
+
     private ?string $context = null;
     private ?string $dockerfile = null;
     private ?string $target = null;
@@ -48,6 +60,19 @@ final class BuildBuilder
     public function target(string $target): self
     {
         $this->target = $target;
+
+        return $this;
+    }
+
+    /**
+     * Declare that this build renders its Dockerfile with the twig-dockerfile
+     * frontend, and pin the version to use. BuildKit honours BUILDKIT_SYNTAX
+     * over the "# syntax=" directive of the file, so a custom Dockerfile
+     * written by the project is pinned too.
+     */
+    public function useTwigFrontend(Context $context): self
+    {
+        $this->args['BUILDKIT_SYNTAX'] = $context->data['twig_dockerfile_frontend'] ?? self::TWIG_DOCKERFILE_FRONTEND;
 
         return $this;
     }

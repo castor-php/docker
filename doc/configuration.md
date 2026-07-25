@@ -26,6 +26,7 @@ function default_context(): Context
 | `registry` | Registry the build cache is pushed to and pulled from |
 | `project_name` | Compose project name, defaults to the directory name |
 | `user_id` | UID the containers run as, defaults to your own |
+| `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
 
 ## Generated files
 

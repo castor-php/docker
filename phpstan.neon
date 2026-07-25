@@ -7,7 +7,8 @@ parameters:
                 root_domain?: string,
                 registry?: string,
                 user_id?: int,
-                build_args?: string[]
+                build_args?: string[],
+                twig_dockerfile_frontend?: string
             }
         '''
     paths:
