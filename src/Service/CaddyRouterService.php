@@ -101,6 +101,15 @@ class CaddyRouterService implements ServiceInterface
         }
 
         fs()->mkdir($caddyDir);
+
+        if (fs()->exists("{$certsDir}/rootCA.pem")) {
+            fs()->remove("{$certsDir}/rootCA.pem");
+        }
+
+        if (fs()->exists("{$certsDir}/rootCA-key.pem")) {
+            fs()->remove("{$certsDir}/rootCA-key.pem");
+        }
+
         fs()->copy("{$caRoot}/rootCA.pem", "{$certsDir}/rootCA.pem", true);
         fs()->copy("{$caRoot}/rootCA-key.pem", "{$certsDir}/rootCA-key.pem", true);
 
