@@ -23,7 +23,7 @@ class MySQLService implements DatabaseServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '8';
+        return '8.0.46';
     }
 
     public function withRootPassword(string $password): static

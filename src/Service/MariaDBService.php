@@ -23,7 +23,7 @@ class MariaDBService implements DatabaseServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '12.1';
+        return '12.3.2';
     }
 
     public function withRootPassword(string $password): static

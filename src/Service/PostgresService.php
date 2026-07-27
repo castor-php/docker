@@ -20,7 +20,7 @@ class PostgresService implements DatabaseServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '16';
+        return '18.4';
     }
 
     public function getName(): string
