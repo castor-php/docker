@@ -33,11 +33,6 @@
 * `router:enable` and `router:disable`, renamed to `docker:router:enable` and
   `docker:router:disable`
 
-### Fixed
-
-* Remove certificates before writing them when router is reenabled : they may be readonly and copy on a existing readonly file will fail
-* Set complete versions for databases, has some dependencies expect a complete version
-
 ### Upgrading
 
 The per-project router of a previous version may still hold ports 80 and 443.
@@ -51,6 +46,13 @@ castor docker:router:enable     # starts the global one
 
 Should a container still hold those ports, remove it with
 `docker rm -f <name>`.
+
+## 0.1.3 - 2026-07-27
+
+### Fixed
+
+* Remove certificates before writing them when router is reenabled : they may be readonly and copy on a existing readonly file will fail
+* Set complete versions for databases, has some dependencies expect a complete version
 
 ## 0.1.2 - 2026-07-25
 
