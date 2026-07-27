@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Castor\Docker;
 
 use Castor\Attribute\AsListener;
-use Castor\Console\Command\TaskCommand;
 use Castor\Container;
 use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
@@ -29,10 +28,8 @@ use Castor\Docker\Installer\SymfonyInstaller;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\DatabaseServiceInterface;
 use Castor\Docker\Service\ServiceInterface;
-use Castor\Event\AfterBootEvent;
 use Castor\Event\ContextCreatedEvent;
-use Castor\ExpressionLanguage;
-use Symfony\Component\ErrorHandler\ErrorRenderer\FileLinkFormatter;
+use Castor\Event\FunctionsResolvedEvent;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
@@ -41,6 +38,7 @@ use function Castor\capture;
 use function Castor\context;
 use function Castor\fs;
 use function Castor\get_cache;
+use function Castor\input;
 use function Castor\io;
 use function Castor\run;
 use function Castor\variable;
@@ -69,7 +67,7 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $c = $c
         ->withTimeout(null)
         ->withEnvironment([
-            'PROJECT_NAME' => $c->data['project_name'] ?? basename($c->workingDirectory),
+            'PROJECT_NAME' => get_project_name($c),
             'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
             'REGISTRY' => variable('registry'),
         ])
@@ -110,13 +108,41 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
 }
 
 /**
+ * The docker compose project name.
+ *
+ * Read from the "name" of compose.yaml rather than from the context data: the
+ * context is only enriched when castor instantiates a declared #[AsContext],
+ * and a project that declares none boots on a bare one.
+ */
+function get_project_name(?Context $c = null): string
+{
+    $c ??= context();
+
+    if (isset($c->data['project_name'])) {
+        return $c->data['project_name'];
+    }
+
+    $composeFile = $c->workingDirectory . '/compose.yaml';
+
+    if (file_exists($composeFile) && ($content = file_get_contents($composeFile))) {
+        $name = yaml_parse($content)['name'] ?? null;
+
+        if (\is_string($name) && '' !== $name) {
+            return $name;
+        }
+    }
+
+    return basename($c->workingDirectory);
+}
+
+/**
  * The default network compose creates for this project.
  */
 function get_project_network(?Context $c = null): string
 {
     $c ??= context();
 
-    return ($c->data['project_name'] ?? basename($c->workingDirectory)) . '_default';
+    return get_project_name($c) . '_default';
 }
 
 function docker_compose_run(
@@ -193,7 +219,7 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
 {
     $hostPort ??= $containerPort;
     $context = context();
-    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+    $project = get_project_name($context);
     $name = "{$project}-expose-{$service}";
 
     // Remove any existing forwarder first (idempotent, and how --stop works).
@@ -268,7 +294,7 @@ function set_exposed_services(array $exposed): void
 function restore_exposed_services(): void
 {
     $context = context();
-    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+    $project = get_project_name($context);
 
     foreach (get_exposed_services() as $service => $ports) {
         $running = trim(capture(
@@ -291,7 +317,7 @@ function restore_exposed_services(): void
 function stop_exposed_services(): void
 {
     $context = context();
-    $project = $context->data['project_name'] ?? basename($context->workingDirectory);
+    $project = get_project_name($context);
 
     $ids = trim(capture([
         'docker', 'ps', '--quiet',
@@ -329,7 +355,7 @@ function initialize_project(Context $context): Context
     if (!file_exists($composeFile)) {
         io()->title('Initializing Docker Compose file for the context');
 
-        $input = Container::get()->input;
+        $input = input();
 
         // Never block on a question while the shell is completing a command.
         if ($input->isInteractive() && '_complete' !== $input->getFirstArgument()) {
@@ -414,7 +440,7 @@ function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): v
 
         // Left over from a previous run, or from an older version of this
         // plugin: docker created it as root and nothing here can fix it.
-        if (!is_writable($path) && '_complete' !== Container::get()->input->getFirstArgument()) {
+        if (!is_writable($path) && '_complete' !== input()->getFirstArgument()) {
             io()->warning(\sprintf('"%s" is not writable, the containers may fail to write in it. Take its ownership back with "sudo chown -R $(id -u):$(id -g) %s".', $path, $path));
         }
     }
@@ -555,29 +581,41 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
     $event->addInstaller(new RustInstaller());
 }
 
-#[AsListener(AfterBootEvent::class)]
-function initialize(AfterBootEvent $afterBootEvent): void
+#[AsListener(FunctionsResolvedEvent::class)]
+function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
 {
-    $container = Container::get();
-    $c = context();
+    // FunctionsResolvedEvent is dispatched once per mount.
+    static $done = false;
 
-    // "castor list" boots on a bare context (no name) instead of the project
-    // one: resolve the real context, otherwise the compose file would be
-    // regenerated without the project configuration.
-    if ('' === $c->name && $container->contextRegistry->getNames()) {
-        $c = $container->contextRegistry->get($container->contextRegistry->getDefaultName());
+    if ($done) {
+        return;
     }
 
-    // The context data is set by on_init_context(), which castor does not
-    // always dispatch: make sure the project is initialized whatever the way in.
-    $c = initialize_project($c);
-    $container->contextRegistry->setCurrentContext($c);
+    $done = true;
 
     $services = collect_services();
+
+    foreach ($services as $service) {
+        foreach ($service->getTasks() as $task) {
+            $functionsResolvedEvent->taskDescriptors[] = new TaskDescriptor(
+                $task['task'],
+                new \ReflectionFunction($task['function']),
+            );
+        }
+    }
+
+    // "castor list" is booted on a bare context on purpose (see
+    // Kernel::configureContext): it only needs the task list, and generating
+    // the compose file from that context would drop the project configuration.
+    if ('list' === input()->getFirstArgument()) {
+        return;
+    }
+
+    $c = initialize_project(context());
     generate_compose_file($c, $services);
 
-    // create override file if not exists
     $overrideFile = $c->workingDirectory . '/compose.override.yaml';
+
     if (!file_exists($overrideFile)) {
         file_put_contents(
             $overrideFile,
@@ -585,19 +623,5 @@ function initialize(AfterBootEvent $afterBootEvent): void
                 # This file is for your local overrides. It is not generated by Castor.
                 YAML
         );
-    }
-
-    // Handle tasks for each eservice
-    $expressionLanguage = new ExpressionLanguage($container->contextRegistry);
-
-    foreach ($services as $service) {
-        foreach ($service->getTasks() as $task) {
-            $closure = $task['function'];
-            $asTask = $task['task'];
-            $function = new \ReflectionFunction($closure);
-            $descriptor = new TaskDescriptor($asTask, $function);
-            $command = new TaskCommand($descriptor, $expressionLanguage, $container->eventDispatcher, $container->contextRegistry, $container->slugger, $container->fs, new FileLinkFormatter());
-            $afterBootEvent->application->addCommand($command);
-        }
     }
 }
