@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-07-27
+
+### Fixed
+
+* Remove certificates before writing them when router is reenabled : they may be readonly and copy on a existing readonly file will fail
+* Set complete versions for databases, has some dependencies expect a complete version
+
 ## 0.1.2 - 2026-07-25
 
 ### Fixed
