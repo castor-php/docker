@@ -1,9 +1,9 @@
 ---
 title: Router and HTTPS
-description: The Caddy router, automatic routing from Docker labels and locally-trusted certificates.
+description: The global Caddy router, automatic routing from Docker labels and locally-trusted certificates.
 ---
 
-# CaddyRouterService
+# Router and HTTPS
 
 [Caddy](https://caddyserver.com/) reverse proxy, via
 [caddy-docker-proxy](https://github.com/lucaslorentz/caddy-docker-proxy), routing
@@ -11,22 +11,55 @@ HTTP and HTTPS traffic to your services. Routes are built automatically from the
 `caddy.*` Docker labels emitted for each service that declares a domain — there
 is no static configuration file to maintain.
 
-The router is **registered automatically**, you only declare it to customise it:
+The router is **global**: a single instance, living outside of any project,
+serves every Castor Docker project on the machine. It is not a service of your
+compose file and is not declared in `castor.php`.
 
-```php
-(new CaddyRouterService())
-    ->withSharedHomeDirectory('.home')
-```
+* one router for all your projects, so ports 80 and 443 are bound once
+* projects can run side by side, and the router survives their restarts
+* certificates are issued once and shared
 
 ## Tasks
 
-* `castor router:enable` — enable the router, and copy the mkcert CA if available
-* `castor router:disable` — disable the router
+```bash
+castor docker:router:enable     # create, start, and trust — run once
+castor docker:router:status     # is it running, which projects it serves
+castor docker:router:logs       # add --follow to tail them
+castor docker:router:restart
+castor docker:router:disable
+```
 
-## Containers
+`docker:router:enable` is a one-time setup: the router keeps running across
+project restarts and reboots.
 
-* `router` — the Caddy reverse proxy, named volume `router-data` (issued
-  certificates and local CA), exposing ports 80 and 443
+## How your services are reached
+
+Each project keeps its **own** compose network. The router is not on it — it
+*joins* it: `docker:up` attaches the router to the project network once the
+project is up, and `docker:down` detaches it before removing that network.
+
+Projects therefore never share a network with each other, only with the router.
+This matters because Docker resolves service names per network: if every project
+joined one shared network, two projects both exposing a service named `app`
+would collide in the DNS, and a container asking for `app` could reach the other
+project's one. Joining from the router side keeps each project's names private
+to it.
+
+caddy-docker-proxy resolves `{{upstreams}}` to container IPs rather than names,
+so being routable to the project network is all it needs.
+
+Enabling the router while projects are already running is fine:
+`docker:router:enable` joins the networks of the containers it finds already
+routed.
+
+## Files and containers
+
+* `~/.castor/docker/router/compose.yaml` — the generated router compose file,
+  rewritten on every `docker:router:enable`
+* `~/.castor/docker/router/certs/` — the mkcert CA, mounted read-write in the
+  router as `/certs`
+* `castor-docker-router` — the container, exposing ports 80 and 443, with a
+  `router-data` named volume holding the issued certificates and the local CA
 
 The router handles HTTP and HTTPS only: raw TCP protocols cannot be
 hostname-routed, use [`{service}:expose`](../tasks.md#exposing-a-service-over-tcp)
@@ -44,10 +77,11 @@ To make those certificates trusted by your browsers, with no security warning:
 
 1. Install [mkcert](https://github.com/FiloSottile/mkcert)
 2. Install the CA in your system trust store: `mkcert -install`
-3. (Re)start the router: `castor router:enable`
+3. (Re)start the router: `castor docker:router:enable`
 
-`router:enable` copies the mkcert root CA into the router, which then signs the
-on-demand certificates with it.
+`docker:router:enable` copies the mkcert root CA into
+`~/.castor/docker/router/certs/`, which the router then uses to sign the
+on-demand certificates.
 
 ### Without mkcert
 

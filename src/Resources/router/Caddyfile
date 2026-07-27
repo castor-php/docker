@@ -1,5 +1,9 @@
 # Base configuration for the Caddy router (caddy-docker-proxy).
 #
+# This file is not shipped in an image: its content is embedded as a compose
+# config in the generated router compose file (see ensure_router_compose()), so
+# the global router does not depend on any project's vendor directory.
+#
 # Per-service routing is generated from the "caddy.*" Docker labels emitted by
 # ServiceBuilder::withHttpRouting(). Each site uses the internal issuer with
 # on-demand TLS, so certificates are minted the first time a domain is hit — no
@@ -7,8 +11,7 @@
 {
 	# Optionally sign those certificates with the mkcert root CA so they are
 	# trusted by the host and its browsers. The file is installed by
-	# "castor router:install-certificate-authority" and the glob is silently
-	# ignored when mkcert is not available, in which case Caddy uses its own
-	# (untrusted) local CA.
-	import /home/app/certs/caddy/*.caddy
+	# "castor docker:router:enable" and the glob is silently ignored when mkcert
+	# is not available, in which case Caddy uses its own (untrusted) local CA.
+	import /certs/caddy/*.caddy
 }

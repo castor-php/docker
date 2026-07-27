@@ -79,6 +79,10 @@ final class ComposeBuilder
      */
     public function toArray(): array
     {
+        // The project stays on its own network: the global router joins it from
+        // the outside (see connect_router_to_network()) instead of every project
+        // joining a shared one, which would make service names of different
+        // projects collide in the Docker DNS.
         $compose = [
             'services' => [],
             'volumes' => $this->volumes,

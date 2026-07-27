@@ -27,7 +27,6 @@ use Castor\Docker\Installer\RustInstaller;
 use Castor\Docker\Installer\ServiceInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
 use Castor\Docker\Service\Builder\ComposeBuilder;
-use Castor\Docker\Service\CaddyRouterService;
 use Castor\Docker\Service\DatabaseServiceInterface;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\AfterBootEvent;
@@ -49,18 +48,13 @@ use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
 /**
+ * Get default Docker Compose profiles to activate.
+ *
  * @return list<string>
  */
 function get_default_profiles(): array
 {
-    $profiles = ['default'];
-    $routerCache = get_cache()->getItem('infrastructure.router.enabled');
-
-    if ($routerCache->isHit() && $routerCache->get() === true) {
-        $profiles[] = 'router';
-    }
-
-    return $profiles;
+    return ['default'];
 }
 
 /**
@@ -96,7 +90,33 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
 
     $command = array_merge($command, $subCommand);
 
-    return run($command, context: $c);
+    // The global router is not a service of this compose file: it joins the
+    // project network from the outside, so it has to be attached once the
+    // network exists, and detached before "down" removes it.
+    $network = get_project_network($c);
+    $subCommandName = $subCommand[0] ?? null;
+
+    if ('down' === $subCommandName) {
+        disconnect_router_from_network($network);
+    }
+
+    $process = run($command, context: $c);
+
+    if ('up' === $subCommandName) {
+        connect_router_to_network($network);
+    }
+
+    return $process;
+}
+
+/**
+ * The default network compose creates for this project.
+ */
+function get_project_network(?Context $c = null): string
+{
+    $c ??= context();
+
+    return ($c->data['project_name'] ?? basename($c->workingDirectory)) . '_default';
 }
 
 function docker_compose_run(
@@ -347,15 +367,16 @@ function initialize_project(Context $context): Context
 }
 
 /**
- * Dispatch RegisterServiceEvent and return the registered services (with the
- * always-present Caddy router first).
+ * Dispatch RegisterServiceEvent and return the registered services.
+ *
+ * Note: The Caddy router is no longer automatically registered as a service.
+ * It runs globally and is managed via docker:router:* commands.
  *
  * @return ServiceInterface[]
  */
 function collect_services(): array
 {
     $event = new RegisterServiceEvent();
-    $event->addService(new CaddyRouterService());
 
     Container::get()->eventDispatcher->dispatch($event);
 

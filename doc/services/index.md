@@ -23,7 +23,10 @@ rest.
 | [`ElasticsearchService`](infrastructure.md#elasticsearchservice) | Elasticsearch and Kibana |
 | [`MailpitService`](infrastructure.md#mailpitservice) | SMTP catch-all with a web UI |
 | [`RedirectionioAgentService`](redirectionio.md) | redirection.io agent as a reverse proxy |
-| [`CaddyRouterService`](router.md) | The router, registered automatically |
+
+The [router](router.md) is not in that list: it is global, shared by every
+project, and managed with the `docker:router:*` tasks rather than registered in
+`castor.php`.
 
 All of them share the same [fluent configuration
 API](../getting-started/configuring-services.md).

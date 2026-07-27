@@ -11,7 +11,6 @@ use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RustService;
-use Castor\Docker\Service\CaddyRouterService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
 use PHPUnit\Framework\TestCase;
@@ -74,14 +73,6 @@ final class TaskRegistrationTest extends TestCase
         static::assertSame(
             ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
             $this->taskNames(new RustService('api')),
-        );
-    }
-
-    public function testCaddyRouterTasks(): void
-    {
-        static::assertSame(
-            ['router:enable', 'router:disable'],
-            $this->taskNames(new CaddyRouterService()),
         );
     }
 }

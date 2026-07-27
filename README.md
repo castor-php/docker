@@ -26,7 +26,7 @@ castor composer require castor-php/docker
 
 ## Usage
 
-Describe your stack in `castor.php`:
+1. Create a `castor.php` file in your project root:
 
 ```php
 <?php
@@ -45,7 +45,7 @@ function default_context(): Context
 {
     return new Context([
         'root_domain' => 'myproject.test',
-        'registry' => 'ghcr.io/mycompany/myproject',
+        'registry' => 'ghcr.io/mycompany/myproject'
     ]);
 }
 
@@ -56,21 +56,49 @@ function register_service(RegisterServiceEvent $event)
     $event->addService($postgresService);
 
     $event->addService(
-        (new SymfonyService('app'))
-            ->withDirectory(__DIR__)
+        (new SymfonyService(name: 'app', directory: __DIR__))
             ->withDatabaseService($postgresService)
-            ->withDomain('myproject.test')
+            ->addDomain('myproject.test')
+            ->allowHttpAccess()
     );
 }
 ```
 
-Then start it:
+2. Enable the global Caddy router (one time setup):
 
 ```bash
-castor docker:build     # build the images
-castor docker:up        # start the containers
-castor router:enable    # serve your domains over HTTPS
+castor docker:router:enable
 ```
+
+3. Start your project infrastructure:
+
+```bash
+castor docker:build
+castor docker:up
+```
+
+## Global router
+
+The Caddy router is **global**: one instance, living outside of any project,
+serves every Castor Docker project on the machine. Ports 80 and 443 are bound
+once, projects run side by side, and the router survives their restarts.
+
+It lives in `~/.castor/docker/router/` and is managed separately from your
+project services:
+
+```bash
+castor docker:router:enable     # create, start and trust it — run once
+castor docker:router:status     # is it running, which projects it serves
+castor docker:router:logs       # add --follow to tail them
+castor docker:router:restart
+castor docker:router:disable
+```
+
+Each project keeps its own compose network, and the router joins it on
+`docker:up` rather than every project joining a shared one — so two projects can
+both have a service named `app` without colliding in the Docker DNS. See the
+[router documentation](https://castor-php.github.io/docker/services/router/) for
+the details.
 
 Registering those two services also gave you tasks: `castor app:bash`,
 `castor app:install`, `castor app:symfony`, `castor db:psql`,

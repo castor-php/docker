@@ -1,11 +1,56 @@
 # Changelog
 
-## 0.1.3 - 2026-07-27
+## 0.2.0 - 2026-07-27
+
+### Changed
+
+* The Caddy router is now **global**: a single instance, living in
+  `~/.castor/docker/router/` and shared by every project on the machine,
+  replaces the `router` service that each project used to declare. Ports 80 and
+  443 are bound once, projects run side by side, and the router survives their
+  restarts.
+* The router joins the network of each project on `docker:up`, and leaves it
+  before `docker:down` removes it. Projects keep their own network and never
+  share one, so two projects exposing a service under the same name no longer
+  collide in the Docker DNS.
+* The router is no longer built from a Dockerfile: it runs the upstream
+  `caddy-docker-proxy` image and receives its base Caddyfile as a compose
+  config, so enabling it no longer depends on a project's `vendor/` directory
+  being present.
+* The mkcert CA now lives in `~/.castor/docker/router/certs/` instead of the
+  project shared home directory, which the global router could not read.
+
+### Added
+
+* `docker:router:status`, `docker:router:logs` and `docker:router:restart`
+* `docker:router:enable` joins the networks of the projects that are already
+  running, instead of routing nothing until their next `docker:up`
+
+### Removed
+
+* `CaddyRouterService`, and the `router` compose profile with it. The router is
+  no longer registered in `castor.php`
+* `router:enable` and `router:disable`, renamed to `docker:router:enable` and
+  `docker:router:disable`
 
 ### Fixed
 
 * Remove certificates before writing them when router is reenabled : they may be readonly and copy on a existing readonly file will fail
 * Set complete versions for databases, has some dependencies expect a complete version
+
+### Upgrading
+
+The per-project router of a previous version may still hold ports 80 and 443.
+It is no longer declared in the generated compose file, so `docker:up` removes
+it as an orphan — run it before enabling the global router:
+
+```bash
+castor docker:up                # drops the old per-project router container
+castor docker:router:enable     # starts the global one
+```
+
+Should a container still hold those ports, remove it with
+`docker rm -f <name>`.
 
 ## 0.1.2 - 2026-07-25
 

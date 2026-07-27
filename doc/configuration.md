@@ -68,8 +68,10 @@ services:
 ### `.home/`
 
 The shared home directory, mounted as `/home/app` in the containers that need
-it. It holds the caches shared across services — Composer, Cargo — and the
-mkcert CA copied by `castor router:enable`.
+it. It holds the caches shared across services — Composer, Cargo.
+
+The mkcert CA is not stored there: the router is global, and keeps it in
+`~/.castor/docker/router/certs/`.
 
 ## Environment variables
 

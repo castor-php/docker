@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Docker\Service\Builder\ComposeBuilder;
-use Castor\Docker\Service\CaddyRouterService;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoService;
@@ -96,11 +95,6 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         ;
 
         $this->assertMatchesYamlSnapshot($this->build($app, $api, $agent));
-    }
-
-    public function testCaddyRouter(): void
-    {
-        $this->assertMatchesYamlSnapshot($this->build(new CaddyRouterService()));
     }
 
     public function testGo(): void

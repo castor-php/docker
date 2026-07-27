@@ -107,8 +107,15 @@ Exposed services are remembered across `docker:stop` / `docker:up`.
 
 ## Router
 
-* `castor router:enable` — enable the router, copying the mkcert CA if available
-* `castor router:disable` — disable the router
+The router is global and shared by every project, so its tasks are not tied to
+the current one — see [router and HTTPS](services/router.md).
+
+* `castor docker:router:enable` — create, start and trust the router, copying
+  the mkcert CA if available. Run once
+* `castor docker:router:status` — whether it runs, and the projects it serves
+* `castor docker:router:logs` — its logs, `--follow` to tail them
+* `castor docker:router:restart` — restart it
+* `castor docker:router:disable` — stop it
 
 ## Profiles
 
@@ -116,11 +123,10 @@ Services are organised into Docker Compose profiles:
 
 * `default` — the services started by default
 * `builder` — build and CI/CD containers
-* `router` — the Caddy reverse proxy
 
 Every infrastructure task takes `--profiles`:
 
 ```bash
-castor docker:up --profiles default,router
+castor docker:up --profiles default
 castor docker:build --profiles builder
 ```

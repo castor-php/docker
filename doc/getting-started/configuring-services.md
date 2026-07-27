@@ -29,7 +29,7 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasHttpAccess` | `withHttpAccess()`, `isHttpAccessAllowed()` | every routed service |
 | `HasHttpRouting` | the two above + `withPort()`, `getPort()`, `applyHttpRouting()` | `PHPService`, `GoService`, `RustService`, `RedirectionioAgentService` |
 | `HasDirectory` | `withDirectory()`, `getDirectory()` | `PHPService`, `GoService`, `RustService` |
-| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, `CaddyRouterService` |
+| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService` |
 | `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService` |
 
 `HasVersion` and `HasDockerfile` require the service to declare its own fallback

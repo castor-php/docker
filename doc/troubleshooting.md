@@ -7,16 +7,11 @@ description: Common problems and how to get out of them.
 
 ## Port conflicts
 
-If ports 80 or 443 are already in use, either stop the conflicting service, or
-remap the router ports in your `compose.override.yaml`:
-
-```yaml
-services:
-    router:
-        ports: !override
-            - "8080:80"
-            - "8443:443"
-```
+If ports 80 or 443 are already in use, stop the conflicting service. The router
+is global and no longer part of your project compose file, so
+`compose.override.yaml` cannot remap its ports: edit
+`~/.castor/docker/router/compose.yaml` instead, and keep in mind that
+`castor docker:router:enable` regenerates that file.
 
 ## Permission issues
 
@@ -43,16 +38,20 @@ docker ps               # is the daemon healthy?
 
 ## The router does not route
 
-1. enable it: `castor router:enable`;
-2. check that your domains resolve to `127.0.0.1` — add them to `/etc/hosts` if
+1. check it runs: `castor docker:router:status`, and enable it with
+   `castor docker:router:enable` if not;
+2. check the project appears in the networks that status lists. The router joins
+   a project network on `docker:up`: if the project was started while the router
+   was down, `castor docker:router:enable` makes it join the running ones;
+3. check that your domains resolve to `127.0.0.1` — add them to `/etc/hosts` if
    needed;
-3. check that the service declares a domain: without one, no `caddy.*` label is
+4. check that the service declares a domain: without one, no `caddy.*` label is
    emitted and the router ignores the container.
 
 ## Certificate warnings in the browser
 
 Caddy falls back to its own local CA when mkcert is not installed. Install
-mkcert, run `mkcert -install`, then `castor router:enable` again — see
+mkcert, run `mkcert -install`, then `castor docker:router:enable` again — see
 [router and HTTPS](services/router.md#certificates).
 
 ## The generated compose file looks wrong

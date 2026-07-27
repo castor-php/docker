@@ -58,8 +58,8 @@ castor docker:build
 # Start the containers
 castor docker:up
 
-# Enable the router to reach your domains over HTTPS
-castor router:enable
+# Enable the router to reach your domains over HTTPS (once per machine)
+castor docker:router:enable
 ```
 
 Your application is now served on `https://myproject.test`. Point that domain to
