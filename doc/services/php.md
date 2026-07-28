@@ -57,6 +57,69 @@ and point `$script` at `public/index.php`.
 `$watch` (on by default) restarts the worker when files under the application
 directory change, which is what you want locally.
 
+## Dockerfile extension points
+
+Both services are built from a [Twig
+Dockerfile](../going-further/custom-dockerfile.md) you can extend to override
+one part of the image and keep the rest. Which file to extend depends on the
+mode:
+
+```dockerfile
+# syntax=ghcr.io/castor-php/twig-dockerfile:0.1
+{% extends 'Dockerfile.frankenphp' %}   {# PhpMode::Fpm: extend 'Dockerfile' #}
+```
+
+Then point the service at your file with
+`->withDockerfile(__DIR__ . '/Dockerfile')`.
+
+### Blocks
+
+| Block | Stage | Container | What it holds |
+|-------|-------|-----------|---------------|
+| `php_base` | `php-base` | — | Debian + PHP CLI from sury, with the extensions and the base ini files |
+| `frontend` | `frontend` | `app` | FrankenPHP, or nginx + PHP-FPM in `PhpMode::Fpm` |
+| `worker` | `worker` | `app-worker-{name}` | `php-base`, nothing more |
+| `builder` | `builder` | `app-builder` | Composer, PIE, Node, git, make and the shell completion |
+
+`worker` and `builder` always start `FROM php-base`, so a change in `php_base`
+reaches them in both modes. The frontend only does in `PhpMode::Fpm` — in
+FrankenPHP mode it starts from the `dunglas/frankenphp` image instead, and needs
+its own step.
+
+### Variables
+
+| Variable | Type | Comes from |
+|----------|------|------------|
+| `php_version` | string | `withVersion()` (default `8.5`) |
+| `php_extensions` | list of strings | the default list plus `addExtension()` |
+| `frankenphp_worker_file` | string | `withFrankenPhpWorkerMode()`, as a path under `/var/www` |
+| `frankenphp_worker_num` | int | its `$num` argument, only when you pass one |
+| `frankenphp_worker_watch` | bool | its `$watch` argument |
+
+The three `frankenphp_*` ones only exist when worker mode is on, so guard them
+with `{% if frankenphp_worker_file is defined %}`.
+
+### Configuration templates
+
+The `frontend` block renders these with `copy()`. They are Twig templates too,
+so a project can extend them instead of rewriting them:
+
+| Mode | Template | Written to | Blocks |
+|------|----------|------------|--------|
+| `PhpMode::Fpm` | `frontend/etc/nginx/nginx.conf.twig` | `/etc/nginx/nginx.conf` | `root`, `http`, `server`, `server_locations`, `events` |
+| `PhpMode::FrankenPhp` | `frontend-frankenphp/Caddyfile.twig` | `/etc/frankenphp/Caddyfile` | none, replace the whole file |
+
+### Files in the build context
+
+`COPY` in your blocks reads from the plugin's `Resources/php` directory, not
+from your project — see [where files come
+from](../going-further/custom-dockerfile.md#where-files-come-from). What is
+there: `base/php-configuration/`, `builder/php-configuration/`,
+`frontend/php-configuration/`, `frontend/etc/` and `base/sudo.sh`.
+
+The [Dockerfile cookbook](../going-further/dockerfile-cookbook.md) turns all of
+this into concrete recipes.
+
 ## Quality assurance
 
 ```bash

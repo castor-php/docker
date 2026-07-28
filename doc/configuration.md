@@ -27,6 +27,7 @@ function default_context(): Context
 | `project_name` | Compose project name, defaults to the directory name |
 | `user_id` | UID the containers run as, defaults to your own |
 | `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
+| `build_args` | Build arguments `castor docker:build` passes to every service, also readable as [Twig variables](going-further/custom-dockerfile.md#build-arguments-are-twig-variables) |
 
 ## Generated files
 
