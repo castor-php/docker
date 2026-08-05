@@ -196,6 +196,7 @@ services:
         image: 'elasticsearch:7.8.0'
         environment:
             discovery.type: single-node
+            ES_JAVA_OPTS: '-Xms512m -Xmx512m'
         volumes:
             - 'elasticsearch-data:/usr/share/elasticsearch/data'
         healthcheck:
@@ -212,6 +213,9 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        deploy:
+            resources:
+                limits: { memory: 1g }
     kibana:
         image: 'kibana:7.8.0'
         depends_on:
@@ -309,6 +313,15 @@ services:
         profiles:
             - default
         command: /app/target/debug/app4
+    adminer:
+        image: 'adminer:5'
+        labels:
+            - caddy=adminer.project.test
+            - 'caddy.reverse_proxy={{upstreams 8080}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
 volumes:
     postgres_data: {}
     mysql-data: {}

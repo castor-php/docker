@@ -5,7 +5,11 @@ namespace project;
 use Castor\Attribute\AsContext;
 use Castor\Attribute\AsListener;
 use Castor\Context;
+use Castor\Docker\Attribute\AsDockerComposeBuilder;
+use Castor\Docker\Event\DockerComposeBuilderEvent;
+use Castor\Docker\Event\DockerComposeWriteEvent;
 use Castor\Docker\Event\RegisterServiceEvent;
+use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoService;
@@ -77,4 +81,51 @@ function register_service(RegisterServiceEvent $event)
         ->withVersion('1.90')
         ->withDirectory(__DIR__ . '/rust-app')
         ->withDomain('app4.project.test'));
+}
+
+// The three ways to reach the generated compose file, beyond registering a
+// service. See https://castor-php.github.io/docker/going-further/extending-the-compose-file/
+
+/**
+ * Add a container the plugin has no service for. Adminer is a plain image with
+ * nothing to configure, which is exactly the case this attribute is for: no
+ * ServiceInterface to write, no event class to import.
+ */
+#[AsDockerComposeBuilder]
+function add_adminer(ComposeBuilder $builder, Context $context): void
+{
+    $rootDomain = $context->data['root_domain'] ?? 'castor.local';
+
+    $builder
+        ->service('adminer')
+            ->image('adminer:5')
+            ->withHttpRouting("adminer.{$rootDomain}", 8080)
+            ->profile('default')
+        ->end()
+    ;
+}
+
+/**
+ * Change a service registered by someone else. Elasticsearch sizes its heap
+ * from the host memory by default, which is generous for a development
+ * machine running a dozen other containers.
+ */
+#[AsListener(DockerComposeBuilderEvent::class)]
+function cap_elasticsearch_heap(DockerComposeBuilderEvent $event): void
+{
+    $event->builder
+        ->service('elasticsearch')
+            ->environment('ES_JAVA_OPTS', '-Xms512m -Xmx512m')
+        ->end()
+    ;
+}
+
+/**
+ * Reach a compose key the builder does not model. "deploy" has no builder
+ * method, and does not need one: this event carries the final array.
+ */
+#[AsListener(DockerComposeWriteEvent::class)]
+function limit_elasticsearch_memory(DockerComposeWriteEvent $event): void
+{
+    $event->compose['services']['elasticsearch']['deploy']['resources']['limits']['memory'] = '1g';
 }

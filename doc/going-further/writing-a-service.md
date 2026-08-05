@@ -8,6 +8,11 @@ description: Implement ServiceInterface, reuse the behaviour traits and ship an 
 A service is a class implementing `ServiceInterface`: it describes containers
 and contributes tasks. Nothing else is required to register it.
 
+Writing one is worth it for something reusable, configurable, or with tasks of
+its own. To drop a plain container into a single project, or to change one that
+is already registered, [extending the compose
+file](extending-the-compose-file.md) is a lot less work.
+
 ```php
 interface ServiceInterface
 {

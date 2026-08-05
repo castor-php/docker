@@ -19,6 +19,7 @@
     - [Custom Dockerfile](going-further/custom-dockerfile.md)
     - [Dockerfile cookbook](going-further/dockerfile-cookbook.md)
     - [Background workers](going-further/workers.md)
+    - [Extending the compose file](going-further/extending-the-compose-file.md)
     - [Writing your own service](going-further/writing-a-service.md)
 - [Troubleshooting](troubleshooting.md)
 - [Changelog](changelog.md)

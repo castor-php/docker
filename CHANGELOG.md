@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.1 - 2026-07-27
+
+### Added
+
+* `DockerComposeBuilderEvent`, dispatched with the `ComposeBuilder` once every
+  service has contributed and before the file is serialized: add a container the
+  plugin has no service for, or change one that is already registered.
+* `DockerComposeWriteEvent`, dispatched with the configuration as a plain array
+  right before it is written: the escape hatch for the compose keys the builder
+  does not model — `deploy`, `logging`, `ulimits`, the `x-` extension fields.
+* `#[AsDockerComposeBuilder]`, sugar over the first event: the function receives
+  the `ComposeBuilder`, optionally the `Context`, and takes a `priority`.
+* Documentation for the three of them, in [extending the compose
+  file](https://castor-php.github.io/docker/going-further/extending-the-compose-file/),
+  and an example of each in the `example/` project.
+
+### Changed
+
+* The plugin no longer builds its task commands from castor's internal API: the
+  tasks of a service are handed over as `TaskDescriptor` through
+  `FunctionsResolvedEvent`, and castor builds them. `ExpressionLanguage`,
+  `Slugger`, `TaskCommand` and the console `Application` are no longer reached
+  into, which leaves the event dispatcher as the only internal API still in use.
+* `castor list` no longer regenerates `compose.generated.yaml`. Castor boots it
+  on a bare context by design, so the file was rewritten without the project
+  configuration and had to be repaired by the next command.
+* The docker compose project name is read from the `name` of `compose.yaml`
+  rather than from the context data, so it is correct on a project declaring no
+  `#[AsContext]` function — where it used to fall back to the directory name.
+
+### Documentation
+
+* More detail on the Dockerfile blocks and on the PHP service.
+
 ## 0.2.0 - 2026-07-27
 
 ### Changed
