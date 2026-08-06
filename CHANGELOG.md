@@ -55,6 +55,14 @@
   `clickhouse-keeper`), the DSN host and the task namespace. The connect task of
   a database and the Kibana container keep their historical name for the first
   instance, so nothing moves for a project registering one of each.
+* Server configuration for `MySQLService` and `MariaDBService`, with
+  `withSetting()`, `withSettings()`, `withConfiguration()` and
+  `withConfigurationFile()`. The three sources are merged into one file shipped
+  as a compose config in `/etc/mysql/conf.d`, so its content lives in the
+  generated compose file: no host directory for Docker to create as `root`, and
+  no file whose permissions the server might refuse. A configuration file is
+  read when the compose file is generated, and a missing one raises instead of
+  leaving the server silently unconfigured.
 * `RedirectionioAgentService::withApiHost()` and `withApiTimeout()`, writing the
   `api` section of the generated `agent.yml` so the agent can talk to a
   self-hosted instance. Absent by default.

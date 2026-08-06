@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasMysqlConfiguration;
 use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -17,6 +18,7 @@ use function Castor\context;
 
 class MariaDBService implements DatabaseServiceInterface
 {
+    use HasMysqlConfiguration;
     use HasName;
     use HasVersion;
 
@@ -51,7 +53,7 @@ class MariaDBService implements DatabaseServiceInterface
     {
         $name = $this->getName();
 
-        return $builder
+        $service = $builder
             ->volume($name . '-data')
             ->service($name)
                 ->image('mariadb:' . $this->getVersion())
@@ -60,8 +62,11 @@ class MariaDBService implements DatabaseServiceInterface
                 ->volume($name . '-data', '/var/lib/mysql')
                 ->healthcheck('mariadb-admin ping -h localhost')
                 ->profile('default')
-            ->end()
         ;
+
+        $this->applyConfiguration($builder, $service);
+
+        return $builder;
     }
 
     public function getTasks(): iterable
