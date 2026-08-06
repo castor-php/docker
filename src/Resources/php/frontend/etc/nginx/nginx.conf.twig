@@ -37,7 +37,7 @@ http {
 {% block server %}
     server {
         listen 0.0.0.0:80;
-        root /var/www/public;
+        root {{ app_root|default('/var/www') }}/public;
 
 {% block server_locations %}
         location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg)$ {

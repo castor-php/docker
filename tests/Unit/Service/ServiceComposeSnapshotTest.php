@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Unit\Service;
 
+use Castor\Docker\Service\BinaryRunService;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
+use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
@@ -16,6 +18,7 @@ use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
+use Castor\Docker\Service\RustBuilder;
 use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
@@ -108,6 +111,78 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $this->assertMatchesYamlSnapshot($this->build(
             (new RustService('api'))->withVersion('1.90')->withDirectory('/project/api')->withDomain('api.demo.test'),
+        ));
+    }
+
+    public function testRustWithTargetAndWorkingDirectory(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new RustService('agent'))
+                ->withVersion('1.90')
+                // The repository root is mounted, cargo runs in the crate, and
+                // the musl target moves the binary out of target/debug/.
+                ->withDirectory('/project')
+                ->withWorkingDirectory('agent/agent-application')
+                ->withTarget('x86_64-unknown-linux-musl')
+                ->withRunCommand(['--listen', '0.0.0.0:18089'])
+                ->addRustupTarget('x86_64-unknown-linux-musl')
+                ->addRustupToolchain('nightly', ['rustfmt']),
+        ));
+    }
+
+    /**
+     * The monorepo shape: one compiler container per language, one runtime
+     * container per binary, and two PHP applications sharing a single builder.
+     */
+    public function testMonorepo(): void
+    {
+        $rust = (new RustBuilder('rust-builder'))
+            ->withVersion('1.94.0')
+            ->withDirectory('/project')
+            ->addRustupTarget('x86_64-unknown-linux-musl')
+            ->withApp('agent/agent-application', target: 'x86_64-unknown-linux-musl')
+            ->withApp('server/log-injector')
+        ;
+
+        $go = (new GoBuilder('go-builder'))
+            ->withVersion('1.25')
+            ->withDirectory('/project')
+            ->withApp('server/exporter')
+        ;
+
+        $backend = (new SymfonyService('backend'))
+            ->withDirectory('/project')
+            ->withWorkingDirectory('server/backend')
+            ->withDomain('backend.demo.test')
+        ;
+
+        $this->assertMatchesYamlSnapshot($this->build(
+            $rust,
+            $go,
+            (new BinaryRunService('agent', 'agent/target/x86_64-unknown-linux-musl/debug/agent-application'))
+                ->withBuilder($rust, 'agent/agent-application')
+                ->withRunCommand(['--listen', '0.0.0.0:18089'])
+                ->withDomain('agent.demo.test'),
+            (new BinaryRunService('log-injector', 'server/target/debug/log-injector'))
+                ->withBuilder($rust, 'server/log-injector'),
+            (new BinaryRunService('exporter', 'server/exporter/exporter'))
+                ->withBuilder($go, 'server/exporter'),
+            $backend,
+            // The second application generates no builder container of its own.
+            (new SymfonyService('demo'))
+                ->withDirectory('/project')
+                ->withWorkingDirectory('server/demo')
+                ->withSharedBuilder($backend)
+                ->withDomain('demo.demo.test'),
+        ));
+    }
+
+    public function testBinaryRunServiceWithoutBuilder(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new BinaryRunService('agent', 'bin/agent'))
+                ->withDirectory('/project')
+                ->withImage('debian:13-slim'),
         ));
     }
 

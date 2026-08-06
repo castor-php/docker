@@ -55,6 +55,14 @@ class PHPService implements ServiceInterface
     protected string $phpCsFixerVersion = '*';
     protected string $rectorVersion = '*';
 
+    protected const MOUNT_POINT = '/var/www';
+
+    /**
+     * The application whose builder container this one uses, or false when no
+     * builder container is generated at all. Null means "generate my own".
+     */
+    protected PHPService|false|null $sharedBuilder = null;
+
     public function __construct(
         protected string $name = 'app',
     ) {}
@@ -112,6 +120,50 @@ class PHPService implements ServiceInterface
         return $this->name;
     }
 
+    /**
+     * Run the builder tasks of this application in the builder container of
+     * another one, instead of generating an identical one.
+     *
+     * Three applications of the same monorepo otherwise produce three "-builder"
+     * containers built from the same sources. The shared builder has to mount a
+     * directory containing this application — the repository root — and each
+     * application names its own sub-directory with withWorkingDirectory().
+     */
+    public function withSharedBuilder(self $service): static
+    {
+        $this->sharedBuilder = $service;
+
+        return $this;
+    }
+
+    /**
+     * Generate no builder container: the builder tasks run in the application
+     * container itself, which is only enough if it carries the tooling.
+     */
+    public function withoutBuilder(): static
+    {
+        $this->sharedBuilder = false;
+
+        return $this;
+    }
+
+    /**
+     * The compose service the builder tasks — composer, the console, the cache
+     * commands — run in.
+     */
+    public function getBuilderServiceName(): string
+    {
+        if ($this->sharedBuilder instanceof self) {
+            return $this->sharedBuilder->getBuilderServiceName();
+        }
+
+        if (false === $this->sharedBuilder) {
+            return $this->name;
+        }
+
+        return $this->name . '-builder';
+    }
+
     public function withDatabaseService(DatabaseServiceInterface $databaseService): static
     {
         $this->databaseService = $databaseService;
@@ -166,14 +218,25 @@ class PHPService implements ServiceInterface
                     ->arg('php_extensions', json_encode(array_values($this->extensions), \JSON_THROW_ON_ERROR))
                 ->end()
                 ->user("{$userId}:{$userId}")
-                ->volume($this->getDirectory(), '/var/www', 'cached')
+                ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
                 ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                 ->profile('default')
         ;
 
+        $appRoot = $this->getContainerWorkingDirectory(static::MOUNT_POINT);
+
+        if ('.' !== $this->workingDirectory) {
+            // The document root of the frontend is baked into the image
+            // configuration, so it has to follow: mounting the repository root
+            // and pointing the application at a sub-directory would otherwise
+            // serve /var/www/public, which does not exist.
+            $appService->workingDir($appRoot);
+            $appService->build()->arg('app_root', $appRoot);
+        }
+
         if ($this->mode === PhpMode::FrankenPhp && $this->frankenPhpWorkerScript !== null) {
             $appService->build()
-                ->arg('frankenphp_worker_file', '/var/www/' . ltrim($this->frankenPhpWorkerScript, '/'))
+                ->arg('frankenphp_worker_file', $appRoot . '/' . ltrim($this->frankenPhpWorkerScript, '/'))
                 ->arg('frankenphp_worker_watch', $this->frankenPhpWorkerWatch ? 'true' : 'false')
             ;
 
@@ -184,18 +247,25 @@ class PHPService implements ServiceInterface
 
         $buildBuilder = $builder->service($this->name)->build();
 
-        $builderService = $builder
-            ->service($this->name . '-builder')
-                ->build($buildBuilder)
-                    ->target('builder')
-                    ->withRegistryCache($this->name . '-builder')
-                ->end()
-                ->user("{$userId}:{$userId}")
-                ->init(true)
-                ->volume($this->getDirectory(), '/var/www', 'cached')
-                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
-                ->profile('builder')
-        ;
+        // Skipped when the builder is shared with another application, or when
+        // the project opted out of it: getBuilderServiceName() then points the
+        // tasks somewhere else.
+        $builderService = null;
+
+        if (null === $this->sharedBuilder) {
+            $builderService = $builder
+                ->service($this->name . '-builder')
+                    ->build($buildBuilder)
+                        ->target('builder')
+                        ->withRegistryCache($this->name . '-builder')
+                    ->end()
+                    ->user("{$userId}:{$userId}")
+                    ->init(true)
+                    ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
+                    ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                    ->profile('builder')
+            ;
+        }
 
         $this->applyHttpRouting($appService);
 
@@ -208,7 +278,7 @@ class PHPService implements ServiceInterface
             ;
 
             $builderService
-                ->dependsOn($this->databaseService->getName(), [
+                ?->dependsOn($this->databaseService->getName(), [
                     'condition' => 'service_healthy',
                 ])
                 ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
@@ -222,7 +292,7 @@ class PHPService implements ServiceInterface
             ;
 
             $builderService
-                ->dependsOn($this->mailerService->getName())
+                ?->dependsOn($this->mailerService->getName())
                 ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
             ;
         }
@@ -235,11 +305,15 @@ class PHPService implements ServiceInterface
                         ->withRegistryCache($this->name . '-worker')
                     ->end()
                     ->user("{$userId}:{$userId}")
-                    ->volume($this->getDirectory(), '/var/www', 'cached')
+                    ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
                     ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
                     ->command($command)
                     ->profile('default')
             ;
+
+            if ('.' !== $this->workingDirectory) {
+                $workerService->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT));
+            }
 
             if ($this->databaseService) {
                 $workerService
@@ -267,21 +341,21 @@ class PHPService implements ServiceInterface
         yield [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
             'function' => function (): void {
-                docker_compose_run('bash', $this->name . '-builder', c: context()->toInteractive());
+                $this->runInBuilder('bash', c: context()->toInteractive());
             },
         ];
 
         yield [
             'task' => new AsTask('install', $this->name, 'Install PHP dependencies using Composer'),
             'function' => function (): void {
-                docker_compose_run('composer install', $this->name . '-builder');
+                $this->runInBuilder('composer install');
             },
         ];
 
         yield [
             'task' => new AsTask('composer', $this->name, 'Run composer for this service'),
             'function' => function (#[AsRawTokens] array $args): void {
-                docker_compose_run('composer ' . implode(' ', $args), $this->name . '-builder');
+                $this->runInBuilder('composer ' . implode(' ', $args));
             },
         ];
 
@@ -291,7 +365,7 @@ class PHPService implements ServiceInterface
                 io()->section('Running PHPStan...');
 
                 /** @var list<string> $args */
-                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->getDirectory());
+                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->getHostWorkingDirectory());
             },
         ];
 
@@ -301,7 +375,7 @@ class PHPService implements ServiceInterface
                 io()->section('Running PHP CS Fixer...');
 
                 /** @var list<string> $args */
-                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->getDirectory());
+                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->getHostWorkingDirectory());
             },
         ];
 
@@ -311,8 +385,35 @@ class PHPService implements ServiceInterface
                 io()->section('Running Rector...');
 
                 /** @var list<string> $args */
-                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->getDirectory());
+                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->getHostWorkingDirectory());
             },
         ];
+    }
+
+    /**
+     * Run a command in the builder container of this application — which may be
+     * the one of another application (withSharedBuilder()), in the
+     * sub-directory this application lives in.
+     */
+    protected function runInBuilder(string $command, ?Context $c = null): void
+    {
+        docker_compose_run(
+            $command,
+            service: $this->getBuilderServiceName(),
+            c: $c,
+            workDir: $this->getBuilderWorkingDirectory(),
+        );
+    }
+
+    /**
+     * @see RustService::getTaskWorkingDirectory()
+     */
+    protected function getBuilderWorkingDirectory(): ?string
+    {
+        if ('.' === $this->workingDirectory) {
+            return null;
+        }
+
+        return $this->getContainerWorkingDirectory(static::MOUNT_POINT);
     }
 }

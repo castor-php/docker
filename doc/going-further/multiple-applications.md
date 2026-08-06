@@ -46,6 +46,69 @@ $event->addService((new GoService('api'))->withDirectory(__DIR__ . '/api')->with
 $event->addService((new RustService('crawler'))->withDirectory(__DIR__ . '/crawler'));
 ```
 
-A complete example lives in the
-[`example/` directory](https://github.com/castor-php/docker/tree/main/example)
-of the repository.
+## Monorepos
+
+The shape above gives each application its own directory, its own image and its
+own builder container. That stops paying off once a single Git root holds a
+dozen of them: the toolchain gets declared over and over, and a container can
+only see its own sub-directory.
+
+Three things change.
+
+### Mount the root, name the sub-directory
+
+`withDirectory()` is what gets mounted, `withWorkingDirectory()` is where the
+commands run inside it. Mount the repository and every container can read what
+the others produce:
+
+```php
+(new SymfonyService('backend'))
+    ->withDirectory(__DIR__)                // the repository root
+    ->withWorkingDirectory('apps/backend')  // where composer and the console run
+```
+
+### One builder per language, not per application
+
+PHP applications share a builder container with
+[`withSharedBuilder()`](../services/php.md#sharing-one-builder-container).
+Compiled languages go further and split the compiler from the runtime:
+[`RustBuilder`](../services/rust.md#rustbuilder) or
+[`GoBuilder`](../services/go.md#gobuilder) holds the toolchain and declares the
+applications it compiles, and one
+[`BinaryRunService`](../services/rust.md#binaryrunservice) per binary runs the
+result.
+
+```php
+$rust = (new RustBuilder('rust-builder'))
+    ->withDirectory(__DIR__)
+    ->addRustupTarget('x86_64-unknown-linux-musl')
+    ->withApp('agent/agent-application', target: 'x86_64-unknown-linux-musl')
+    ->withApp('server/log-injector');
+
+$event->addService($rust);
+
+$event->addService(
+    (new BinaryRunService('agent', 'agent/target/x86_64-unknown-linux-musl/debug/agent-application'))
+        ->withBuilder($rust, 'agent-application')
+        ->withDomain('agent.project.test')
+);
+```
+
+One image, one registry cache reference, one place where the toolchain is
+declared — and `castor agent-application:build` runs in the builder rather than
+inside a running binary.
+
+### Call the other applications by their real domains
+
+`https://backend.project.test` works from inside a container, not just from your
+browser: every container gets an `extra_hosts` entry for each domain of the
+project. Nothing to configure, and the URL is the same in development and in
+production — see [router and
+HTTPS](../services/router.md#reaching-your-own-domains-from-inside-a-container).
+
+## A complete example
+
+The [`example/` directory](https://github.com/castor-php/docker/tree/main/example)
+of the repository is exactly that: one root with two PHP applications sharing a
+builder, a Rust binary and a Go binary each built by their language's builder,
+and a container calling another through its public domain.

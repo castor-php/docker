@@ -27,10 +27,23 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasVersion` | `withVersion()`, `getVersion()` | every versioned service |
 | `HasDomains` | `withDomain(...$domains)`, `getDomains()` | every routed service |
 | `HasHttpAccess` | `withHttpAccess()`, `isHttpAccessAllowed()` | every routed service |
-| `HasHttpRouting` | the two above + `withPort()`, `getPort()`, `applyHttpRouting()` | `PHPService`, `GoService`, `RustService`, `RedirectionioAgentService` |
-| `HasDirectory` | `withDirectory()`, `getDirectory()` | `PHPService`, `GoService`, `RustService` |
-| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService` |
-| `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService` |
+| `HasHttpRouting` | the two above + `withPort()`, `getPort()`, `applyHttpRouting()` | every routed service |
+| `HasDirectory` | `withDirectory()`, `getDirectory()`, `withWorkingDirectory()`, `getWorkingDirectory()` | every service mounting sources |
+| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, the builders |
+| `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, the builders |
+| `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService` |
+
+### Mount, working directory, binary
+
+`HasDirectory` carries two distinct paths, because in a monorepo they are two
+distinct things: `withDirectory()` is the host directory **mounted** in the
+container, and `withWorkingDirectory()` is where the commands run **below** it —
+relative to the mount, `.` by default. `GoService`, `RustService` and
+`BinaryRunService` add a third with `withBinaryPath()`, for the binary the
+container starts.
+
+They only coincide when an application owns its own directory, which is why the
+defaults leave the generated file exactly as it was.
 
 `HasVersion` and `HasDockerfile` require the service to declare its own fallback
 with `getDefaultVersion()` / `getDefaultDockerfile()`, and `HasHttpRouting` lets

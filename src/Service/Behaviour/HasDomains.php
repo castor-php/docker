@@ -10,7 +10,7 @@ namespace Castor\Docker\Service\Behaviour;
 trait HasDomains
 {
     /** @var list<string> */
-    private array $domains = [];
+    protected array $domains = [];
 
     public function withDomain(string ...$domains): static
     {

@@ -10,7 +10,7 @@ namespace Castor\Docker\Service\Behaviour;
  */
 trait HasVersion
 {
-    private ?string $version = null;
+    protected ?string $version = null;
 
     public function withVersion(string $version): static
     {

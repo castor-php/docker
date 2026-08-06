@@ -34,6 +34,7 @@ use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\ContextCreatedEvent;
 use Castor\Event\FunctionsResolvedEvent;
 use Symfony\Component\Filesystem\Path;
+use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
@@ -51,10 +52,20 @@ use function Castor\yaml_parse;
 /**
  * Get default Docker Compose profiles to activate.
  *
+ * Read from the "docker_profiles" context data when the project sets one, so a
+ * project organising its containers in more than the two built-in profiles does
+ * not have to pass --profiles to every task.
+ *
  * @return list<string>
  */
-function get_default_profiles(): array
+function get_default_profiles(?Context $c = null): array
 {
+    $profiles = ($c ?? context())->data['docker_profiles'] ?? null;
+
+    if (\is_array($profiles) && [] !== $profiles) {
+        return array_values($profiles);
+    }
+
     return ['default'];
 }
 
@@ -65,7 +76,7 @@ function get_default_profiles(): array
 function docker_compose(array $subCommand, ?Context $c = null, array $profiles = []): Process
 {
     $c ??= context();
-    $profiles = $profiles ?: get_default_profiles();
+    $profiles = $profiles ?: get_default_profiles($c);
 
     $c = $c
         ->withTimeout(null)
@@ -104,7 +115,7 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $process = run($command, context: $c);
 
     if ('up' === $subCommandName) {
-        connect_router_to_network($network);
+        connect_router_to_network($network, get_project_domains($c));
     }
 
     return $process;
@@ -148,6 +159,59 @@ function get_project_network(?Context $c = null): string
     return get_project_name($c) . '_default';
 }
 
+/**
+ * Every domain routed to a container of this project, read back from the
+ * generated compose file.
+ *
+ * Taken from the "caddy" labels rather than from the services, so a domain
+ * declared straight on the builder — by an #[AsDockerComposeBuilder] function,
+ * or by a listener — counts too.
+ *
+ * @return list<string>
+ */
+function get_project_domains(?Context $c = null): array
+{
+    $c ??= context();
+    $composeFile = $c->workingDirectory . '/compose.generated.yaml';
+
+    if (!file_exists($composeFile) || !($content = file_get_contents($composeFile))) {
+        return [];
+    }
+
+    $compose = yaml_parse($content);
+    $domains = [];
+
+    foreach ($compose['services'] ?? [] as $service) {
+        foreach ($service['labels'] ?? [] as $label) {
+            // "caddy=a.test b.test", and "caddy_1=http://a.test" for the plain
+            // HTTP site withHttpAccess() adds.
+            if (!\is_string($label) || 1 !== preg_match('/^caddy(?:_\d+)?=(.+)$/', $label, $matches)) {
+                continue;
+            }
+
+            foreach (preg_split('/\s+/', trim($matches[1])) ?: [] as $domain) {
+                $domain = (string) preg_replace('#^https?://#', '', $domain);
+
+                // A network alias has to be a plain host name: a wildcard or a
+                // matcher would make "docker network connect" fail as a whole.
+                if (1 !== preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/', $domain)) {
+                    continue;
+                }
+
+                $domains[$domain] = true;
+            }
+        }
+    }
+
+    return array_keys($domains);
+}
+
+/**
+ * Run a one-off command in a service container ("docker compose run --rm").
+ *
+ * @param array<string, string> $environment extra variables, passed as "-e KEY=VALUE"
+ * @param list<string>          $ports       extra published ports, passed as "-p 10080:10080"
+ */
 function docker_compose_run(
     string $runCommand,
     string $service,
@@ -155,6 +219,9 @@ function docker_compose_run(
     bool $noDeps = true,
     ?string $workDir = null,
     bool $portMapping = false,
+    array $environment = [],
+    ?string $entrypoint = null,
+    array $ports = [],
 ): Process {
     $command = [
         'run',
@@ -174,14 +241,39 @@ function docker_compose_run(
         $command[] = $workDir;
     }
 
+    if (null !== $entrypoint) {
+        $command[] = '--entrypoint';
+        $command[] = $entrypoint;
+    }
+
+    foreach ($environment as $key => $value) {
+        $command[] = '-e';
+        $command[] = "{$key}={$value}";
+    }
+
+    foreach ($ports as $port) {
+        $command[] = '-p';
+        $command[] = $port;
+    }
+
     $command[] = $service;
     $command[] = '/bin/sh';
     $command[] = '-c';
     $command[] = "exec {$runCommand}";
 
-    return docker_compose($command, c: $c);
+    try {
+        return docker_compose($command, c: $c);
+    } catch (ExceptionInterface $e) {
+        // The process exception only names "docker compose", which says nothing
+        // about which container the command actually broke in.
+        throw new \RuntimeException(\sprintf('The command "%s" failed in the "%s" service.', $runCommand, $service), previous: $e);
+    }
 }
 
+/**
+ * @param array<string, string> $environment
+ * @param list<string>          $ports
+ */
 function docker_exit_code(
     string $runCommand,
     string $service = 'builder',
@@ -189,7 +281,12 @@ function docker_exit_code(
     bool $noDeps = true,
     ?string $workDir = null,
     bool $portMapping = false,
+    array $environment = [],
+    ?string $entrypoint = null,
+    array $ports = [],
 ): int {
+    // Allowing failure is what makes docker_compose_run() return instead of
+    // throwing: the caller wants the exit code, not an exception.
     $c = ($c ?? context())->withAllowFailure();
 
     $process = docker_compose_run(
@@ -198,6 +295,10 @@ function docker_exit_code(
         c: $c,
         noDeps: $noDeps,
         workDir: $workDir,
+        portMapping: $portMapping,
+        environment: $environment,
+        entrypoint: $entrypoint,
+        ports: $ports,
     );
 
     return $process->getExitCode() ?? 0;
@@ -465,6 +566,55 @@ function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): v
 }
 
 /**
+ * Make the public domains of the project resolvable from inside its own
+ * containers, by pointing each of them at the host gateway.
+ *
+ * The router is global and joins the project network from the outside, without
+ * a DNS alias: nothing in the project resolves "api.myproject.test", so an
+ * application calling its own public API — or any container talking to another
+ * one through its public domain — fails. Docker accepts no wildcard in
+ * extra_hosts, so the list has to be spelled out; the plugin knows every routed
+ * domain and can do it for the user.
+ *
+ * The traffic leaves through the host gateway and comes back on the ports 80
+ * and 443 the router publishes, which works on Linux as well as on Docker
+ * Desktop, and keeps working when the router is not on the project network.
+ *
+ * Turn it off with the "resolve_domains_via_host" context data.
+ */
+function add_project_extra_hosts(Context $c, ComposeBuilder $composeBuilder): void
+{
+    if (false === ($c->data['resolve_domains_via_host'] ?? true)) {
+        return;
+    }
+
+    $domains = array_filter($composeBuilder->getRoutedDomains(), is_resolvable_project_domain(...));
+
+    if (!$domains) {
+        return;
+    }
+
+    foreach ($composeBuilder->getServices() as $service) {
+        foreach ($domains as $domain) {
+            $service->extraHost($domain, 'host-gateway');
+        }
+    }
+}
+
+/**
+ * Whether a routed domain may be redirected to the host gateway.
+ *
+ * A name without a dot is refused: "localhost" would shadow the loopback entry
+ * of /etc/hosts and break everything a container reaches on 127.0.0.1, and any
+ * other bare label collides with the container names of the project network,
+ * where a service reaching another one by name must keep resolving to it.
+ */
+function is_resolvable_project_domain(string $domain): bool
+{
+    return str_contains($domain, '.');
+}
+
+/**
  * Call every function marked with #[AsDockerComposeBuilder], highest priority
  * first.
  *
@@ -509,6 +659,9 @@ function generate_compose_file(Context $c, array $services): void
     run_compose_builders($c, $composeBuilder);
 
     create_mount_directories($c, $composeBuilder);
+
+    // After the listeners, so a domain routed by one of them is resolvable too.
+    add_project_extra_hosts($c, $composeBuilder);
 
     $compose = dispatch(new DockerComposeWriteEvent($c, $composeBuilder->toArray()))->compose;
 

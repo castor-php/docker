@@ -1,5 +1,5 @@
 services:
-    api:
+    agent:
         build:
             context: %PACKAGE%/src/Service/../Resources/rust
             dockerfile: %PACKAGE%/src/Service/../Resources/rust/Dockerfile
@@ -8,24 +8,22 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 rust_version: '1.90'
                 rust_components: '["clippy","rustfmt"]'
-                rust_targets: '[]'
-                rust_toolchains: '[]'
+                rust_targets: '["x86_64-unknown-linux-musl"]'
+                rust_toolchains: '[{"name":"nightly","components":["rustfmt"]}]'
             cache_from:
-                - 'type=registry,ref=${REGISTRY:-}/api:cache'
-        working_dir: /app
+                - 'type=registry,ref=${REGISTRY:-}/agent:cache'
+        working_dir: /app/agent/agent-application
         user: '1000:1000'
         environment:
             HOME: /home/app
             CARGO_HOME: /home/app/.cargo
         volumes:
-            - '/project/api:/app:cached'
+            - '/project:/app:cached'
             - '.home:/home/app:cached'
-        labels:
-            - caddy=api.demo.test
-            - 'caddy.reverse_proxy={{upstreams 8080}}'
-            - caddy.tls=internal
-            - caddy.tls.on_demand=
         profiles:
             - default
-        command: /app/target/debug/api
+        command:
+            - /app/target/x86_64-unknown-linux-musl/debug/agent
+            - '--listen'
+            - '0.0.0.0:18089'
 volumes: {}

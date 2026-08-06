@@ -1,0 +1,12 @@
+services:
+    agent:
+        image: 'debian:13-slim'
+        working_dir: /app
+        user: '1000:1000'
+        volumes:
+            - '/project:/app:cached'
+        profiles:
+            - default
+        command:
+            - /app/bin/agent
+volumes: {}

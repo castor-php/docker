@@ -36,6 +36,32 @@ final class ComposeBuilderTest extends TestCase
         );
     }
 
+    public function testRoutedDomainsAreAggregatedAcrossServices(): void
+    {
+        $builder = new ComposeBuilder();
+
+        $builder
+            ->service('app')->withHttpRouting(['app.demo.test', 'demo.test'])->end()
+            // Already routed by "app": the domain is only returned once.
+            ->service('api')->withHttpRouting(['api.demo.test', 'demo.test'])->end()
+            ->service('postgres')
+        ;
+
+        static::assertSame(
+            ['app.demo.test', 'demo.test', 'api.demo.test'],
+            $builder->getRoutedDomains(),
+        );
+    }
+
+    public function testGetServicesReturnsEveryDeclaredService(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->service('app');
+        $builder->service('postgres');
+
+        static::assertSame(['app', 'postgres'], array_keys($builder->getServices()));
+    }
+
     /**
      * The host directories of the bind mounts are created before docker gets a
      * chance to create them as root, so they must be told apart from the named

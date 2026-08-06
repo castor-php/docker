@@ -40,9 +40,36 @@ class RedirectionioAgentService implements ServiceInterface
 
     private string $instanceName = 'dev';
 
+    /** The redirection.io API the agent talks to, the SaaS one when unset. */
+    private ?string $apiHost = null;
+
+    private ?int $apiTimeout = null;
+
     public function getName(): string
     {
         return 'redirectionio-agent';
+    }
+
+    /**
+     * Point the agent at another redirection.io API than the SaaS one — a
+     * self-hosted instance, or the very project this agent runs in.
+     */
+    public function withApiHost(string $apiHost): static
+    {
+        $this->apiHost = $apiHost;
+
+        return $this;
+    }
+
+    /**
+     * The timeout, in seconds, of the calls to the API. Only written when an
+     * API host is set.
+     */
+    public function withApiTimeout(int $apiTimeout): static
+    {
+        $this->apiTimeout = $apiTimeout;
+
+        return $this;
     }
 
     public function withProjectKey(string $projectKey): static
@@ -146,6 +173,14 @@ class RedirectionioAgentService implements ServiceInterface
                 ],
             ],
         ];
+
+        if ($this->apiHost !== null) {
+            $configuration['api'] = ['host' => $this->apiHost];
+
+            if ($this->apiTimeout !== null) {
+                $configuration['api']['timeout'] = $this->apiTimeout;
+            }
+        }
 
         if ($virtualHosts) {
             $configuration['reverse_proxy']['virtual_hosts'] = $virtualHosts;

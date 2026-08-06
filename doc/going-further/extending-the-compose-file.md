@@ -126,9 +126,32 @@ $builder->service('name');                      // get or create a service, retu
 `ServiceBuilder` covers what the plugin's own services need — `image()`,
 `build()`, `environment()`, `volume()`, `port()`, `command()`, `user()`,
 `init()`, `workingDir()`, `label()`, `profile()`, `dependsOn()`,
-`healthcheck()`, `config()` and `withHttpRouting()` — and `end()` returns you to
-the `ComposeBuilder`. Anything it does not cover is a
+`healthcheck()`, `config()`, `restart()`, `ulimits()`, `dns()`, `extraHost()`,
+`deploy()` and `withHttpRouting()` — and `end()` returns you to the
+`ComposeBuilder`. Anything it does not cover is a
 [`DockerComposeWriteEvent`](#dockercomposewriteevent) away.
+
+```php
+$builder
+    ->service('clickhouse')
+        ->restart('on-failure:10')
+        ->ulimits('nofile', ['soft' => 262144, 'hard' => 262144])
+        ->dns('1.1.1.1', '8.8.8.8')
+        ->extraHost('host.docker.internal', 'host-gateway')
+        ->deploy(['resources' => ['reservations' => ['devices' => [['capabilities' => ['gpu']]]]]])
+    ->end()
+;
+```
+
+`environment()` takes a `null` value, which emits `KEY: null` — the compose
+syntax passing the variable through from the environment castor runs in. Use it
+for a value that changes between invocations, rather than freezing it in the
+generated file:
+
+```php
+->environment('GIT_WORKTREE')          // KEY: null, read from your shell
+->environment('APP_ENV', 'dev')        // APP_ENV: dev, written in the file
+```
 
 ## Order of execution
 
@@ -136,8 +159,14 @@ the `ComposeBuilder`. Anything it does not cover is a
 2. `DockerComposeBuilderEvent` listeners, by descending `AsListener` priority
 3. `#[AsDockerComposeBuilder]` functions, by descending `priority`
 4. the host directories of the bind mounts are created
-5. `DockerComposeWriteEvent` listeners, by descending priority
-6. `compose.generated.yaml` is written
+5. the [`extra_hosts` of the project domains](../services/router.md#reaching-your-own-domains-from-inside-a-container)
+   are added to every service
+6. `DockerComposeWriteEvent` listeners, by descending priority
+7. `compose.generated.yaml` is written
+
+Step 5 runs after the listeners on purpose, so a domain routed by one of them is
+resolvable too — and before the write event, so that event remains the last word
+on the file.
 
 Priorities order listeners within a step, not across steps: an
 `#[AsDockerComposeBuilder(priority: 100)]` still runs after every

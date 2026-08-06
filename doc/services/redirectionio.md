@@ -38,6 +38,24 @@ $event->addService(
 `$target` accepts a service instance or a plain service name. The port is the
 one the target listens on inside the Docker network.
 
+## Pointing the agent at a self-hosted API
+
+The agent talks to the redirection.io SaaS by default. A self-hosted instance —
+or the very project this agent runs in — is declared with:
+
+```php
+(new RedirectionioAgentService())
+    ->withApiHost('https://api.myproject.test/app_dev.php')
+    ->withApiTimeout(120)   // seconds, only written along with a host
+```
+
+which writes the `api` section of the generated `agent.yml`. Both are absent by
+default, and the agent then uses its own defaults.
+
+A URL like `https://api.myproject.test` resolves from inside the agent
+container: the plugin makes the project's own domains reachable, see [router and
+HTTPS](router.md#reaching-your-own-domains-from-inside-a-container).
+
 ## Generated configuration
 
 The agent configuration is generated from those calls and shipped to the

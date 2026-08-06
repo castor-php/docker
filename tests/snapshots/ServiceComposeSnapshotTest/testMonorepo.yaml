@@ -1,0 +1,150 @@
+services:
+    rust-builder:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/rust
+            dockerfile: %PACKAGE%/src/Service/../Resources/rust/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                rust_version: 1.94.0
+                rust_components: '["clippy","rustfmt"]'
+                rust_targets: '["x86_64-unknown-linux-musl"]'
+                rust_toolchains: '[]'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/rust-builder:cache'
+        working_dir: /app
+        user: '1000:1000'
+        init: true
+        environment:
+            HOME: /home/app
+            CARGO_HOME: /home/app/.cargo
+        volumes:
+            - '/project:/app:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+    go-builder:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/go
+            dockerfile: %PACKAGE%/src/Service/../Resources/go/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                go_version: '1.25'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/go-builder:cache'
+        working_dir: /app
+        user: '1000:1000'
+        init: true
+        environment:
+            HOME: /home/app
+        volumes:
+            - '/project:/app:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+    agent:
+        image: '${PROJECT_NAME}-rust-builder'
+        working_dir: /app
+        user: '1000:1000'
+        volumes:
+            - '/project:/app:cached'
+        labels:
+            - caddy=agent.demo.test
+            - 'caddy.reverse_proxy={{upstreams 8080}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        command:
+            - /app/agent/target/x86_64-unknown-linux-musl/debug/agent-application
+            - '--listen'
+            - '0.0.0.0:18089'
+    log-injector:
+        image: '${PROJECT_NAME}-rust-builder'
+        working_dir: /app
+        user: '1000:1000'
+        volumes:
+            - '/project:/app:cached'
+        profiles:
+            - default
+        command:
+            - /app/server/target/debug/log-injector
+    exporter:
+        image: '${PROJECT_NAME}-go-builder'
+        working_dir: /app
+        user: '1000:1000'
+        volumes:
+            - '/project:/app:cached'
+        profiles:
+            - default
+        command:
+            - /app/server/exporter/exporter
+    backend:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            target: frontend
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                app_root: /var/www/server/backend
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/backend:cache'
+        working_dir: /var/www/server/backend
+        user: '1000:1000'
+        volumes:
+            - '/project:/var/www:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=backend.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    backend-builder:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            target: builder
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                app_root: /var/www/server/backend
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/backend-builder:cache'
+        user: '1000:1000'
+        init: true
+        volumes:
+            - '/project:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+    demo:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/php
+            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            target: frontend
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                app_root: /var/www/server/demo
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/demo:cache'
+        working_dir: /var/www/server/demo
+        user: '1000:1000'
+        volumes:
+            - '/project:/var/www:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=demo.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+volumes: {}

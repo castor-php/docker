@@ -24,6 +24,46 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withFrankenPhpWorkerMode('public/index.php', num: 4)
 ```
 
+## Applications inside a monorepo
+
+`withDirectory()` is what gets **mounted**; `withWorkingDirectory()` names the
+application **inside** it. They only coincide when the application owns its
+directory:
+
+```php
+(new SymfonyService('backend'))
+    ->withDirectory(__DIR__)               // mount the repository root
+    ->withWorkingDirectory('apps/backend') // the application lives here
+```
+
+Composer, the console and the QA tools then run in `/var/www/apps/backend`, and
+the document root of the frontend follows — the web server configuration is
+built with the application directory, not with a fixed `/var/www/public`.
+
+### Sharing one builder container
+
+Three applications of the same repository do not need three identical
+`-builder` containers:
+
+```php
+$backend = (new SymfonyService('backend'))
+    ->withDirectory(__DIR__)
+    ->withWorkingDirectory('apps/backend');
+
+$demo = (new SymfonyService('demo'))
+    ->withDirectory(__DIR__)
+    ->withWorkingDirectory('apps/demo')
+    ->withSharedBuilder($backend);      // no "demo-builder" container
+```
+
+`castor demo:install`, `castor demo:composer` and `castor demo:symfony` then run
+in `backend-builder`, with the working directory set to `apps/demo`. The shared
+builder has to mount a directory containing both applications, which is what
+mounting the repository root gives you.
+
+`->withoutBuilder()` generates no builder container at all and runs those tasks
+in the application container itself — only enough if it carries the tooling.
+
 ## Runtime modes
 
 * `PhpMode::FrankenPhp` (default) — serves the application with
@@ -92,6 +132,7 @@ its own step.
 |----------|------|------------|
 | `php_version` | string | `withVersion()` (default `8.5`) |
 | `php_extensions` | list of strings | the default list plus `addExtension()` |
+| `app_root` | string | `withWorkingDirectory()`, as a path under `/var/www`; absent when the application owns its directory |
 | `frankenphp_worker_file` | string | `withFrankenPhpWorkerMode()`, as a path under `/var/www` |
 | `frankenphp_worker_num` | int | its `$num` argument, only when you pass one |
 | `frankenphp_worker_watch` | bool | its `$watch` argument |

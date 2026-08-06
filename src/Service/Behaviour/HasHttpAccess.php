@@ -10,7 +10,7 @@ namespace Castor\Docker\Service\Behaviour;
  */
 trait HasHttpAccess
 {
-    private bool $allowHttpAccess = false;
+    protected bool $allowHttpAccess = false;
 
     public function withHttpAccess(bool $allow = true): static
     {

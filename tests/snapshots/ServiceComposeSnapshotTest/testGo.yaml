@@ -1,6 +1,14 @@
 services:
     api:
-        image: 'golang:1.25'
+        build:
+            context: %PACKAGE%/src/Service/../Resources/go
+            dockerfile: %PACKAGE%/src/Service/../Resources/go/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                go_version: '1.25'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/api:cache'
         working_dir: /app
         user: '1000:1000'
         environment:

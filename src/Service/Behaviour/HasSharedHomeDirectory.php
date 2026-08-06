@@ -10,7 +10,7 @@ namespace Castor\Docker\Service\Behaviour;
  */
 trait HasSharedHomeDirectory
 {
-    private string $sharedHomeDirectory = '.home';
+    protected string $sharedHomeDirectory = '.home';
 
     public function withSharedHomeDirectory(string $directory): static
     {

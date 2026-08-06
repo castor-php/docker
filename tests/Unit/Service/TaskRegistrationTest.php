@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Unit\Service;
 
+use Castor\Docker\Service\BinaryRunService;
 use Castor\Docker\Service\ClickhouseService;
+use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PostgresService;
+use Castor\Docker\Service\RustBuilder;
 use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
@@ -74,5 +77,68 @@ final class TaskRegistrationTest extends TestCase
             ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
             $this->taskNames(new RustService('api')),
         );
+    }
+
+    /**
+     * A builder contributes one task set per application it compiles, all
+     * running in its single container.
+     */
+    public function testRustBuilderTasks(): void
+    {
+        $builder = (new RustBuilder('rust-builder'))
+            ->withApp('agent/agent-application')
+            ->withApp('server/log-injector', 'injector')
+        ;
+
+        static::assertSame([
+            'rust-builder:bash',
+            'agent-application:build', 'agent-application:test', 'agent-application:cargo',
+            'agent-application:qa:clippy', 'agent-application:qa:fmt',
+            'injector:build', 'injector:test', 'injector:cargo',
+            'injector:qa:clippy', 'injector:qa:fmt',
+        ], $this->taskNames($builder));
+    }
+
+    public function testGoBuilderTasks(): void
+    {
+        $builder = (new GoBuilder('go-builder'))->withApp('server/exporter');
+
+        static::assertSame(
+            ['go-builder:bash', 'exporter:build', 'exporter:test', 'exporter:go'],
+            $this->taskNames($builder),
+        );
+    }
+
+    /**
+     * Rebuilding needs a compiler: without a builder attached there is nowhere
+     * to run one, so "build" and "watch" are not offered at all.
+     */
+    public function testBinaryRunServiceTasksDependOnHavingABuilder(): void
+    {
+        static::assertSame(
+            ['agent:restart'],
+            $this->taskNames((new BinaryRunService('agent', 'bin/agent'))->withImage('debian:13-slim')),
+        );
+
+        $builder = (new RustBuilder('rust-builder'))->withApp('agent');
+
+        static::assertSame(
+            ['agent:restart', 'agent:build', 'agent:watch'],
+            $this->taskNames((new BinaryRunService('agent', 'bin/agent'))->withBuilder($builder)),
+        );
+    }
+
+    /**
+     * An application sharing a builder must not generate a second one, and its
+     * tasks have to reach the one it borrows.
+     */
+    public function testSharedBuilderRedirectsTheBuilderTasks(): void
+    {
+        $backend = (new SymfonyService('backend'))->withDirectory('/project');
+        $demo = (new SymfonyService('demo'))->withSharedBuilder($backend);
+
+        static::assertSame('backend-builder', $backend->getBuilderServiceName());
+        static::assertSame('backend-builder', $demo->getBuilderServiceName());
+        static::assertSame('app', (new PHPService('app'))->withoutBuilder()->getBuilderServiceName());
     }
 }

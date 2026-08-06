@@ -1,5 +1,5 @@
 :80 {
-	root * /var/www/public
+	root * {{ app_root|default('/var/www') }}/public
 	encode gzip
 {% if frankenphp_worker_file is defined %}
 	php_server {

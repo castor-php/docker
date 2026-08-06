@@ -1,5 +1,81 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* The containers of a project now resolve its own public domains. The router is
+  global and joins the project network from the outside, so nothing inside a
+  project used to resolve `https://api.myproject.test` — an application calling
+  its own API, a worker hitting the front end or a reverse proxy going back to
+  the backend all failed, and Docker accepts no wildcard in `extra_hosts` to
+  work around it. The plugin knows every routed domain and writes one
+  `extra_hosts` entry per domain on every service, pointing at the host gateway
+  where the router's ports 80 and 443 answer. The domains are also passed to
+  `docker network connect` as network aliases. Turn it off with the
+  `resolve_domains_via_host` context data.
+* `RustBuilder` and `GoBuilder`: one compiler container for a whole repository,
+  holding the toolchain and declaring the applications it compiles with
+  `withApp()`. Each application gets its own task namespace — `<app>:build`,
+  `<app>:test`, `<app>:cargo` / `<app>:go`, `<app>:qa:clippy`, `<app>:qa:fmt` —
+  all running in that one container. A monorepo no longer declares the toolchain
+  once per binary, and the build and QA commands no longer run inside a running
+  application container.
+* `BinaryRunService`, the runtime half of the same model: it runs one compiled
+  binary and nothing else, whatever produced it. Attaching a builder with
+  `withBuilder()` gives it the image the binary was compiled in, the same mount,
+  and the `build` and `watch` tasks.
+* `withWorkingDirectory()` on every service mounting a directory. What gets
+  mounted, where the commands run and where the binary lives are three different
+  things in a monorepo: `withDirectory()` mounts, `withWorkingDirectory()` names
+  the sub-directory below it, and `withBinaryPath()` locates the binary. For a
+  PHP application the document root of the frontend follows, through the new
+  `app_root` build argument.
+* `PHPService::withSharedBuilder()` and `withoutBuilder()`, so several
+  applications of one repository stop generating identical `-builder`
+  containers.
+* `RustService::withTarget()`, which adds `--target <triple>` to the build
+  command *and* moves the default binary path to `target/<triple>/debug/<name>`,
+  plus `withBinaryPath()`, `withBuildCommand()` and `withRunCommand()` on both
+  `RustService` and `GoService`.
+* Missing compose keys on `ServiceBuilder`: `restart()`, `ulimits()`, `dns()`,
+  `extraHost()` and `deploy()`. `environment()` now takes a `null` value, which
+  emits `KEY: null` — the compose syntax passing a variable through from the
+  environment castor runs in.
+* `docker_compose_run()` and `docker_exit_code()` take `environment`,
+  `entrypoint` and `ports`. A failing command is now wrapped in a
+  `RuntimeException` naming the service and the command, instead of the bare
+  `docker compose` error.
+* `RedirectionioAgentService::withApiHost()` and `withApiTimeout()`, writing the
+  `api` section of the generated `agent.yml` so the agent can talk to a
+  self-hosted instance. Absent by default.
+* `get_default_profiles()` reads the `docker_profiles` context data instead of
+  always returning `['default']`.
+* The Rust Dockerfile is now a Twig template with `rust_base` and `runtime`
+  blocks, and Go gets one with `go_base` and `runtime`. Both are extensible the
+  way the PHP ones already were — which is how extra Debian packages, rustup
+  components, targets and toolchains are added.
+
+### Changed
+
+* `GoService` builds from a Dockerfile shipped by the plugin instead of running
+  the `golang` image directly, so it can be extended and its build cache pushed
+  like every other service. Its generated `build` section is new; the tasks and
+  the runtime behaviour are unchanged.
+* `GoService` and `RustService` are no longer `final`, their properties are
+  `protected`, and `getTasks()` is split into one method per task, so a subclass
+  can replace, remove or add a single task without redeclaring the others. The
+  behaviour traits' properties are `protected` too.
+* `docker_exit_code()` now forwards `portMapping` to `docker_compose_run()`,
+  which it silently dropped.
+
+### Documentation
+
+* [Multiple applications](https://castor-php.github.io/docker/going-further/multiple-applications/)
+  covers the monorepo shape, and the `example/` project is now one: two PHP
+  applications sharing a builder, a Rust and a Go binary each built by their
+  language's builder, and a container calling another through its public domain.
+
 ## 0.2.1 - 2026-07-27
 
 ### Added

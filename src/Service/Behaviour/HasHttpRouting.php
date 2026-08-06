@@ -18,7 +18,7 @@ trait HasHttpRouting
     use HasDomains;
     use HasHttpAccess;
 
-    private ?int $port = null;
+    protected ?int $port = null;
 
     public function withPort(int $port): static
     {

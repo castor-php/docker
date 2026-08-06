@@ -6,7 +6,7 @@ namespace Castor\Docker\Service\Builder;
 
 final class ServiceBuilder
 {
-    /** @var array<string, string> */
+    /** @var array<string, ?string> */
     private array $environment = [];
 
     /** @var array<string> */
@@ -43,6 +43,28 @@ final class ServiceBuilder
     /** @var null|array<string>|string */
     private array|string|null $command = null;
 
+    private ?string $restart = null;
+
+    /** @var array<string, array<string, int>|int> */
+    private array $ulimits = [];
+
+    /** @var list<string> */
+    private array $dns = [];
+
+    /** @var list<string> */
+    private array $extraHosts = [];
+
+    /** @var array<string, mixed> */
+    private array $deploy = [];
+
+    /**
+     * The domains routed to this service, remembered so the generator can make
+     * them resolvable from inside the containers (see add_project_extra_hosts()).
+     *
+     * @var list<string>
+     */
+    private array $routedDomains = [];
+
     public function __construct(
         public readonly string $name,
         private readonly ComposeBuilder $composeBuilder,
@@ -55,7 +77,12 @@ final class ServiceBuilder
         return $this;
     }
 
-    public function environment(string $key, string $value): self
+    /**
+     * A null value emits "KEY: null", the compose syntax passing the variable
+     * through from the environment castor runs in — which is how a value that
+     * changes between invocations stays out of the generated file.
+     */
+    public function environment(string $key, ?string $value = null): self
     {
         $this->environment[$key] = $value;
 
@@ -159,6 +186,12 @@ final class ServiceBuilder
         $domains = \is_array($domain) ? $domain : [$domain];
         $upstream = $port !== null ? \sprintf('{{upstreams %d}}', $port) : '{{upstreams}}';
 
+        foreach ($domains as $routedDomain) {
+            if (!\in_array($routedDomain, $this->routedDomains, true)) {
+                $this->routedDomains[] = $routedDomain;
+            }
+        }
+
         // HTTPS site served with a locally-trusted certificate minted on demand
         // by the Caddy router (see CaddyRouterService). Plain HTTP is redirected
         // to HTTPS automatically by Caddy.
@@ -221,6 +254,80 @@ final class ServiceBuilder
         return $this;
     }
 
+    /**
+     * The restart policy: "no", "always", "on-failure", "on-failure:10" or
+     * "unless-stopped".
+     */
+    public function restart(string $policy): self
+    {
+        $this->restart = $policy;
+
+        return $this;
+    }
+
+    /**
+     * Set a resource limit, either as a single value ("nproc") or as a
+     * soft/hard pair ("nofile").
+     *
+     * @param array<string, int>|int $limit
+     */
+    public function ulimits(string $name, array|int $limit): self
+    {
+        $this->ulimits[$name] = $limit;
+
+        return $this;
+    }
+
+    public function dns(string ...$servers): self
+    {
+        foreach ($servers as $server) {
+            if (!\in_array($server, $this->dns, true)) {
+                $this->dns[] = $server;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add a host to /etc/hosts inside the container. "host-gateway" resolves to
+     * the host itself, on Linux as well as on Docker Desktop.
+     */
+    public function extraHost(string $host, string $ip): self
+    {
+        $entry = "{$host}:{$ip}";
+
+        if (!\in_array($entry, $this->extraHosts, true)) {
+            $this->extraHosts[] = $entry;
+        }
+
+        return $this;
+    }
+
+    /**
+     * The "deploy" section, merged with what was already set. Compose only
+     * honours a subset of it outside of Swarm — resource limits and
+     * reservations, which is how a GPU is requested.
+     *
+     * @param array<string, mixed> $deploy
+     */
+    public function deploy(array $deploy): self
+    {
+        $this->deploy = array_replace_recursive($this->deploy, $deploy);
+
+        return $this;
+    }
+
+    /**
+     * The domains routed to this service by withHttpRouting().
+     *
+     * @return list<string>
+     */
+    public function getRoutedDomains(): array
+    {
+        return $this->routedDomains;
+    }
+
     public function end(): ComposeBuilder
     {
         return $this->composeBuilder;
@@ -251,6 +358,10 @@ final class ServiceBuilder
 
         if ($this->init !== null) {
             $result['init'] = $this->init;
+        }
+
+        if ($this->restart !== null) {
+            $result['restart'] = $this->restart;
         }
 
         if (!empty($this->environment)) {
@@ -285,8 +396,24 @@ final class ServiceBuilder
             $result['ports'] = $this->ports;
         }
 
+        if (!empty($this->dns)) {
+            $result['dns'] = $this->dns;
+        }
+
+        if (!empty($this->extraHosts)) {
+            $result['extra_hosts'] = $this->extraHosts;
+        }
+
         if (!empty($this->configs)) {
             $result['configs'] = $this->configs;
+        }
+
+        if (!empty($this->ulimits)) {
+            $result['ulimits'] = $this->ulimits;
+        }
+
+        if (!empty($this->deploy)) {
+            $result['deploy'] = $this->deploy;
         }
 
         return $result;

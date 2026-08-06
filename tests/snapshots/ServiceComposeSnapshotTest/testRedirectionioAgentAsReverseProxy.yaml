@@ -37,8 +37,14 @@ services:
     api:
         build:
             context: %PACKAGE%/src/Service/../Resources/rust
+            dockerfile: %PACKAGE%/src/Service/../Resources/rust/Dockerfile
+            target: runtime
             args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 rust_version: '1.90'
+                rust_components: '["clippy","rustfmt"]'
+                rust_targets: '[]'
+                rust_toolchains: '[]'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/api:cache'
         working_dir: /app

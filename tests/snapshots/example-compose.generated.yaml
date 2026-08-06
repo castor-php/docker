@@ -16,6 +16,18 @@ services:
             retries: 5
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     mysql:
         image: 'mysql:8.0.46'
         environment:
@@ -30,6 +42,18 @@ services:
             retries: 5
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     app1:
         build:
             context: %ROOT%/src/Service/../Resources/php
@@ -39,8 +63,10 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                app_root: /var/www/app1
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1:cache'
+        working_dir: /var/www/app1
         user: %UID%
         environment:
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
@@ -48,7 +74,7 @@ services:
             postgres:
                 condition: service_healthy
         volumes:
-            - '%ROOT%/example/app1:/var/www:cached'
+            - '%ROOT%/example:/var/www:cached'
             - '.home:/home/app:cached'
         labels:
             - 'caddy=app1.project.test project.test localhost'
@@ -59,6 +85,18 @@ services:
             - 'caddy_1.reverse_proxy={{upstreams 80}}'
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     app1-builder:
         build:
             context: %ROOT%/src/Service/../Resources/php
@@ -68,6 +106,7 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                app_root: /var/www/app1
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1-builder:cache'
         user: %UID%
@@ -78,10 +117,22 @@ services:
             postgres:
                 condition: service_healthy
         volumes:
-            - '%ROOT%/example/app1:/var/www:cached'
+            - '%ROOT%/example:/var/www:cached'
             - '.home:/home/app:cached'
         profiles:
             - builder
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     app1-worker-messenger:
         build:
             context: %ROOT%/src/Service/../Resources/php
@@ -91,8 +142,10 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                app_root: /var/www/app1
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1-worker:cache'
+        working_dir: /var/www/app1
         user: %UID%
         environment:
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
@@ -100,11 +153,23 @@ services:
             postgres:
                 condition: service_healthy
         volumes:
-            - '%ROOT%/example/app1:/var/www:cached'
+            - '%ROOT%/example:/var/www:cached'
             - '.home:/home/app:cached'
         profiles:
             - default
         command: 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M'
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     app2:
         build:
             context: %ROOT%/src/Service/../Resources/php
@@ -114,8 +179,10 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.2'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","mysql"]'
+                app_root: /var/www/app2
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app2:cache'
+        working_dir: /var/www/app2
         user: %UID%
         environment:
             DATABASE_URL: 'mysql://root:root@mysql:3306/app'
@@ -123,33 +190,22 @@ services:
             mysql:
                 condition: service_healthy
         volumes:
-            - '%ROOT%/example/app2:/var/www:cached'
+            - '%ROOT%/example:/var/www:cached'
             - '.home:/home/app:cached'
         profiles:
             - default
-    app2-builder:
-        build:
-            context: %ROOT%/src/Service/../Resources/php
-            dockerfile: %ROOT%/src/Service/../Resources/php/Dockerfile
-            target: builder
-            args:
-                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
-                php_version: '8.2'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","mysql"]'
-            cache_from:
-                - 'type=registry,ref=${REGISTRY:-}/app2-builder:cache'
-        user: %UID%
-        init: true
-        environment:
-            DATABASE_URL: 'mysql://root:root@mysql:3306/app'
-        depends_on:
-            mysql:
-                condition: service_healthy
-        volumes:
-            - '%ROOT%/example/app2:/var/www:cached'
-            - '.home:/home/app:cached'
-        profiles:
-            - builder
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     rabbitmq:
         build:
             context: %ROOT%/src/Service/../Resources/rabbitmq
@@ -167,6 +223,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     redis:
         image: 'redis:5'
         volumes:
@@ -181,6 +249,18 @@ services:
             retries: 5
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     redis-insight:
         image: redislabs/redisinsight
         volumes:
@@ -192,6 +272,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     elasticsearch:
         image: 'elasticsearch:7.8.0'
         environment:
@@ -213,6 +305,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
         deploy:
             resources:
                 limits: { memory: 1g }
@@ -228,6 +332,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     redirectionio-agent:
         build:
             context: %ROOT%/src/Service/../Resources/redirectionio-agent
@@ -238,6 +354,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
         configs:
             - source: redirectionio-agent
               target: /etc/redirectionio/agent.yml
@@ -264,6 +392,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     clickhouse-keeper:
         build:
             context: %ROOT%/src/Service/../Resources/clickhouse
@@ -273,15 +413,92 @@ services:
                 clickhouse_version: '25.8'
         profiles:
             - default
-    app3:
-        image: 'golang:1.25'
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    go-builder:
+        build:
+            context: %ROOT%/src/Service/../Resources/go
+            dockerfile: %ROOT%/src/Service/../Resources/go/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                go_version: '1.25'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/go-builder:cache'
         working_dir: /app
         user: %UID%
+        init: true
         environment:
             HOME: /home/app
         volumes:
-            - '%ROOT%/example/go-app:/app:cached'
+            - '%ROOT%/example:/app:cached'
             - '.home:/home/app:cached'
+        profiles:
+            - builder
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    rust-builder:
+        build:
+            context: %ROOT%/src/Service/../Resources/rust
+            dockerfile: %ROOT%/src/Service/../Resources/rust/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                rust_version: '1.90'
+                rust_components: '["clippy","rustfmt"]'
+                rust_targets: '[]'
+                rust_toolchains: '[]'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/rust-builder:cache'
+        working_dir: /app
+        user: %UID%
+        init: true
+        environment:
+            HOME: /home/app
+            CARGO_HOME: /home/app/.cargo
+        volumes:
+            - '%ROOT%/example:/app:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - builder
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    app3:
+        image: '${PROJECT_NAME}-go-builder'
+        working_dir: /app
+        user: %UID%
+        volumes:
+            - '%ROOT%/example:/app:cached'
         labels:
             - caddy=app3.project.test
             - 'caddy.reverse_proxy={{upstreams 80}}'
@@ -289,22 +506,28 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
-        command: /app/app3
+        command:
+            - /app/go-app/app3
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     app4:
-        build:
-            context: %ROOT%/src/Service/../Resources/rust
-            args:
-                rust_version: '1.90'
-            cache_from:
-                - 'type=registry,ref=${REGISTRY:-}/app4:cache'
+        image: '${PROJECT_NAME}-rust-builder'
         working_dir: /app
         user: %UID%
         environment:
-            HOME: /home/app
-            CARGO_HOME: /home/app/.cargo
+            APP1_URL: 'https://app1.project.test'
         volumes:
-            - '%ROOT%/example/rust-app:/app:cached'
-            - '.home:/home/app:cached'
+            - '%ROOT%/example:/app:cached'
         labels:
             - caddy=app4.project.test
             - 'caddy.reverse_proxy={{upstreams 8080}}'
@@ -312,7 +535,20 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
-        command: /app/target/debug/app4
+        command:
+            - /app/rust-app/target/debug/app4
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
     adminer:
         image: 'adminer:5'
         labels:
@@ -322,6 +558,18 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
 volumes:
     postgres_data: {}
     mysql-data: {}

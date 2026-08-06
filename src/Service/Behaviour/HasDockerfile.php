@@ -13,7 +13,7 @@ namespace Castor\Docker\Service\Behaviour;
  */
 trait HasDockerfile
 {
-    private ?string $dockerFile = null;
+    protected ?string $dockerFile = null;
 
     public function withDockerfile(string $path): static
     {

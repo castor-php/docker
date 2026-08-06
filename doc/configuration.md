@@ -28,6 +28,28 @@ function default_context(): Context
 | `user_id` | UID the containers run as, defaults to your own |
 | `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
 | `build_args` | Build arguments `castor docker:build` passes to every service, also readable as [Twig variables](going-further/custom-dockerfile.md#build-arguments-are-twig-variables) |
+| `resolve_domains_via_host` | Whether the containers resolve the project's own public domains, `true` by default — see [below](#resolving-your-own-domains-from-a-container) |
+| `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
+
+### Resolving your own domains from a container
+
+Every container gets an `extra_hosts` entry for each domain routed in the
+project, pointing at the host gateway where the router answers — so
+`https://api.myproject.test` works from inside a container as well as from your
+browser. Set `resolve_domains_via_host` to `false` to stop generating them; see
+[router and HTTPS](services/router.md#reaching-your-own-domains-from-inside-a-container).
+
+### Default profiles
+
+`docker:up`, `docker:build` and the rest activate the `default` profile unless
+you pass `--profiles`. A project organising its containers differently sets the
+list once:
+
+```php
+return new Context([
+    'docker_profiles' => ['default', 'observability'],
+]);
+```
 
 ## Generated files
 

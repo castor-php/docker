@@ -130,3 +130,31 @@ Every infrastructure task takes `--profiles`:
 castor docker:up --profiles default
 castor docker:build --profiles builder
 ```
+
+Set the `docker_profiles` [context variable](configuration.md#default-profiles)
+to change what the tasks activate when you pass none.
+
+## Running a command in a container
+
+`Castor\Docker\docker_compose_run()` is what the service tasks are built on, and
+what your own tasks should use to reach a container:
+
+```php
+use function Castor\Docker\docker_compose_run;
+
+docker_compose_run('bin/console app:import', 'app-builder');
+
+docker_compose_run(
+    'bin/replay --verbose',
+    service: 'agent',
+    workDir: '/app/agent',
+    environment: ['RUST_LOG' => 'debug'],   // -e RUST_LOG=debug
+    entrypoint: '/bin/bash',                // --entrypoint
+    ports: ['10080:10080', '28080:8080/tcp'], // -p
+);
+```
+
+A failing command raises a `RuntimeException` naming the service and the command
+that broke, instead of the bare `docker compose` error. Use
+`docker_exit_code()`, which takes the same arguments, when you want the exit
+code rather than an exception.

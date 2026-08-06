@@ -229,17 +229,33 @@ function install_certificate_authority(): void
  * routable to them.
  *
  * A no-op when the router is not running, and when it is already a member.
+ *
+ * The project domains are passed as network aliases, so they also resolve to
+ * the router through the Docker DNS. This is a complement to the extra_hosts
+ * the generator writes (see add_project_extra_hosts()), which take precedence
+ * as /etc/hosts always does — it is what makes the domains resolve when that
+ * behaviour is turned off. Aliases are only applied when the router actually
+ * joins: Docker keeps the ones it already has for a network it is a member of.
+ *
+ * @param list<string> $aliases
  */
-function connect_router_to_network(string $network): void
+function connect_router_to_network(string $network, array $aliases = []): void
 {
     if (!is_router_running()) {
         return;
     }
 
-    run(
-        ['docker', 'network', 'connect', $network, get_router_name()],
-        context: context()->withQuiet()->withAllowFailure()
-    );
+    $command = ['docker', 'network', 'connect'];
+
+    foreach ($aliases as $alias) {
+        $command[] = '--alias';
+        $command[] = $alias;
+    }
+
+    $command[] = $network;
+    $command[] = get_router_name();
+
+    run($command, context: context()->withQuiet()->withAllowFailure());
 }
 
 /**

@@ -52,6 +52,51 @@ Enabling the router while projects are already running is fine:
 `docker:router:enable` joins the networks of the containers it finds already
 routed.
 
+## Reaching your own domains from inside a container
+
+An application calling its own public API, a worker hitting the front end, a
+reverse proxy going back to the backend — all of them want
+`https://api.myproject.test` to work *inside* a container, not just in your
+browser.
+
+It does, and there is nothing to configure. The plugin knows every domain routed
+in the project, and gives each container an `extra_hosts` entry pointing it at
+the host gateway, where the ports 80 and 443 the router publishes answer:
+
+```yaml
+services:
+    worker:
+        extra_hosts:
+            - 'app.myproject.test:host-gateway'
+            - 'api.myproject.test:host-gateway'
+```
+
+This is the reason it is needed: the router joins the project network from the
+outside, so the project's own DNS knows nothing about its public domains. Going
+out through the host gateway works on Linux as well as on Docker Desktop, and
+keeps working when the router is not on the project network at all.
+
+Domains routed from an `#[AsDockerComposeBuilder]` function or a listener are
+covered too — the list is read from the routing labels, not from the services.
+
+A name without a dot is skipped on purpose. Mapping `localhost` to the gateway
+would shadow the loopback entry of `/etc/hosts` and break everything the
+container reaches on `127.0.0.1`, and any other bare label collides with the
+container names of the project network.
+
+Turn the whole thing off with a context variable:
+
+```php
+return new Context([
+    'resolve_domains_via_host' => false,
+]);
+```
+
+The domains are also passed to `docker network connect` as **network aliases**,
+so they resolve to the router through the Docker DNS as well. `/etc/hosts` wins
+over DNS, so the aliases are what keeps the domains resolvable once
+`resolve_domains_via_host` is off.
+
 ## Files and containers
 
 * `~/.castor/docker/router/compose.yaml` — the generated router compose file,

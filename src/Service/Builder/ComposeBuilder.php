@@ -65,6 +65,32 @@ final class ComposeBuilder
         return array_keys($sources);
     }
 
+    /**
+     * Every domain routed to a service of this project, in registration order.
+     *
+     * @return list<string>
+     */
+    public function getRoutedDomains(): array
+    {
+        $domains = [];
+
+        foreach ($this->services as $service) {
+            foreach ($service->getRoutedDomains() as $domain) {
+                $domains[$domain] = true;
+            }
+        }
+
+        return array_keys($domains);
+    }
+
+    /**
+     * @return array<string, ServiceBuilder>
+     */
+    public function getServices(): array
+    {
+        return $this->services;
+    }
+
     public function service(string $name): ServiceBuilder
     {
         if (!isset($this->services[$name])) {
