@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -16,6 +17,7 @@ use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     protected function getDefaultVersion(): string
@@ -23,20 +25,22 @@ class PostgresService implements DatabaseServiceInterface
         return '18.4';
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'postgres';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
+        $name = $this->getName();
+
         return $builder
-            ->volume('postgres_data')
-            ->service('postgres')
+            ->volume($name . '_data')
+            ->service($name)
                 ->image('postgres:' . $this->getVersion())
                 ->environment('POSTGRES_USER', 'app')
                 ->environment('POSTGRES_PASSWORD', 'app')
-                ->volume('postgres_data', '/var/lib/postgresql/data')
+                ->volume($name . '_data', '/var/lib/postgresql/data')
                 ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
                 ->profile('default')
             ->end()
@@ -46,9 +50,9 @@ class PostgresService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('psql', 'db', 'Connect to the PostgreSQL database'),
+            'task' => new AsTask($this->hasDefaultName() ? 'psql' : $this->getName(), 'db', 'Connect to the PostgreSQL database'),
             'function' => function (): void {
-                docker_compose(['exec', 'postgres', 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
             },
         ];
 
@@ -66,7 +70,7 @@ class PostgresService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8';
+        return 'postgresql://app:app@' . $this->getName() . ':5432/app?serverVersion=16&charset=utf8';
     }
 
     public function hasHealthCheck(): bool

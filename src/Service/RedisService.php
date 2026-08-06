@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -14,6 +15,7 @@ use function Castor\Docker\expose_service_port;
 
 class RedisService implements ServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     protected function getDefaultVersion(): string
@@ -21,28 +23,38 @@ class RedisService implements ServiceInterface
         return '5';
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'redis';
+    }
+
+    /**
+     * The RedisInsight container that comes with this instance.
+     */
+    public function getInsightName(): string
+    {
+        return $this->getName() . '-insight';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
+        $name = $this->getName();
+        $insight = $this->getInsightName();
 
         return $builder
-            ->volume('redis-data')
-            ->volume('redis-insight-data')
-            ->service('redis')
+            ->volume($name . '-data')
+            ->volume($insight . '-data')
+            ->service($name)
                 ->image('redis:' . $this->getVersion())
-                ->volume('redis-data', '/data')
+                ->volume($name . '-data', '/data')
                 ->healthcheck(['CMD', 'redis-cli', 'ping'])
                 ->profile('default')
             ->end()
-            ->service('redis-insight')
+            ->service($insight)
                 ->image('redislabs/redisinsight')
-                ->volume('redis-insight-data', '/db')
-                ->withHttpRouting("redis.{$rootDomain}")
+                ->volume($insight . '-data', '/db')
+                ->withHttpRouting("{$name}.{$rootDomain}")
                 ->profile('default')
             ->end()
         ;

@@ -6,6 +6,7 @@ namespace Castor\Docker\Service;
 
 use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\yaml_dump;
@@ -29,7 +30,8 @@ use function Castor\yaml_dump;
 class RedirectionioAgentService implements ServiceInterface
 {
     use HasHttpRouting;
-    private const CONFIG_NAME = 'redirectionio-agent';
+    use HasName;
+
     private const CONFIG_PATH = '/etc/redirectionio/agent.yml';
 
     /** @var list<array{domain: string, target: string, port: int, projectKey: ?string}> */
@@ -45,7 +47,7 @@ class RedirectionioAgentService implements ServiceInterface
 
     private ?int $apiTimeout = null;
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'redirectionio-agent';
     }
@@ -104,12 +106,16 @@ class RedirectionioAgentService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $builder->config(self::CONFIG_NAME, $this->generateConfiguration());
+        // The config is named after the service, so two agents do not
+        // overwrite each other's agent.yml.
+        $configName = $this->getName();
+
+        $builder->config($configName, $this->generateConfiguration());
 
         $service = $builder
             ->service($this->getName())
                 ->build(__DIR__ . '/../Resources/redirectionio-agent')->end()
-                ->config(self::CONFIG_NAME, self::CONFIG_PATH)
+                ->config($configName, self::CONFIG_PATH)
                 ->profile('default')
         ;
 

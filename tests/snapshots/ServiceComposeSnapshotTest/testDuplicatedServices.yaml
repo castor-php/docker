@@ -1,0 +1,189 @@
+services:
+    postgres:
+        image: 'postgres:18.4'
+        environment:
+            POSTGRES_USER: app
+            POSTGRES_PASSWORD: app
+        volumes:
+            - 'postgres_data:/var/lib/postgresql/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'pg_isready -U app'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    analytics:
+        image: 'postgres:18.4'
+        environment:
+            POSTGRES_USER: app
+            POSTGRES_PASSWORD: app
+        volumes:
+            - 'analytics_data:/var/lib/postgresql/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'pg_isready -U app'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    redis:
+        image: 'redis:5'
+        volumes:
+            - 'redis-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    redis-insight:
+        image: redislabs/redisinsight
+        volumes:
+            - 'redis-insight-data:/db'
+        labels:
+            - caddy=redis.demo.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    sessions:
+        image: 'redis:5'
+        volumes:
+            - 'sessions-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+    sessions-insight:
+        image: redislabs/redisinsight
+        volumes:
+            - 'sessions-insight-data:/db'
+        labels:
+            - caddy=sessions.demo.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    elasticsearch:
+        image: 'elasticsearch:7.8.0'
+        environment:
+            discovery.type: single-node
+        volumes:
+            - 'elasticsearch-data:/usr/share/elasticsearch/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:9200/_cat/health || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=elasticsearch.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9200}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    kibana:
+        image: 'kibana:7.8.0'
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+        labels:
+            - caddy=kibana.demo.test
+            - 'caddy.reverse_proxy={{upstreams 5601}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    logs:
+        image: 'elasticsearch:7.8.0'
+        environment:
+            discovery.type: single-node
+        volumes:
+            - 'logs-data:/usr/share/elasticsearch/data'
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:9200/_cat/health || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=logs.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9200}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    logs-kibana:
+        image: 'kibana:7.8.0'
+        depends_on:
+            logs:
+                condition: service_healthy
+        labels:
+            - caddy=logs-kibana.demo.test
+            - 'caddy.reverse_proxy={{upstreams 5601}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    events:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            dockerfile: Dockerfile
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                clickhouse_version: '25.8'
+                backup: ''
+        environment:
+            CLICKHOUSE_DB: app
+            CLICKHOUSE_USER: app
+            CLICKHOUSE_PASSWORD: app
+            CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+            CLICKHOUSE_KEEPER_HOST: events-keeper
+        volumes:
+            - 'events-data:/var/lib/clickhouse'
+        labels:
+            - caddy=events.demo.test
+            - 'caddy.reverse_proxy={{upstreams}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    events-keeper:
+        build:
+            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            dockerfile: Dockerfile.keeper
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                clickhouse_version: '25.8'
+        profiles:
+            - default
+volumes:
+    postgres_data: {}
+    analytics_data: {}
+    redis-data: {}
+    redis-insight-data: {}
+    sessions-data: {}
+    sessions-insight-data: {}
+    elasticsearch-data: {}
+    logs-data: {}
+    events-data: {}

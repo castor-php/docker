@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -14,6 +15,7 @@ use function Castor\Docker\expose_service_port;
 
 class ElasticsearchService implements ServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     protected function getDefaultVersion(): string
@@ -21,29 +23,42 @@ class ElasticsearchService implements ServiceInterface
         return '7.8.0';
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'elasticsearch';
+    }
+
+    /**
+     * The Kibana container that comes with this instance. Unlike the other
+     * generated names it is not derived from the service one, so the first
+     * instance keeps the plain "kibana" it has always had.
+     */
+    public function getKibanaName(): string
+    {
+        return $this->hasDefaultName() ? 'kibana' : $this->getName() . '-kibana';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
+        $name = $this->getName();
+        $kibana = $this->getKibanaName();
+
         return $builder
-            ->volume('elasticsearch-data')
-            ->service('elasticsearch')
+            ->volume($name . '-data')
+            ->service($name)
                 ->image('elasticsearch:' . $this->getVersion())
-                ->volume('elasticsearch-data', '/usr/share/elasticsearch/data')
+                ->volume($name . '-data', '/usr/share/elasticsearch/data')
                 ->environment('discovery.type', 'single-node')
-                ->withHttpRouting("elasticsearch.{$rootDomain}", 9200)
+                ->withHttpRouting("{$name}.{$rootDomain}", 9200)
                 ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'])
                 ->profile('default')
             ->end()
-            ->service('kibana')
+            ->service($kibana)
                 ->image('kibana:' . $this->getVersion())
-                ->dependsOn('elasticsearch', ['condition' => 'service_healthy'])
-                ->withHttpRouting("kibana.{$rootDomain}", 5601)
+                ->dependsOn($name, ['condition' => 'service_healthy'])
+                ->withHttpRouting("{$kibana}.{$rootDomain}", 5601)
                 ->profile('default')
             ->end()
         ;

@@ -10,6 +10,7 @@ use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
+use Castor\Docker\Service\MailpitService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\PHPService;
@@ -112,6 +113,42 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build(
             (new RustService('api'))->withVersion('1.90')->withDirectory('/project/api')->withDomain('api.demo.test'),
         ));
+    }
+
+    /**
+     * The infrastructure services name themselves, so the same one can be
+     * registered twice. Everything they generate — the compose service, the
+     * named volumes, the routed domain, the companion containers — has to be
+     * derived from that name, or the second instance would collide with the
+     * first.
+     */
+    public function testDuplicatedServices(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            new PostgresService(),
+            (new PostgresService())->withName('analytics'),
+            new RedisService(),
+            (new RedisService())->withName('sessions'),
+            new ElasticsearchService(),
+            (new ElasticsearchService())->withName('logs'),
+            (new ClickhouseService())->withVersion('25.8')->withName('events'),
+        ));
+    }
+
+    public function testRenamedServicesReferenceThemselvesInTheirDsn(): void
+    {
+        static::assertStringContainsString(
+            '@analytics:5432/',
+            (new PostgresService())->withName('analytics')->getDatabaseURL(),
+        );
+        static::assertStringContainsString(
+            '@reporting:3306/',
+            (new MySQLService())->withName('reporting')->getDatabaseURL(),
+        );
+        static::assertSame(
+            'smtp://smtp-catcher:1025',
+            (new MailpitService())->withName('smtp-catcher')->getMailerDSN(),
+        );
     }
 
     public function testRustWithTargetAndWorkingDirectory(): void

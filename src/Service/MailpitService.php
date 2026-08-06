@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -14,6 +15,7 @@ use function Castor\Docker\expose_service_port;
 
 class MailpitService implements ServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     protected function getDefaultVersion(): string
@@ -21,7 +23,7 @@ class MailpitService implements ServiceInterface
         return 'latest';
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'mailpit';
     }
@@ -30,10 +32,12 @@ class MailpitService implements ServiceInterface
     {
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
+        $name = $this->getName();
+
         return $builder
-            ->service('mailpit')
+            ->service($name)
                 ->image('axllent/mailpit:' . $this->getVersion())
-                ->withHttpRouting("mailpit.{$rootDomain}", 8025)
+                ->withHttpRouting("{$name}.{$rootDomain}", 8025)
                 ->profile('default')
             ->end()
         ;
@@ -55,6 +59,6 @@ class MailpitService implements ServiceInterface
 
     public function getMailerDSN(): string
     {
-        return 'smtp://mailpit:1025';
+        return 'smtp://' . $this->getName() . ':1025';
     }
 }

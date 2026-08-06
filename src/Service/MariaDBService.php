@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -16,6 +17,7 @@ use function Castor\context;
 
 class MariaDBService implements DatabaseServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     private string $rootPassword = 'root';
@@ -40,20 +42,22 @@ class MariaDBService implements DatabaseServiceInterface
         return $this;
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'mariadb';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
+        $name = $this->getName();
+
         return $builder
-            ->volume('mariadb-data')
-            ->service('mariadb')
+            ->volume($name . '-data')
+            ->service($name)
                 ->image('mariadb:' . $this->getVersion())
                 ->environment('MARIADB_ROOT_PASSWORD', $this->rootPassword)
                 ->environment('MARIADB_DATABASE', $this->database)
-                ->volume('mariadb-data', '/var/lib/mysql')
+                ->volume($name . '-data', '/var/lib/mysql')
                 ->healthcheck('mariadb-admin ping -h localhost')
                 ->profile('default')
             ->end()
@@ -63,9 +67,9 @@ class MariaDBService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('mariadb', 'db', 'Connect to the MariaDB database'),
+            'task' => new AsTask($this->getName(), 'db', 'Connect to the MariaDB database'),
             'function' => function (): void {
-                docker_compose(['exec', 'mariadb', 'mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },
         ];
 
@@ -83,7 +87,7 @@ class MariaDBService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@mariadb:3306/' . $this->database . '?serverVersion=mariadb-' . $this->getVersion() . '&charset=utf8mb4';
+        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database . '?serverVersion=mariadb-' . $this->getVersion() . '&charset=utf8mb4';
     }
 
     public function hasHealthCheck(): bool

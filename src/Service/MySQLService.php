@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -16,6 +17,7 @@ use function Castor\context;
 
 class MySQLService implements DatabaseServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     private string $rootPassword = 'root';
@@ -40,20 +42,22 @@ class MySQLService implements DatabaseServiceInterface
         return $this;
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'mysql';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
+        $name = $this->getName();
+
         return $builder
-            ->volume('mysql-data')
-            ->service('mysql')
+            ->volume($name . '-data')
+            ->service($name)
                 ->image('mysql:' . $this->getVersion())
                 ->environment('MYSQL_ROOT_PASSWORD', $this->rootPassword)
                 ->environment('MYSQL_DATABASE', $this->database)
-                ->volume('mysql-data', '/var/lib/mysql')
+                ->volume($name . '-data', '/var/lib/mysql')
                 ->healthcheck('mysqladmin ping -h localhost')
                 ->profile('default')
             ->end()
@@ -63,9 +67,9 @@ class MySQLService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('mysql', 'db', 'Connect to the MySQL database'),
+            'task' => new AsTask($this->getName(), 'db', 'Connect to the MySQL database'),
             'function' => function (): void {
-                docker_compose(['exec', 'mysql', 'mysql', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'mysql', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },
         ];
 
@@ -83,7 +87,7 @@ class MySQLService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@mysql:3306/' . $this->database;
+        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database;
     }
 
     public function hasHealthCheck(): bool

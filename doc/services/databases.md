@@ -76,3 +76,26 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 > [!NOTE]
 > ClickHouse is not a `DatabaseServiceInterface`: it is meant to sit next to your
 > main database rather than to back `DATABASE_URL`.
+
+## Several instances of the same database
+
+`withName()` overrides the name a service gives itself, which is what lets you
+register it twice:
+
+```php
+$main = new PostgresService();
+$analytics = (new PostgresService())->withName('analytics');
+
+$event->addService($main);
+$event->addService($analytics);
+
+$event->addService((new SymfonyService('app'))->withDatabaseService($analytics));
+```
+
+The container, the named volume (`analytics_data`), the connection string
+(`postgresql://app:app@analytics:5432/app`) and the expose task
+(`castor analytics:expose`) all follow the name.
+
+The connect task keeps its historical name for the first instance and takes the
+service name for a renamed one, so they never collide: `castor db:psql` and
+`castor db:analytics`.

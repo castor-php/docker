@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
@@ -16,6 +17,7 @@ use function Castor\context;
 
 class ClickhouseService implements ServiceInterface
 {
+    use HasName;
     use HasVersion;
 
     private bool $backup = false;
@@ -50,34 +52,45 @@ class ClickhouseService implements ServiceInterface
         return $this;
     }
 
-    public function getName(): string
+    protected function getDefaultName(): string
     {
         return 'clickhouse';
+    }
+
+    /**
+     * The keeper container that comes with this instance.
+     */
+    public function getKeeperName(): string
+    {
+        return $this->getName() . '-keeper';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
+        $name = $this->getName();
+        $keeper = $this->getKeeperName();
+
         return $builder
-            ->volume('clickhouse-data')
-            ->service('clickhouse')
+            ->volume($name . '-data')
+            ->service($name)
                 ->build(__DIR__ . '/../Resources/clickhouse')
                     ->useTwigFrontend($context)
                     ->dockerfile('Dockerfile')
                     ->arg('clickhouse_version', $this->getVersion())
                     ->arg('backup', (string) $this->backup)
                 ->end()
-                ->volume('clickhouse-data', '/var/lib/clickhouse')
-                ->withHttpRouting("clickhouse.{$rootDomain}")
+                ->volume($name . '-data', '/var/lib/clickhouse')
+                ->withHttpRouting("{$name}.{$rootDomain}")
                 ->environment('CLICKHOUSE_DB', $this->database)
                 ->environment('CLICKHOUSE_USER', $this->username)
                 ->environment('CLICKHOUSE_PASSWORD', $this->password)
                 ->environment('CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT', '1')
-                ->environment('CLICKHOUSE_KEEPER_HOST', 'clickhouse-keeper')
+                ->environment('CLICKHOUSE_KEEPER_HOST', $keeper)
                 ->profile('default')
             ->end()
-            ->service('clickhouse-keeper')
+            ->service($keeper)
                 ->build(__DIR__ . '/../Resources/clickhouse')
                     ->useTwigFrontend($context)
                     ->dockerfile('Dockerfile.keeper')
@@ -91,9 +104,9 @@ class ClickhouseService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('clickhouse', 'db', 'Connect to the Clickhouse database'),
+            'task' => new AsTask($this->getName(), 'db', 'Connect to the Clickhouse database'),
             'function' => function (): void {
-                docker_compose(['exec', 'clickhouse', 'clickhouse-client', '-d', 'app'], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'clickhouse-client', '-d', $this->database], c: context()->toInteractive());
             },
         ];
 

@@ -7,13 +7,16 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
 class RabbitMQService implements ServiceInterface
 {
-    public function getName(): string
+    use HasName;
+
+    protected function getDefaultName(): string
     {
         return 'rabbitmq';
     }
@@ -22,12 +25,14 @@ class RabbitMQService implements ServiceInterface
     {
         $rootDomain = $context->data['root_domain'] ?? 'castor.local';
 
+        $name = $this->getName();
+
         return $builder
-            ->volume('rabbitmq-data')
-            ->service('rabbitmq')
+            ->volume($name . '-data')
+            ->service($name)
                 ->build(__DIR__ . '/../Resources/rabbitmq')->end()
-                ->volume('rabbitmq-data', '/var/lib/rabbitmq')
-                ->withHttpRouting("rabbitmq.{$rootDomain}", 15672)
+                ->volume($name . '-data', '/var/lib/rabbitmq')
+                ->withHttpRouting("{$name}.{$rootDomain}", 15672)
                 ->healthcheck("rabbitmqctl eval '{ true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running }, { [], no_alarms } = { rabbit:alarms(), no_alarms }, [] /= rabbit_networking:active_listeners(), rabbitmq_node_is_healthy.' || exit 1")
                 ->profile('default')
             ->end()

@@ -32,6 +32,37 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, the builders |
 | `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, the builders |
 | `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService` |
+| `HasName` | `withName()`, `getName()` | every service naming itself |
+
+### Registering the same service twice
+
+Application services take their name in the constructor. The infrastructure ones
+name themselves, and `withName()` overrides that default — which is what makes a
+second instance possible:
+
+```php
+$event->addService(new PostgresService());
+$event->addService((new PostgresService())->withName('analytics'));
+```
+
+Everything the service generates is derived from the name: the compose service,
+the named volumes (`analytics_data`), the routed domain
+(`analytics.project.test`), the connection string (`postgresql://…@analytics:5432/…`),
+the task namespace (`castor analytics:expose`) and the companion containers —
+`redis-insight` becomes `sessions-insight`, `clickhouse-keeper` becomes
+`events-keeper`.
+
+Two exceptions keep their historical name for the **first** instance, and only a
+renamed one gets a derived one:
+
+* the database connect task — `castor db:psql` stays, a renamed instance gets
+  `castor db:analytics`;
+* the Kibana container — `kibana` stays, a renamed Elasticsearch gets
+  `logs-kibana`.
+
+Names are not checked for collisions: register two services under the same name
+and the second silently merges into the first, since `ComposeBuilder::service()`
+returns the existing builder.
 
 ### Mount, working directory, binary
 

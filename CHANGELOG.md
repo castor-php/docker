@@ -46,6 +46,15 @@
   `entrypoint` and `ports`. A failing command is now wrapped in a
   `RuntimeException` naming the service and the command, instead of the bare
   `docker compose` error.
+* `withName()` on every service that used to hardcode its name — the databases,
+  Redis, RabbitMQ, Elasticsearch, ClickHouse, Mailpit and the redirection.io
+  agent — so the same one can be registered twice. A second instance was
+  impossible before: the two would have collided on the compose service, on the
+  named volumes and on the routed domain. Everything a service generates is now
+  derived from its name, including the companion containers (`redis-insight`,
+  `clickhouse-keeper`), the DSN host and the task namespace. The connect task of
+  a database and the Kibana container keep their historical name for the first
+  instance, so nothing moves for a project registering one of each.
 * `RedirectionioAgentService::withApiHost()` and `withApiTimeout()`, writing the
   `api` section of the generated `agent.yml` so the agent can talk to a
   self-hosted instance. Absent by default.

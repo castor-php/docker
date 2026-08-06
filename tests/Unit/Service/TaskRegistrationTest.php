@@ -66,6 +66,23 @@ final class TaskRegistrationTest extends TestCase
         static::assertSame(['db:clickhouse', 'clickhouse:expose'], $this->taskNames(new ClickhouseService()));
     }
 
+    /**
+     * Two instances of the same service must not fight over a task name: the
+     * connect task keeps its historical name for the first one and takes the
+     * service name for a renamed one.
+     */
+    public function testRenamedDatabaseServicesTasks(): void
+    {
+        static::assertSame(
+            ['db:analytics', 'analytics:expose'],
+            $this->taskNames((new PostgresService())->withName('analytics')),
+        );
+        static::assertSame(
+            ['db:reporting', 'reporting:expose'],
+            $this->taskNames((new MySQLService())->withName('reporting')),
+        );
+    }
+
     public function testGoServiceTasks(): void
     {
         static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api')));
