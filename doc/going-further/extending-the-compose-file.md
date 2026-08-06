@@ -153,6 +153,30 @@ generated file:
 ->environment('APP_ENV', 'dev')        // APP_ENV: dev, written in the file
 ```
 
+### Inline configs
+
+Compose interpolates the file it reads, the content of the configs included — an
+nginx configuration would reach the container stripped of every `$host`, `$uri`
+and `$document_root`, with only a "variable is not set" warning to show for it.
+Every `$` is therefore escaped on the way out. Pass `interpolate: true` when a
+config really does mean to read `${PROJECT_NAME}` & co:
+
+```php
+$builder->config('app.conf', 'project = ${PROJECT_NAME}', interpolate: true);
+```
+
+Compose also does not recreate a container when only the content of a config
+changed, so a server that reads its configuration at boot keeps running with the
+old one until someone thinks of `--force-recreate`. Ask for a digest of the
+content in a label, and the container definition changes with the configuration:
+
+```php
+$builder->service('agent')->config('agent.yml', '/etc/agent.yml', recreateOnChange: true);
+```
+
+Leave it off for a server that reloads its configuration by itself — the digest
+would restart it for nothing.
+
 ## Order of execution
 
 1. every registered [service](../services/index.md) contributes, in registration order

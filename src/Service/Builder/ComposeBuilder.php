@@ -12,7 +12,7 @@ final class ComposeBuilder
     /** @var array<string, array<mixed>>  */
     private array $volumes = [];
 
-    /** @var array<string, string>  */
+    /** @var array<string, array{content: string, interpolate: bool}>  */
     private array $configs = [];
 
     public function __construct() {}
@@ -32,12 +32,27 @@ final class ComposeBuilder
      * compose file and mounted in the services referencing it with
      * ServiceBuilder::config(), so a configuration file can be generated from
      * PHP without shipping it in an image.
+     *
+     * Compose interpolates the file it reads, content of the configs included:
+     * an nginx configuration full of $host, $uri and $document_root would reach
+     * the container emptied of them, with only a "variable is not set" warning
+     * to show for it. Every "$" is therefore escaped to "$$" on the way out.
+     * Pass $interpolate to opt a config back into interpolation, when it really
+     * does mean to read ${PROJECT_NAME} & co.
      */
-    public function config(string $name, string $content): self
+    public function config(string $name, string $content, bool $interpolate = false): self
     {
-        $this->configs[$name] = $content;
+        $this->configs[$name] = ['content' => $content, 'interpolate' => $interpolate];
 
         return $this;
+    }
+
+    /**
+     * The content of a declared config, as it was passed — before escaping.
+     */
+    public function getConfigContent(string $name): ?string
+    {
+        return $this->configs[$name]['content'] ?? null;
     }
 
     /**
@@ -118,8 +133,10 @@ final class ComposeBuilder
             $compose['services'][$name] = $serviceBuilder->toArray();
         }
 
-        foreach ($this->configs as $name => $content) {
-            $compose['configs'][$name] = ['content' => $content];
+        foreach ($this->configs as $name => $config) {
+            $compose['configs'][$name] = [
+                'content' => $config['interpolate'] ? $config['content'] : str_replace('$', '$$', $config['content']),
+            ];
         }
 
         return $compose;

@@ -73,6 +73,40 @@
   way the PHP ones already were — which is how extra Debian packages, rustup
   components, targets and toolchains are added.
 
+### Fixed
+
+* The applications behind `RedirectionioAgentService` now receive the `Host` of
+  the original request. The agent derives it from the address it forwards to —
+  an IP keeps the original, a host name replaces it with itself — and every
+  target here is a compose service reached by name, so the application was
+  handed `Host: app`. Symfony rejects that as an untrusted host, and every
+  absolute URL generated from it was wrong. `preserve_host` is written on every
+  forward; `withPreserveHost(false)` restores the agent's own behaviour, per
+  agent or per domain.
+* `ClickhouseService` routes its UI to port 8123. The image exposes 8123 (HTTP)
+  and 9000 (native protocol), and without a port Caddy picked whichever it found
+  first — answering 502 about half the time.
+* The content of an inline compose config is escaped against interpolation.
+  Compose interpolates the file it reads, configs included, so an nginx
+  configuration reached the container stripped of every `$host`, `$uri` and
+  `$document_root`, with only a "variable is not set" warning to show for it.
+  `ComposeBuilder::config()` takes `interpolate: true` for a config that really
+  does mean to read `${PROJECT_NAME}` & co.
+
+### Added
+
+* `ServiceBuilder::config()` takes `recreateOnChange`, stamping a digest of the
+  config content in a label. Compose does not recreate a container when only the
+  content of an inline config changed, so a server reading its configuration at
+  boot kept running with the old one until someone thought of
+  `--force-recreate`. Used by the redirection.io agent and by the MySQL-family
+  configuration, both of which read theirs once. Left off for anything that
+  reloads on its own.
+* `RedirectionioAgentService::withDebug()`, raising the agent log level and
+  letting it accept a certificate it cannot verify when calling its API — which
+  is what a self-hosted `withApiHost()` served by the local router hands it, the
+  agent image carrying the public CA bundle only.
+
 ### Changed
 
 * `GoService` builds from a Dockerfile shipped by the plugin instead of running

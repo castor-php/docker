@@ -102,7 +102,9 @@ trait HasMysqlConfiguration
         $name = $this->getName() . '-config';
 
         $builder->config($name, $configuration);
-        $service->config($name, static::CONFIGURATION_DIRECTORY . '/' . $this->getName() . '.cnf');
+        // The server reads its configuration once, at boot: without the digest
+        // compose would leave the container running with the previous one.
+        $service->config($name, static::CONFIGURATION_DIRECTORY . '/' . $this->getName() . '.cnf', recreateOnChange: true);
     }
 
     protected function generateConfiguration(): ?string

@@ -163,7 +163,7 @@ services:
             - 'events-data:/var/lib/clickhouse'
         labels:
             - caddy=events.demo.test
-            - 'caddy.reverse_proxy={{upstreams}}'
+            - 'caddy.reverse_proxy={{upstreams 8123}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
         profiles:

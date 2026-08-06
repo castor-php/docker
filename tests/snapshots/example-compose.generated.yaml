@@ -352,6 +352,7 @@ services:
             - 'caddy.reverse_proxy={{upstreams 80}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
+            - castor.config.redirectionio-agent=85170c1b1047
         profiles:
             - default
         extra_hosts:
@@ -387,7 +388,7 @@ services:
             - 'clickhouse-data:/var/lib/clickhouse'
         labels:
             - caddy=clickhouse.project.test
-            - 'caddy.reverse_proxy={{upstreams}}'
+            - 'caddy.reverse_proxy={{upstreams 8123}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
         profiles:
@@ -600,5 +601,6 @@ configs:
                         forward:
                             address: 'app2:80'
                             tls: false
+                            preserve_host: true
                         agent:
                             project_key: 'b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652'

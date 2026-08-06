@@ -38,6 +38,14 @@ final class ServiceBuilder
     /** @var array<array<string, string>> */
     private array $configs = [];
 
+    /**
+     * The mounted configs whose content is digested into a label, so a change
+     * makes compose recreate the container.
+     *
+     * @var list<string>
+     */
+    private array $watchedConfigs = [];
+
     private ?BuildBuilder $build = null;
 
     /** @var null|array<string>|string */
@@ -239,10 +247,24 @@ final class ServiceBuilder
 
     /**
      * Mount a config declared with ComposeBuilder::config() at the given path.
+     *
+     * Compose does not recreate a container when only the content of an inline
+     * config changed, so a server that reads its configuration once, at boot,
+     * would keep running with the old one until someone thinks of
+     * "--force-recreate". Pass $recreateOnChange to stamp a digest of the
+     * content in a label: the container definition then changes with the
+     * configuration, and "docker:up" is enough.
+     *
+     * Leave it off for a service that reloads its configuration by itself —
+     * the digest would restart it for nothing.
      */
-    public function config(string $source, string $target): self
+    public function config(string $source, string $target, bool $recreateOnChange = false): self
     {
         $this->configs[] = ['source' => $source, 'target' => $target];
+
+        if ($recreateOnChange) {
+            $this->watchedConfigs[] = $source;
+        }
 
         return $this;
     }
@@ -334,6 +356,29 @@ final class ServiceBuilder
     }
 
     /**
+     * A digest of every config mounted with $recreateOnChange, so the container
+     * definition changes when the configuration does.
+     *
+     * @return list<string>
+     */
+    private function configChecksumLabels(): array
+    {
+        $labels = [];
+
+        foreach ($this->watchedConfigs as $name) {
+            $content = $this->composeBuilder->getConfigContent($name);
+
+            if (null === $content) {
+                continue;
+            }
+
+            $labels[] = \sprintf('castor.config.%s=%s', $name, substr(hash('xxh128', $content), 0, 12));
+        }
+
+        return $labels;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -380,8 +425,10 @@ final class ServiceBuilder
             $result['healthcheck'] = $this->healthcheck;
         }
 
-        if (!empty($this->labels)) {
-            $result['labels'] = $this->labels;
+        $labels = [...$this->labels, ...$this->configChecksumLabels()];
+
+        if (!empty($labels)) {
+            $result['labels'] = $labels;
         }
 
         if (!empty($this->profiles)) {

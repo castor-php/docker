@@ -63,6 +63,24 @@ final class MysqlConfigurationTest extends SnapshotTestCase
             [['source' => 'mysql-config', 'target' => '/etc/mysql/conf.d/mysql.cnf']],
             $compose['services']['mysql']['configs'],
         );
+
+        // The server reads its configuration at boot only: compose has to be
+        // told the container is stale when it changes.
+        static::assertNotEmpty(array_filter(
+            $compose['services']['mysql']['labels'],
+            static fn(string $label): bool => str_starts_with($label, 'castor.config.mysql-config='),
+        ));
+    }
+
+    /**
+     * A password full of "$" would otherwise reach the server mangled by
+     * compose interpolation.
+     */
+    public function testConfigurationContentIsEscapedAgainstInterpolation(): void
+    {
+        $compose = $this->build((new MySQLService())->withConfiguration('# $secret ${VALUE}'));
+
+        static::assertStringContainsString('# $$secret $${VALUE}', $compose['configs']['mysql-config']['content']);
     }
 
     public function testRawConfigurationIsAppended(): void

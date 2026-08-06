@@ -38,6 +38,45 @@ $event->addService(
 `$target` accepts a service instance or a plain service name. The port is the
 one the target listens on inside the Docker network.
 
+## The Host header your application receives
+
+The agent decides what `Host` to forward from the address it forwards **to**: an
+IP address keeps the one of the original request, a host name replaces it with
+itself. Every target here is a compose service reached by name, so left alone
+the agent would hand your application `Host: app` — which Symfony rejects as an
+untrusted host, and which makes every absolute URL it generates wrong.
+
+`preserve_host` is therefore written on every forward, and your application sees
+the domain the visitor asked for. Turn it off if you want the agent's own
+behaviour back:
+
+```php
+->withPreserveHost(false)                                  // for every domain
+->addReverseProxy('legacy.project.test', $app, preserveHost: false)  // for one
+```
+
+## Debugging
+
+```php
+(new RedirectionioAgentService())->withDebug()
+```
+
+Raises the agent log level, and lets it accept a certificate it cannot verify
+when calling its API — which is exactly what a self-hosted
+[`withApiHost()`](#pointing-the-agent-at-a-self-hosted-api) served by the local
+router hands it. The agent image ships the public CA bundle only, and runs on
+`scratch`, so there is nowhere to add the local one.
+
+Development only, as the name says.
+
+## Applying a configuration change
+
+The generated `agent.yml` is shipped as a compose config, and the agent reads it
+once, on boot. Compose does not recreate a container when only the content of a
+config changed, so the plugin stamps a digest of it in a
+`castor.config.redirectionio-agent` label: the container definition changes with
+the configuration, and `castor docker:up` is enough — no `--force-recreate`.
+
 ## Pointing the agent at a self-hosted API
 
 The agent talks to the redirection.io SaaS by default. A self-hosted instance —

@@ -121,6 +121,11 @@ ends up in `compose.generated.yaml`, so there is no host directory for Docker to
 create as `root`, and no file whose permissions the server might refuse — MySQL
 ignores a world-writable `.cnf`.
 
+The server reads it once, at boot, and compose does not recreate a container
+when only the content of a config changed. The plugin stamps a digest of it in a
+`castor.config.{name}-config` label, so `castor docker:up` picks a change up on
+its own — no `--force-recreate`.
+
 `withConfigurationFile()` reads the file when the compose file is generated, and
 raises if the path does not exist. A mistyped path is reported there and then,
 rather than leaving the server silently unconfigured. It also means editing that

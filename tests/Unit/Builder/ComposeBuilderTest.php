@@ -36,6 +36,43 @@ final class ComposeBuilderTest extends TestCase
         );
     }
 
+    /**
+     * Compose interpolates the file it reads, the content of the configs
+     * included: an nginx configuration would reach the container stripped of
+     * every $host, $uri and $document_root, with only a "variable is not set"
+     * warning to show for it.
+     */
+    public function testConfigContentIsEscapedAgainstInterpolation(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->config('nginx', "location / {\n    proxy_set_header Host \$host\$uri;\n}");
+
+        static::assertSame(
+            "location / {\n    proxy_set_header Host \$\$host\$\$uri;\n}",
+            $builder->toArray()['configs']['nginx']['content'],
+        );
+    }
+
+    public function testAConfigCanOptBackIntoInterpolation(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->config('app', 'project = ${PROJECT_NAME}', interpolate: true);
+
+        static::assertSame('project = ${PROJECT_NAME}', $builder->toArray()['configs']['app']['content']);
+    }
+
+    /**
+     * The digest is computed on what the user passed, not on the escaped form.
+     */
+    public function testConfigContentIsReadableUnescaped(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->config('nginx', 'root $document_root;');
+
+        static::assertSame('root $document_root;', $builder->getConfigContent('nginx'));
+        static::assertNull($builder->getConfigContent('absent'));
+    }
+
     public function testRoutedDomainsAreAggregatedAcrossServices(): void
     {
         $builder = new ComposeBuilder();

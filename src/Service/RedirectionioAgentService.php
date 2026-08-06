@@ -34,8 +34,21 @@ class RedirectionioAgentService implements ServiceInterface
 
     private const CONFIG_PATH = '/etc/redirectionio/agent.yml';
 
-    /** @var list<array{domain: string, target: string, port: int, projectKey: ?string}> */
+    /** @var list<array{domain: string, target: string, port: int, projectKey: ?string, preserveHost: ?bool}> */
     private array $reverseProxies = [];
+
+    /**
+     * Whether the agent forwards the Host header it received.
+     *
+     * The agent derives it from the forward address: an IP keeps the original,
+     * a host name replaces it with itself. Every target here is a compose
+     * service reached by name, so without this the application would receive
+     * "Host: backend" — which Symfony rejects as an untrusted host, and which
+     * makes every absolute URL it generates wrong.
+     */
+    private bool $preserveHost = true;
+
+    private bool $debug = false;
 
     /** Project key used for the domains registered without an explicit one. */
     private ?string $projectKey = null;
@@ -89,16 +102,43 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
+     * Whether the applications receive the Host of the original request, on by
+     * default. Turn it off to let the agent send the name of the service it
+     * forwards to, which is what it does on its own.
+     */
+    public function withPreserveHost(bool $preserveHost = true): static
+    {
+        $this->preserveHost = $preserveHost;
+
+        return $this;
+    }
+
+    /**
+     * Run the agent with debug logging, and let it accept a certificate it
+     * cannot verify when talking to its API — which is what a self-hosted
+     * withApiHost() served by the local router hands it.
+     *
+     * Development only, as the name says.
+     */
+    public function withDebug(bool $debug = true): static
+    {
+        $this->debug = $debug;
+
+        return $this;
+    }
+
+    /**
      * Serve $domain through the agent and forward the traffic to $target, which
      * is either a service instance or a service name.
      */
-    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80): static
+    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80, ?bool $preserveHost = null): static
     {
         $this->reverseProxies[] = [
             'domain' => $domain,
             'target' => $target instanceof ServiceInterface ? $target->getName() : $target,
             'port' => $port,
             'projectKey' => $projectKey,
+            'preserveHost' => $preserveHost,
         ];
 
         return $this->withDomain($domain);
@@ -115,7 +155,10 @@ class RedirectionioAgentService implements ServiceInterface
         $service = $builder
             ->service($this->getName())
                 ->build(__DIR__ . '/../Resources/redirectionio-agent')->end()
-                ->config($configName, self::CONFIG_PATH)
+                // The agent reads agent.yml once, on boot: without the digest
+                // compose would leave it running with the previous one, and
+                // only "--force-recreate" would pick a change up.
+                ->config($configName, self::CONFIG_PATH, recreateOnChange: true)
                 ->profile('default')
         ;
 
@@ -146,6 +189,9 @@ class RedirectionioAgentService implements ServiceInterface
                     // scalar form is required here, the documented
                     // "tls: { enabled: false }" map is ignored by the agent.
                     'tls' => false,
+                    // The target is a compose service reached by name, and the
+                    // agent would otherwise forward that name as the Host.
+                    'preserve_host' => $reverseProxy['preserveHost'] ?? $this->preserveHost,
                 ],
             ];
 
@@ -185,6 +231,18 @@ class RedirectionioAgentService implements ServiceInterface
 
             if ($this->apiTimeout !== null) {
                 $configuration['api']['timeout'] = $this->apiTimeout;
+            }
+        }
+
+        if ($this->debug) {
+            $configuration['log'] = ['level' => 'debug'];
+
+            // A self-hosted API served by the local router presents a
+            // certificate signed by a CA the agent image does not carry: it
+            // ships the public bundle only, and runs on "scratch" so there is
+            // nowhere to add one.
+            if ($this->apiHost !== null) {
+                $configuration['api']['insecure'] = true;
             }
         }
 

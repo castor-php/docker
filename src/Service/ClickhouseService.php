@@ -82,7 +82,10 @@ class ClickhouseService implements ServiceInterface
                     ->arg('backup', (string) $this->backup)
                 ->end()
                 ->volume($name . '-data', '/var/lib/clickhouse')
-                ->withHttpRouting("{$name}.{$rootDomain}")
+                // The image exposes 8123 (HTTP) and 9000 (native protocol);
+                // without a port Caddy picks whichever it finds first, and
+                // routing to the native one answers 502.
+                ->withHttpRouting("{$name}.{$rootDomain}", 8123)
                 ->environment('CLICKHOUSE_DB', $this->database)
                 ->environment('CLICKHOUSE_USER', $this->username)
                 ->environment('CLICKHOUSE_PASSWORD', $this->password)

@@ -66,6 +66,7 @@ services:
             - 'caddy.reverse_proxy={{upstreams 80}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
+            - castor.config.redirectionio-agent=0584c4139025
         profiles:
             - default
         configs:
@@ -94,6 +95,7 @@ configs:
                         forward:
                             address: 'app:80'
                             tls: false
+                            preserve_host: true
                         agent:
                             project_key: default-key
                     -
@@ -102,6 +104,7 @@ configs:
                         forward:
                             address: 'app:80'
                             tls: false
+                            preserve_host: true
                         agent:
                             project_key: legacy-key
                     -
@@ -110,5 +113,6 @@ configs:
                         forward:
                             address: 'api:8080'
                             tls: false
+                            preserve_host: true
                         agent:
                             project_key: default-key

@@ -193,6 +193,40 @@ final class ServiceBuilderTest extends TestCase
         static::assertSame([], $this->service()->getRoutedDomains());
     }
 
+    /**
+     * Compose does not recreate a container when only the content of an inline
+     * config changed, so a server reading its configuration at boot would keep
+     * running with the old one. The digest puts the change in the container
+     * definition, where compose does look.
+     */
+    public function testConfigChecksumLabelTracksTheContent(): void
+    {
+        $compose = new ComposeBuilder();
+        $compose->config('agent', 'first');
+        $compose->service('app')->config('agent', '/etc/agent.yml', recreateOnChange: true);
+
+        $labels = $compose->service('app')->toArray()['labels'];
+        static::assertCount(1, $labels);
+        static::assertStringStartsWith('castor.config.agent=', $labels[0]);
+
+        $compose->config('agent', 'second');
+
+        static::assertNotSame(
+            $labels[0],
+            $compose->service('app')->toArray()['labels'][0],
+            'A different content must produce a different digest.',
+        );
+    }
+
+    public function testConfigWithoutRecreateOnChangeEmitsNoLabel(): void
+    {
+        $compose = new ComposeBuilder();
+        $compose->config('agent', 'content');
+        $compose->service('app')->config('agent', '/etc/agent.yml');
+
+        static::assertArrayNotHasKey('labels', $compose->service('app')->toArray());
+    }
+
     public function testEndReturnsComposeBuilder(): void
     {
         $compose = new ComposeBuilder();

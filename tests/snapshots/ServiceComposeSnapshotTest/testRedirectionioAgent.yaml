@@ -2,6 +2,8 @@ services:
     redirectionio-agent:
         build:
             context: %PACKAGE%/src/Service/../Resources/redirectionio-agent
+        labels:
+            - castor.config.redirectionio-agent=0dbbcd4f9d7b
         profiles:
             - default
         configs:
