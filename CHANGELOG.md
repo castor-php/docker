@@ -86,10 +86,14 @@
   reported as skipped. When the file cannot be written directly — it belongs to
   `root`, and on Docker Desktop it lives inside the VM — a short-lived
   `--privileged` container reaches it.
-* Shell completion of the service name on `docker:build`, `docker:up`,
-  `docker:stop`, `docker:logs` and `docker:logs:clear`. The names are read from
-  the three compose files, so the services a project declares itself are offered
-  alongside the generated ones and completion needs no running daemon.
+* Shell completion on every argument naming something, each offering the right
+  list: the compose containers on `docker:build`, `docker:up`, `docker:stop`,
+  `docker:logs` and `docker:logs:clear`; the services registered in `castor.php`
+  on `docker:service:remove`; the available installers on
+  `docker:service:install`; and the workers of the application on
+  `{app}:worker:restart` and `{app}:worker:stop`. The container names are read
+  from the three compose files, so the services a project declares itself are
+  offered alongside the generated ones and completion needs no running daemon.
 * `RedirectionioAgentService::withDebug()`, raising the agent log level and
   letting it accept a certificate it cannot verify when calling its API — which
   is what a self-hosted `withApiHost()` served by the local router hands it, the
@@ -133,6 +137,14 @@
   behaviour traits' properties are `protected` too.
 * `docker_exit_code()` now forwards `portMapping` to `docker_compose_run()`,
   which it silently dropped.
+* **The tasks of a named service are now called `{service}:{task}`.** The
+  database sessions moved out of the shared `db:` namespace and are named after
+  what they do rather than after the client they run: `db:psql` is now
+  `postgres:client`, `db:mysql` is `mysql:client`, `db:mariadb` is
+  `mariadb:client` and `db:clickhouse` is `clickhouse:client`. Registering the
+  same service twice therefore gives two full task sets — `postgres:client`
+  next to `analytics:client` — instead of a `db:` namespace where the second
+  instance had to be spelled differently.
 
 ### Documentation
 

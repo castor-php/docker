@@ -30,6 +30,7 @@ use Castor\Docker\Installer\ServiceInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\DatabaseServiceInterface;
+use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\ContextCreatedEvent;
 use Castor\Event\FunctionsResolvedEvent;
@@ -197,13 +198,73 @@ function get_compose_service_names(?Context $c = null): array
 }
 
 /**
- * Completion callback for the "service" argument of the docker tasks.
+ * Completion callback for the "service" argument of the docker tasks, which
+ * name a container of the generated compose file.
  *
  * @return list<string>
  */
 function autocomplete_service_name(CompletionInput $input): array
 {
     return get_compose_service_names();
+}
+
+/**
+ * Completion callback for the arguments naming a *registered* service — the
+ * ones declared in castor.php, which are fewer than the containers they
+ * generate.
+ *
+ * @return list<string>
+ */
+function autocomplete_registered_service_name(CompletionInput $input): array
+{
+    $names = array_map(
+        static fn(ServiceInterface $service): string => $service->getName(),
+        collect_services(),
+    );
+
+    sort($names);
+
+    return array_values(array_unique($names));
+}
+
+/**
+ * Completion callback for the arguments naming an installer, the services
+ * "docker:service:install" knows how to set up.
+ *
+ * @return list<string>
+ */
+function autocomplete_installer_name(CompletionInput $input): array
+{
+    $names = array_keys(collect_service_installers());
+    sort($names);
+
+    return $names;
+}
+
+/**
+ * Completion callback for the worker argument of the "{app}:worker:*" tasks.
+ *
+ * Which workers to offer depends on the application the task belongs to, and an
+ * attribute cannot carry that: the application is read back from the command
+ * being completed, whose namespace is its name.
+ *
+ * @return list<string>
+ */
+function autocomplete_worker_name(CompletionInput $input): array
+{
+    $command = $input->getFirstArgument();
+
+    if (null === $command || false === ($application = strstr($command, ':', true))) {
+        return [];
+    }
+
+    foreach (collect_services() as $service) {
+        if ($service instanceof PHPService && $service->getName() === $application) {
+            return $service->getWorkerNames();
+        }
+    }
+
+    return [];
 }
 
 /**

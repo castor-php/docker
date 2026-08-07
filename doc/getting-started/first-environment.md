@@ -73,7 +73,7 @@ Registering those two services also gave you a set of tasks:
 castor app:bash          # a shell in the builder container
 castor app:install       # composer install
 castor app:symfony cache:clear
-castor db:psql           # a psql session on the database
+castor postgres:client   # a psql session on the database
 castor docker:logs
 ```
 

@@ -72,7 +72,7 @@ class MySQLService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask($this->getName(), 'db', 'Connect to the MySQL database'),
+            'task' => new AsTask('client', $this->getName(), 'Open a mysql session on the database'),
             'function' => function (): void {
                 docker_compose(['exec', $this->getName(), 'mysql', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },

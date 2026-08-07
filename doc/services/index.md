@@ -16,9 +16,9 @@ rest.
 | [`RustService`](rust.md) | Cargo application, with clippy and rustfmt tasks |
 | [`GoBuilder`](go.md#gobuilder) / [`RustBuilder`](rust.md#rustbuilder) | One compiler container for a repository, declaring the applications it builds |
 | [`BinaryRunService`](rust.md#binaryrunservice) | Runs one compiled binary, whatever produced it |
-| [`PostgresService`](databases.md#postgresservice) | PostgreSQL, with a `db:psql` task |
-| [`MySQLService`](databases.md#mysqlservice) | MySQL, with a `db:mysql` task |
-| [`MariaDBService`](databases.md#mariadbservice) | MariaDB, with a `db:mariadb` task |
+| [`PostgresService`](databases.md#postgresservice) | PostgreSQL, with a `postgres:client` task |
+| [`MySQLService`](databases.md#mysqlservice) | MySQL, with a `mysql:client` task |
+| [`MariaDBService`](databases.md#mariadbservice) | MariaDB, with a `mariadb:client` task |
 | [`ClickhouseService`](databases.md#clickhouseservice) | ClickHouse and its keeper |
 | [`RedisService`](infrastructure.md#redisservice) | Redis and the RedisInsight UI |
 | [`RabbitMQService`](infrastructure.md#rabbitmqservice) | RabbitMQ and its management UI |

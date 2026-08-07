@@ -410,7 +410,7 @@ class PHPService implements ServiceInterface
         yield [
             'task' => new AsTask('restart', $this->name . ':worker', 'Restart the background workers, or the one named (' . $names . ')'),
             'function' => function (
-                #[AsArgument(description: 'The worker to restart, all of them when omitted')]
+                #[AsArgument(description: 'The worker to restart, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_worker_name')]
                 ?string $worker = null,
             ): void {
                 // "restart" also starts a worker that was stopped, so there is
@@ -422,7 +422,7 @@ class PHPService implements ServiceInterface
         yield [
             'task' => new AsTask('stop', $this->name . ':worker', 'Stop the background workers, or the one named (' . $names . ')'),
             'function' => function (
-                #[AsArgument(description: 'The worker to stop, all of them when omitted')]
+                #[AsArgument(description: 'The worker to stop, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_worker_name')]
                 ?string $worker = null,
             ): void {
                 docker_compose(['stop', ...$this->resolveWorkerServices($worker)]);
@@ -451,6 +451,16 @@ class PHPService implements ServiceInterface
         }
 
         return [$this->getWorkerServiceName($worker)];
+    }
+
+    /**
+     * The worker names declared with addWorker(), as the tasks take them.
+     *
+     * @return list<string>
+     */
+    public function getWorkerNames(): array
+    {
+        return array_keys($this->workers);
     }
 
     public function getWorkerServiceName(string $worker): string

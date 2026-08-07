@@ -36,8 +36,8 @@ trait HasName
      * Whether this instance still carries the name the service ships with.
      *
      * Used where a generated name is not derived from the service one — the
-     * "db:psql" task, the Kibana container — so the historical name is kept for
-     * the first instance and only a renamed one gets a derived name.
+     * Kibana container — so the historical name is kept for the first instance
+     * and only a renamed one gets a derived name.
      */
     protected function hasDefaultName(): bool
     {

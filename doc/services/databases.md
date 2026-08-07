@@ -29,7 +29,7 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
     ->withVersion('16')             // PostgreSQL version (default: 16)
 ```
 
-* **Task:** `castor db:psql` — a psql session
+* **Task:** `castor postgres:client` — a psql session
 * **Containers:** `postgres`, named volume `postgres_data`
 * **Database URL:** `postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8`
 
@@ -43,7 +43,7 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 ```
 
 * **Configuration:** [`withSetting()` and friends](#configuring-the-mysql-and-mariadb-servers)
-* **Task:** `castor db:mysql` — a mysql session
+* **Task:** `castor mysql:client` — a mysql session
 * **Containers:** `mysql`, named volume `mysql-data`
 * **Database URL:** `mysql://root:root@mysql:3306/app`
 
@@ -57,7 +57,7 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 ```
 
 * **Configuration:** [`withSetting()` and friends](#configuring-the-mysql-and-mariadb-servers)
-* **Task:** `castor db:mariadb` — a mariadb session
+* **Task:** `castor mariadb:client` — a mariadb session
 * **Containers:** `mariadb`, named volume `mariadb-data`
 * **Database URL:** `mysql://root:root@mariadb:3306/app?serverVersion=mariadb-12.1&charset=utf8mb4`
 
@@ -71,7 +71,7 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
     ->withBackup()                  // Install Altinity clickhouse-backup in the image
 ```
 
-* **Task:** `castor db:clickhouse` — a clickhouse-client session
+* **Task:** `castor clickhouse:client` — a clickhouse-client session
 * **Containers:** `clickhouse` and `clickhouse-keeper`, named volume `clickhouse-data`
 * **UI:** `https://clickhouse.{root_domain}` when the router is enabled
 
@@ -151,6 +151,7 @@ The container, the named volume (`analytics_data`), the connection string
 (`postgresql://app:app@analytics:5432/app`) and the expose task
 (`castor analytics:expose`) all follow the name.
 
-The connect task keeps its historical name for the first instance and takes the
-service name for a renamed one, so they never collide: `castor db:psql` and
-`castor db:analytics`.
+Every task of a service is named `{service}:{task}`, so the two instances get two
+full task sets rather than fighting over one: `castor postgres:client` and
+`castor analytics:client`, `castor postgres:expose` and
+`castor analytics:expose`.

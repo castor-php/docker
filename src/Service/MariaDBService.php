@@ -72,7 +72,7 @@ class MariaDBService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask($this->getName(), 'db', 'Connect to the MariaDB database'),
+            'task' => new AsTask('client', $this->getName(), 'Open a mariadb session on the database'),
             'function' => function (): void {
                 docker_compose(['exec', $this->getName(), 'mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: context()->toInteractive());
             },

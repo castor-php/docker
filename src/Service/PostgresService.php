@@ -50,7 +50,7 @@ class PostgresService implements DatabaseServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask($this->hasDefaultName() ? 'psql' : $this->getName(), 'db', 'Connect to the PostgreSQL database'),
+            'task' => new AsTask('client', $this->getName(), 'Open a psql session on the database'),
             'function' => function (): void {
                 docker_compose(['exec', $this->getName(), 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
             },

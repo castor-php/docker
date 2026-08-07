@@ -215,7 +215,7 @@ function ps(): void
 
 #[AsTask(description: 'Install a service, register it in castor.php, then build and start it', namespace: 'docker:service', name: 'install')]
 function service_install(
-    #[AsArgument(description: 'The service to install (omit to list the available ones)')]
+    #[AsArgument(description: 'The service to install (omit to list the available ones)', autocomplete: 'Castor\Docker\autocomplete_installer_name')]
     ?string $name = null,
     #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
     ?string $file = null,
@@ -281,7 +281,7 @@ function service_install(
 
 #[AsTask(description: 'Remove a service from castor.php and tear down its containers', namespace: 'docker:service', name: 'remove')]
 function service_remove(
-    #[AsArgument(description: 'The registered service to remove (omit to list them)')]
+    #[AsArgument(description: 'The registered service to remove (omit to list them)', autocomplete: 'Castor\Docker\autocomplete_registered_service_name')]
     ?string $name = null,
     #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
     ?string $file = null,

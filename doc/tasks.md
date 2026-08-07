@@ -106,15 +106,22 @@ castor docker:push --dry-run
 
 ## Completing a service name
 
-Every task taking a service — `docker:build`, `docker:up`, `docker:stop`,
-`docker:logs` and `docker:logs:clear` — completes it from the compose files of
-the project:
+Every argument naming something completes, and each one offers the right list:
+
+| Task | Completes with |
+|---|---|
+| `docker:build`, `docker:up`, `docker:stop`, `docker:logs`, `docker:logs:clear` | the **containers** of the compose files |
+| `docker:service:remove` | the **services registered** in your `castor.php` |
+| `docker:service:install` | the services the plugin knows how to install |
+| `{app}:worker:restart`, `{app}:worker:stop` | the **workers of that application** |
 
 ```bash
-castor docker:logs app<TAB>       # app1  app1-builder  app1-worker-messenger
+castor docker:logs app<TAB>          # app1  app1-builder  app1-worker-messenger
+castor docker:service:remove <TAB>   # app1  app2  postgres  redis  …
+castor app1:worker:restart <TAB>     # messenger
 ```
 
-The names are read from `compose.generated.yaml`, `compose.yaml` and
+The container names are read from `compose.generated.yaml`, `compose.yaml` and
 `compose.override.yaml`, so the services you declare yourself are offered
 alongside the generated ones, and completion answers without a running Docker
 daemon.

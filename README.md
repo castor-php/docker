@@ -101,7 +101,7 @@ both have a service named `app` without colliding in the Docker DNS. See the
 the details.
 
 Registering those two services also gave you tasks: `castor app:bash`,
-`castor app:install`, `castor app:symfony`, `castor db:psql`,
+`castor app:install`, `castor app:symfony`, `castor postgres:client`,
 `castor docker:logs`, and more.
 
 Prefer not to write it by hand? Let the plugin do it:

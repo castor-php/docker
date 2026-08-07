@@ -90,25 +90,24 @@ final class TaskRegistrationTest extends TestCase
 
     public function testDatabaseServicesTasks(): void
     {
-        static::assertSame(['db:psql', 'postgres:expose'], $this->taskNames(new PostgresService()));
-        static::assertSame(['db:mysql', 'mysql:expose'], $this->taskNames(new MySQLService()));
-        static::assertSame(['db:mariadb', 'mariadb:expose'], $this->taskNames(new MariaDBService()));
-        static::assertSame(['db:clickhouse', 'clickhouse:expose'], $this->taskNames(new ClickhouseService()));
+        static::assertSame(['postgres:client', 'postgres:expose'], $this->taskNames(new PostgresService()));
+        static::assertSame(['mysql:client', 'mysql:expose'], $this->taskNames(new MySQLService()));
+        static::assertSame(['mariadb:client', 'mariadb:expose'], $this->taskNames(new MariaDBService()));
+        static::assertSame(['clickhouse:client', 'clickhouse:expose'], $this->taskNames(new ClickhouseService()));
     }
 
     /**
-     * Two instances of the same service must not fight over a task name: the
-     * connect task keeps its historical name for the first one and takes the
-     * service name for a renamed one.
+     * Every task of a service is namespaced by its name, so two instances get
+     * two full task sets instead of fighting over one.
      */
     public function testRenamedDatabaseServicesTasks(): void
     {
         static::assertSame(
-            ['db:analytics', 'analytics:expose'],
+            ['analytics:client', 'analytics:expose'],
             $this->taskNames((new PostgresService())->withName('analytics')),
         );
         static::assertSame(
-            ['db:reporting', 'reporting:expose'],
+            ['reporting:client', 'reporting:expose'],
             $this->taskNames((new MySQLService())->withName('reporting')),
         );
     }

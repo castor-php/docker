@@ -107,7 +107,7 @@ class ClickhouseService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask($this->getName(), 'db', 'Connect to the Clickhouse database'),
+            'task' => new AsTask('client', $this->getName(), 'Open a clickhouse-client session on the database'),
             'function' => function (): void {
                 docker_compose(['exec', $this->getName(), 'clickhouse-client', '-d', $this->database], c: context()->toInteractive());
             },

@@ -48,18 +48,22 @@ $event->addService((new PostgresService())->withName('analytics'));
 
 Everything the service generates is derived from the name: the compose service,
 the named volumes (`analytics_data`), the routed domain
-(`analytics.project.test`), the connection string (`postgresql://…@analytics:5432/…`),
-the task namespace (`castor analytics:expose`) and the companion containers —
-`redis-insight` becomes `sessions-insight`, `clickhouse-keeper` becomes
-`events-keeper`.
+(`analytics.project.test`), the connection string (`postgresql://…@analytics:5432/…`)
+and the companion containers — `redis-insight` becomes `sessions-insight`,
+`clickhouse-keeper` becomes `events-keeper`.
 
-Two exceptions keep their historical name for the **first** instance, and only a
-renamed one gets a derived one:
+**Its tasks too**: they are named `{service}:{task}`, so two instances give you
+two full task sets rather than a collision — `castor postgres:client` and
+`castor analytics:client`, `castor postgres:expose` and
+`castor analytics:expose`.
 
-* the database connect task — `castor db:psql` stays, a renamed instance gets
-  `castor db:analytics`;
-* the Kibana container — `kibana` stays, a renamed Elasticsearch gets
-  `logs-kibana`.
+The task half names what it does, not what it runs: the session a database
+opens is `client` on all of them, rather than `psql` on one and `mysql` on the
+next.
+
+One generated name is an exception, because it is not derived from the service
+one: the Kibana container stays `kibana` for the first instance, and a renamed
+Elasticsearch gets `logs-kibana`.
 
 Names are not checked for collisions: register two services under the same name
 and the second silently merges into the first, since `ComposeBuilder::service()`
