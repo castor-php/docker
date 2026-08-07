@@ -94,6 +94,12 @@
   `{app}:worker:restart` and `{app}:worker:stop`. The container names are read
   from the three compose files, so the services a project declares itself are
   offered alongside the generated ones and completion needs no running daemon.
+* `castor {app}:update` on every application of a `GoBuilder`, updating the
+  module dependencies with `go get -u ./...` and putting `go.mod` and `go.sum`
+  back in order with `go mod tidy` — the other half of the operation, which runs
+  by default and is skipped with `--no-tidy`. Takes a module name to update a
+  single one, and `--patch` to stay inside the current minor version. It runs in
+  the builder container, so on the Go version the module is compiled with.
 * `RustBuilder::withNightlyFormatter()`, which installs the nightly toolchain
   with its rustfmt in the image and points the `fmt` task of every application
   at it, leaving `build`, `test`, `cargo` and `qa:clippy` on the default

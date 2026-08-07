@@ -150,7 +150,7 @@ final class TaskRegistrationTest extends TestCase
         $builder = (new GoBuilder('go-builder'))->withApp('server/exporter');
 
         static::assertSame(
-            ['go-builder:bash', 'exporter:build', 'exporter:test', 'exporter:go'],
+            ['go-builder:bash', 'exporter:build', 'exporter:test', 'exporter:go', 'exporter:update'],
             $this->taskNames($builder),
         );
     }

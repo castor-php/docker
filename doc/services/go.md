@@ -104,8 +104,27 @@ working directory set to the module:
 * `castor <app>:build` — `go build -o <output>`
 * `castor <app>:test` — `go test ./...`
 * `castor <app>:go` — any go command
+* `castor <app>:update` — bring the dependencies up to date
 
 Plus `castor go-builder:bash` for the container itself.
+
+### Updating the dependencies
+
+```bash
+castor exporter:update                          # every dependency, then "go mod tidy"
+castor exporter:update --patch                  # stay inside the current minor version
+castor exporter:update github.com/foo/bar       # a single module
+castor exporter:update --no-tidy                # skip the tidy
+```
+
+`go get` alone leaves the requirements nothing needs any more behind, and an
+out-of-date `go.sum`, so `go mod tidy` runs after it — it is the other half of
+the operation rather than something to remember. `--no-tidy` opts out.
+
+It runs in the builder container, on the Go version the module is compiled with,
+and writes `go.mod` and `go.sum` straight into your sources through the mount.
+The module cache lives in the shared home directory, so what it downloads is
+kept.
 
 The binaries it produces are run by
 [`BinaryRunService`](rust.md#binaryrunservice) containers — the same class the
