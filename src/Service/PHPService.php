@@ -353,8 +353,12 @@ class PHPService implements ServiceInterface
     {
         yield [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
-            'function' => function (): void {
-                $this->runInBuilder('bash', c: context()->toInteractive());
+            'function' => function (#[AsRawTokens] array $args): void {
+                if (!$args) {
+                    $this->runInBuilder('bash', c: context()->toInteractive());
+                } else {
+                    $this->runInBuilder(implode(' ', $args), c: context()->toInteractive());
+                }
             },
         ];
 
