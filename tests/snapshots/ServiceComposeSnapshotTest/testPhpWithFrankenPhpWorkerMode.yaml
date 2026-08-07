@@ -38,6 +38,7 @@ services:
         volumes:
             - '/project/app:/var/www:cached'
             - '.home:/home/app:cached'
+            - '/project/.castor/vendor/.tools:/castor-tools:cached'
         profiles:
             - builder
 volumes: {}

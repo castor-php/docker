@@ -18,10 +18,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\docker_compose_run;
 use function Castor\io;
-use function Castor\PHPQa\php_cs_fixer;
-use function Castor\PHPQa\phpstan;
-use function Castor\PHPQa\rector;
-use function Castor\with;
+use function Castor\Docker\docker_exit_code;
+use function Castor\PHPQa\create_tools;
 use function Castor\context;
 
 class PHPService implements ServiceInterface
@@ -58,6 +56,12 @@ class PHPService implements ServiceInterface
     protected string $rectorVersion = '*';
 
     protected const MOUNT_POINT = '/var/www';
+
+    /**
+     * Where the QA tools castor installs on the host are mounted in the
+     * container that runs them.
+     */
+    protected const QA_TOOLS_MOUNT_POINT = '/castor-tools';
 
     /**
      * The application whose builder container this one uses, or false when no
@@ -265,8 +269,15 @@ class PHPService implements ServiceInterface
                     ->init(true)
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
                     ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                    // The QA tools castor installs on the host run here, so
+                    // they analyse the application on its own PHP version.
+                    ->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached')
                     ->profile('builder')
             ;
+        } elseif (false === $this->sharedBuilder) {
+            // No builder container at all: the QA tasks fall back to the
+            // application one, which then needs the tools too.
+            $appService->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached');
         }
 
         $this->applyHttpRouting($appService);
@@ -363,35 +374,80 @@ class PHPService implements ServiceInterface
 
         yield [
             'task' => new AsTask('phpstan', $this->name . ':qa', 'Runs PHPStan'),
-            'function' => function (#[AsRawTokens] array $args) {
+            'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHPStan...');
 
                 /** @var list<string> $args */
-                return with(fn() => phpstan($args, $this->phpStanVersion, $this->phpStanExtraDependencies ?? []), workingDirectory: $this->getHostWorkingDirectory());
+                return $this->runQaTool(
+                    'phpstan',
+                    ['phpstan/phpstan' => $this->phpStanVersion, ...$this->phpStanExtraDependencies],
+                    $args ?: ['analyze', $this->getContainerWorkingDirectory(static::MOUNT_POINT)],
+                );
             },
         ];
 
         yield [
             'task' => new AsTask('cs', $this->name . ':qa', 'Fixes Coding Style'),
-            'function' => function (#[AsRawTokens] array $args) {
+            'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHP CS Fixer...');
 
                 /** @var list<string> $args */
-                return with(fn() => php_cs_fixer($args, $this->phpCsFixerVersion), workingDirectory: $this->getHostWorkingDirectory());
+                return $this->runQaTool(
+                    'php-cs-fixer',
+                    ['friendsofphp/php-cs-fixer' => $this->phpCsFixerVersion],
+                    $args ?: ['fix', $this->getContainerWorkingDirectory(static::MOUNT_POINT) . '/src'],
+                );
             },
         ];
 
         yield [
             'task' => new AsTask('rector', $this->name . ':qa', 'Updates and refactors code using Rector'),
-            'function' => function (#[AsRawTokens] array $args) {
+            'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running Rector...');
 
                 /** @var list<string> $args */
-                return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->getHostWorkingDirectory());
+                return $this->runQaTool(
+                    'rector',
+                    ['rector/rector' => $this->rectorVersion],
+                    $args ?: [$this->getContainerWorkingDirectory(static::MOUNT_POINT) . '/src'],
+                );
             },
         ];
 
         yield from $this->getWorkerTasks();
+    }
+
+    /**
+     * Install a QA tool with castor, then run it inside the container.
+     *
+     * The tool is installed on the host, once per project, in the directory the
+     * container mounts — and executed in the container, so the analysis sees
+     * the PHP version, the extensions and the vendor/ the application actually
+     * runs on rather than whichever PHP happens to run castor.
+     *
+     * @param array<string, string> $dependencies the composer requirements of the tool
+     * @param list<string>          $arguments
+     */
+    protected function runQaTool(string $tool, array $dependencies, array $arguments): int
+    {
+        create_tools($tool, $dependencies);
+
+        $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $tool . '/vendor/bin/' . $tool;
+
+        return docker_exit_code(
+            trim($binary . ' ' . implode(' ', $arguments)),
+            $this->getBuilderServiceName(),
+            workDir: $this->getBuilderWorkingDirectory(),
+        );
+    }
+
+    /**
+     * The host directory holding the QA tools castor installs, mounted in the
+     * container that runs them.
+     */
+    protected function getQaToolsDirectory(Context $context): string
+    {
+        return $context->workingDirectory . '/.castor/vendor/.tools';
     }
 
     /**

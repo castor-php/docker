@@ -170,6 +170,28 @@ castor app:qa:rector    # Rector
 castor app:qa:twig-cs   # Twig CS Fixer (SymfonyService only)
 ```
 
+The tools are **installed on the host by castor** and **run inside the builder
+container**, so they see the PHP version, the extensions and the `vendor/` the
+application actually runs on — not whichever PHP happens to run castor. PHPStan
+resolving a class against the wrong PHP version, or PHP CS Fixer warning that
+your host PHP is newer than the one your `composer.json` supports, both go away.
+
+They are installed once per project, in `.castor/vendor/.tools/`, which the
+builder container mounts at `/castor-tools`. Nothing is added to the image, so
+changing a tool version does not mean rebuilding it.
+
+Each task forwards its arguments, and returns the tool's exit code:
+
+```bash
+castor app:qa:phpstan --level=8 src
+castor app:qa:cs --dry-run
+```
+
+> [!NOTE]
+> Composer resolves the tools against the PHP version running castor, not the
+> one in the container. If the two are far apart, pin the tool to a version both
+> support with `withPhpStanVersion()` & co.
+
 Pin the tool versions and add PHPStan extensions from the service:
 
 ```php

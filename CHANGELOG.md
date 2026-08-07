@@ -127,6 +127,14 @@
 
 ### Changed
 
+* **The QA tasks now run inside the builder container.** `{app}:qa:phpstan`,
+  `{app}:qa:cs`, `{app}:qa:rector` and `{app}:qa:twig-cs` used to run on the
+  host, against whichever PHP happens to run castor — a different version, and
+  different extensions, from the one the application runs on. The tools are
+  still installed by castor, once per project in `.castor/vendor/.tools/`, but
+  that directory is now mounted at `/castor-tools` in the builder container and
+  the tools are executed there. The tasks return the tool's exit code instead of
+  its `Process`.
 * `GoService` builds from a Dockerfile shipped by the plugin instead of running
   the `golang` image directly, so it can be extended and its build cache pushed
   like every other service. Its generated `build` section is new; the tasks and

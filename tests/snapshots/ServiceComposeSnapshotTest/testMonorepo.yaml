@@ -121,6 +121,7 @@ services:
         volumes:
             - '/project:/var/www:cached'
             - '.home:/home/app:cached'
+            - '/project/.castor/vendor/.tools:/castor-tools:cached'
         profiles:
             - builder
     demo:

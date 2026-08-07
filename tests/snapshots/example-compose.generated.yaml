@@ -119,6 +119,7 @@ services:
         volumes:
             - '%ROOT%/example:/var/www:cached'
             - '.home:/home/app:cached'
+            - '%ROOT%/example/.castor/vendor/.tools:/castor-tools:cached'
         profiles:
             - builder
         extra_hosts:

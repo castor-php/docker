@@ -10,8 +10,6 @@ use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_exit_code;
-use function Castor\PHPQa\twig_cs_fixer;
-use function Castor\with;
 
 class SymfonyService extends PHPService
 {
@@ -78,9 +76,11 @@ class SymfonyService extends PHPService
 
         yield [
             'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fixes Twig Coding Style'),
-            'function' => fn(bool $dryRun = false) => with(fn() => twig_cs_fixer(array_filter([
-                $dryRun ? null : '--fix',
-            ], fn($val) => null !== $val), $this->twigCsFixerVersion), workingDirectory: $this->getHostWorkingDirectory()),
+            'function' => fn(bool $dryRun = false): int => $this->runQaTool(
+                'twig-cs-fixer',
+                ['vincentlanglet/twig-cs-fixer' => $this->twigCsFixerVersion],
+                $dryRun ? [] : ['--fix'],
+            ),
         ];
     }
 }
