@@ -190,6 +190,11 @@ Shared by both services:
 * `castor app:composer` — any Composer command
 * `castor app:qa:phpstan`, `castor app:qa:cs`, `castor app:qa:rector`
 
+Only when the application declares [workers](../going-further/workers.md):
+
+* `castor app:worker:restart [worker]` — restart them all, or the one named
+* `castor app:worker:stop [worker]` — stop them all, or the one named
+
 `SymfonyService` adds:
 
 * `castor app:symfony` — any Symfony console command

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
+use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
@@ -14,6 +15,7 @@ use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
+use function Castor\Docker\docker_compose;
 use function Castor\Docker\docker_compose_run;
 use function Castor\io;
 use function Castor\PHPQa\php_cs_fixer;
@@ -299,7 +301,7 @@ class PHPService implements ServiceInterface
 
         foreach ($this->workers as $workerName => $command) {
             $workerService = $builder
-                ->service($this->name . '-worker-' . $workerName)
+                ->service($this->getWorkerServiceName($workerName))
                     ->build($buildBuilder)
                         ->target('worker')
                         ->withRegistryCache($this->name . '-worker')
@@ -388,6 +390,72 @@ class PHPService implements ServiceInterface
                 return with(fn() => rector($args, $this->rectorVersion), workingDirectory: $this->getHostWorkingDirectory());
             },
         ];
+
+        yield from $this->getWorkerTasks();
+    }
+
+    /**
+     * The tasks driving the background workers, only when there are any.
+     *
+     * @return iterable<array{task: AsTask, function: \Closure}>
+     */
+    protected function getWorkerTasks(): iterable
+    {
+        if (!$this->workers) {
+            return;
+        }
+
+        $names = implode(', ', array_keys($this->workers));
+
+        yield [
+            'task' => new AsTask('restart', $this->name . ':worker', 'Restart the background workers, or the one named (' . $names . ')'),
+            'function' => function (
+                #[AsArgument(description: 'The worker to restart, all of them when omitted')]
+                ?string $worker = null,
+            ): void {
+                // "restart" also starts a worker that was stopped, so there is
+                // no separate start task to remember.
+                docker_compose(['restart', ...$this->resolveWorkerServices($worker)]);
+            },
+        ];
+
+        yield [
+            'task' => new AsTask('stop', $this->name . ':worker', 'Stop the background workers, or the one named (' . $names . ')'),
+            'function' => function (
+                #[AsArgument(description: 'The worker to stop, all of them when omitted')]
+                ?string $worker = null,
+            ): void {
+                docker_compose(['stop', ...$this->resolveWorkerServices($worker)]);
+            },
+        ];
+    }
+
+    /**
+     * The compose services behind a worker name, or behind all of them.
+     *
+     * @return list<string>
+     */
+    protected function resolveWorkerServices(?string $worker = null): array
+    {
+        if (null === $worker) {
+            return array_map($this->getWorkerServiceName(...), array_keys($this->workers));
+        }
+
+        if (!isset($this->workers[$worker])) {
+            throw new \InvalidArgumentException(\sprintf(
+                'The "%s" application has no worker named "%s". Declared: %s.',
+                $this->name,
+                $worker,
+                implode(', ', array_keys($this->workers)) ?: '(none)',
+            ));
+        }
+
+        return [$this->getWorkerServiceName($worker)];
+    }
+
+    public function getWorkerServiceName(string $worker): string
+    {
+        return $this->name . '-worker-' . $worker;
     }
 
     /**

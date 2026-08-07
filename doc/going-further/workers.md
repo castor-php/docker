@@ -19,11 +19,33 @@ Each worker runs in its own container, named `app-worker-{name}`, built from the
 volumes, database and mailer configuration, so `DATABASE_URL` and `MAILER_DSN`
 are available to them too.
 
-Restart a worker after a code change like any other container:
+## Driving them
+
+An application that declares workers gets two tasks for them — they do not exist
+otherwise:
 
 ```bash
-castor docker:stop app-worker-messenger
-castor docker:up app-worker-messenger
+castor app:worker:restart              # every worker of the application
+castor app:worker:restart messenger    # just that one
+castor app:worker:stop                 # every worker
+castor app:worker:stop notifications   # just that one
+```
+
+The argument is the name you passed to `addWorker()`, not the container name, and
+an unknown one is rejected with the list of those declared — rather than
+quietly acting on all of them.
+
+`worker:restart` starts a worker that was stopped, so there is no separate start
+task: `stop` then `restart` is the round trip. After a code change, restarting is
+what picks it up:
+
+```bash
+castor app:install && castor app:worker:restart
+```
+
+The containers stay reachable by name for everything else:
+
+```bash
 castor docker:logs app-worker-messenger
 ```
 

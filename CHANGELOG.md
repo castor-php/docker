@@ -66,6 +66,23 @@
 * `RedirectionioAgentService::withApiHost()` and `withApiTimeout()`, writing the
   `api` section of the generated `agent.yml` so the agent can talk to a
   self-hosted instance. Absent by default.
+* `ServiceBuilder::config()` takes `recreateOnChange`, stamping a digest of the
+  config content in a label. Compose does not recreate a container when only the
+  content of an inline config changed, so a server reading its configuration at
+  boot kept running with the old one until someone thought of
+  `--force-recreate`. Used by the redirection.io agent and by the MySQL-family
+  configuration, both of which read theirs once. Left off for anything that
+  reloads on its own.
+* `castor {app}:worker:restart` and `castor {app}:worker:stop`, on a PHP
+  application declaring workers. Both take the worker name — the one passed to
+  `addWorker()` — and act on every worker when it is omitted; an unknown name is
+  rejected with the list of those declared, rather than quietly acting on all of
+  them. `worker:restart` starts a stopped worker, so there is no separate start
+  task. The tasks do not exist on an application without workers.
+* `RedirectionioAgentService::withDebug()`, raising the agent log level and
+  letting it accept a certificate it cannot verify when calling its API — which
+  is what a self-hosted `withApiHost()` served by the local router hands it, the
+  agent image carrying the public CA bundle only.
 * `get_default_profiles()` reads the `docker_profiles` context data instead of
   always returning `['default']`.
 * The Rust Dockerfile is now a Twig template with `rust_base` and `runtime`
@@ -92,20 +109,6 @@
   `$document_root`, with only a "variable is not set" warning to show for it.
   `ComposeBuilder::config()` takes `interpolate: true` for a config that really
   does mean to read `${PROJECT_NAME}` & co.
-
-### Added
-
-* `ServiceBuilder::config()` takes `recreateOnChange`, stamping a digest of the
-  config content in a label. Compose does not recreate a container when only the
-  content of an inline config changed, so a server reading its configuration at
-  boot kept running with the old one until someone thought of
-  `--force-recreate`. Used by the redirection.io agent and by the MySQL-family
-  configuration, both of which read theirs once. Left off for anything that
-  reloads on its own.
-* `RedirectionioAgentService::withDebug()`, raising the agent log level and
-  letting it accept a certificate it cannot verify when calling its API — which
-  is what a self-hosted `withApiHost()` served by the local router hands it, the
-  agent image carrying the public CA bundle only.
 
 ### Changed
 

@@ -58,6 +58,36 @@ final class TaskRegistrationTest extends TestCase
         );
     }
 
+    /**
+     * The worker tasks only exist when the application declares workers, so an
+     * application without any keeps the CLI surface it had.
+     */
+    public function testWorkerTasksAppearWithTheWorkers(): void
+    {
+        $app = (new PHPService('app'))
+            ->addWorker('messenger', 'php bin/console messenger:consume async')
+            ->addWorker('scheduler', 'php bin/console schedule:run')
+        ;
+
+        static::assertSame(
+            [
+                'app:bash', 'app:install', 'app:composer', 'app:qa:phpstan', 'app:qa:cs', 'app:qa:rector',
+                'app:worker:restart', 'app:worker:stop',
+            ],
+            $this->taskNames($app),
+        );
+    }
+
+    public function testWorkerNamesResolveToTheirContainers(): void
+    {
+        $app = (new PHPService('app'))
+            ->addWorker('messenger', 'php bin/console messenger:consume async')
+            ->addWorker('scheduler', 'php bin/console schedule:run')
+        ;
+
+        static::assertSame('app-worker-messenger', $app->getWorkerServiceName('messenger'));
+    }
+
     public function testDatabaseServicesTasks(): void
     {
         static::assertSame(['db:psql', 'postgres:expose'], $this->taskNames(new PostgresService()));
