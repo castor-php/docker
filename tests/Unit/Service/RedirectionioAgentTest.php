@@ -69,48 +69,48 @@ final class RedirectionioAgentTest extends SnapshotTestCase
         static::assertFalse($hosts[1]['forward']['preserve_host']);
     }
 
+    /**
+     * Debug is a flag of the agent binary, not something in agent.yml: the
+     * default command of the image is overridden to add it.
+     */
     public function testDebugIsOffByDefault(): void
     {
-        $configuration = $this->configuration(new RedirectionioAgentService());
+        $compose = (new RedirectionioAgentService())
+            ->updateCompose($this->fixedContext(), new ComposeBuilder())
+            ->toArray()
+        ;
 
-        static::assertArrayNotHasKey('log', $configuration);
+        // No command at all: the one baked into the image is what runs.
+        static::assertArrayNotHasKey('command', $compose['services']['redirectionio-agent']);
     }
 
-    public function testDebugRaisesTheLogLevel(): void
+    public function testDebugAddsTheFlagToTheAgentCommand(): void
     {
-        $configuration = $this->configuration((new RedirectionioAgentService())->withDebug());
+        $compose = (new RedirectionioAgentService())
+            ->withDebug()
+            ->updateCompose($this->fixedContext(), new ComposeBuilder())
+            ->toArray()
+        ;
 
-        static::assertSame(['level' => 'debug'], $configuration['log']);
-        static::assertArrayNotHasKey('api', $configuration, 'No API host, nothing to relax.');
+        static::assertSame(
+            ['/usr/local/bin/redirectionio-agent', '--config', '/etc/redirectionio/agent.yml', '--debug'],
+            $compose['services']['redirectionio-agent']['command'],
+        );
     }
 
     /**
-     * A self-hosted API served by the local router presents a certificate the
-     * agent image cannot verify: it carries the public bundle only, and runs on
-     * "scratch" so there is nowhere to add one.
+     * agent.yml describes the reverse proxy, not how the agent is run: the
+     * debug flag must leave it alone.
      */
-    public function testDebugAcceptsAnUnverifiableApiCertificate(): void
+    public function testDebugDoesNotTouchTheConfiguration(): void
     {
-        $configuration = $this->configuration(
-            (new RedirectionioAgentService())
-                ->withApiHost('https://api.demo.test')
-                ->withApiTimeout(120)
-                ->withDebug()
-        );
+        $agent = (new RedirectionioAgentService())->withApiHost('https://api.demo.test')->withApiTimeout(120);
 
-        static::assertSame(
-            ['host' => 'https://api.demo.test', 'timeout' => 120, 'insecure' => true],
-            $configuration['api'],
-        );
-    }
+        $without = $this->configuration(clone $agent);
+        $with = $this->configuration($agent->withDebug());
 
-    public function testTheApiCertificateIsVerifiedWithoutDebug(): void
-    {
-        $configuration = $this->configuration(
-            (new RedirectionioAgentService())->withApiHost('https://api.demo.test')
-        );
-
-        static::assertSame(['host' => 'https://api.demo.test'], $configuration['api']);
+        static::assertSame($without, $with);
+        static::assertSame(['host' => 'https://api.demo.test', 'timeout' => 120], $with['api']);
     }
 
     /**

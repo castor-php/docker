@@ -83,10 +83,20 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $c ??= context();
     $profiles = $profiles ?: get_default_profiles($c);
 
+    $projectName = get_project_name($c);
+
     $c = $c
         ->withTimeout(null)
         ->withEnvironment([
-            'PROJECT_NAME' => get_project_name($c),
+            // Compose reads the project name from the "name" of compose.yaml
+            // unless told otherwise, which would leave it disagreeing with the
+            // one the plugin derives everything else from — the network it
+            // connects the router to, the expose forwarders, and the
+            // "${PROJECT_NAME}-<service>" images a shared builder is referenced
+            // by. COMPOSE_PROJECT_NAME takes precedence over that "name", so
+            // the context stays the single source of truth.
+            'COMPOSE_PROJECT_NAME' => $projectName,
+            'PROJECT_NAME' => $projectName,
             'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
             'REGISTRY' => variable('registry'),
         ])
@@ -698,7 +708,11 @@ function initialize_project(Context $context): Context
     $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
 
     return $context->withData([
-        'project_name' => $projectName,
+        // The context wins over the "name" of compose.yaml, which is the order
+        // get_project_name() documents — and the only way a second checkout of
+        // the same repository can run beside the first: a worktree overrides
+        // "project_name" and everything derived from it follows.
+        'project_name' => $context->data['project_name'] ?? $projectName,
         'user_id' => $userId,
     ]);
 }

@@ -161,6 +161,14 @@
   behaviour traits' properties are `protected` too.
 * `docker_exit_code()` now forwards `portMapping` to `docker_compose_run()`,
   which it silently dropped.
+* The `project_name` context data is no longer overwritten by the `name:` of
+  `compose.yaml`, which is the precedence `get_project_name()` documents and
+  never applied. The plugin also exports `COMPOSE_PROJECT_NAME`, so docker
+  compose uses the same project name it does — without it compose built in the
+  project named by the file while the plugin looked for containers, networks and
+  `${PROJECT_NAME}-<service>` images in the one named by the context. Together
+  they make a second checkout of a repository — a git worktree — a matter of
+  overriding `project_name` and `root_domain` in its context.
 * `docker_compose_run()` no longer prints the two lines compose emits for the
   throwaway container it creates — `Container app-builder-run-8c9d8bef
   Creating`, then `Created` — in front of the output of the command asked for.

@@ -24,7 +24,7 @@ function default_context(): Context
 |----------|------|
 | `root_domain` | Root domain used by the services exposing a UI (`redis.{root_domain}`, `mailpit.{root_domain}`, …) |
 | `registry` | Registry the build cache is pushed to and pulled from |
-| `project_name` | Compose project name, defaults to the directory name |
+| `project_name` | Compose project name — wins over the `name:` of `compose.yaml`, see [running two checkouts side by side](#running-two-checkouts-side-by-side) |
 | `user_id` | UID the containers run as, defaults to your own |
 | `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
 | `build_args` | Build arguments `castor docker:build` passes to every service, also readable as [Twig variables](going-further/custom-dockerfile.md#build-arguments-are-twig-variables) |
@@ -38,6 +38,33 @@ project, pointing at the host gateway where the router answers — so
 `https://api.myproject.test` works from inside a container as well as from your
 browser. Set `resolve_domains_via_host` to `false` to stop generating them; see
 [router and HTTPS](services/router.md#reaching-your-own-domains-from-inside-a-container).
+
+### Running two checkouts side by side
+
+A git worktree, or a second clone, shares `compose.yaml` with the first — `name:`
+included. Overriding the project name in the context is what keeps the two
+apart, and everything else follows from it: the containers, the network, the
+named volumes, the TCP forwarders and the `${PROJECT_NAME}-<service>` images a
+shared builder is referenced by.
+
+```php
+#[AsContext(default: true)]
+function default_context(): Context
+{
+    return new Context([
+        'project_name' => 'myproject-wt2',
+        'root_domain' => 'wt2.myproject.test',
+    ]);
+}
+```
+
+Two lines, and the second checkout runs beside the first with its own containers
+and its own domains.
+
+The context wins over the `name:` of `compose.yaml`, and the plugin exports
+`COMPOSE_PROJECT_NAME` so docker compose uses the same one — otherwise compose
+would build in one project while the plugin looked for containers, networks and
+images in another.
 
 ### Default profiles
 
@@ -103,6 +130,7 @@ The plugin sets these in the containers it generates:
 | Variable | Value |
 |----------|-------|
 | `PHP_VERSION` | PHP version in use |
+| `COMPOSE_PROJECT_NAME` | Compose project name, so docker compose agrees with the plugin |
 | `PROJECT_NAME` | Compose project name |
 | `PROJECT_ROOT_DOMAIN` | Root domain of the project |
 | `REGISTRY` | Docker registry URL |
