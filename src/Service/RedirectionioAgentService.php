@@ -114,7 +114,7 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * Run the agent with debug logging, and let it accept a certificate it
+     * Run the agent with debug, which let it accept a certificate it
      * cannot verify when talking to its API — which is what a self-hosted
      * withApiHost() served by the local router hands it.
      *
@@ -161,6 +161,10 @@ class RedirectionioAgentService implements ServiceInterface
                 ->config($configName, self::CONFIG_PATH, recreateOnChange: true)
                 ->profile('default')
         ;
+
+        if ($this->debug) {
+            $service->command(['/usr/local/bin/redirectionio-agent', '--config', '/etc/redirectionio/agent.yml', '--debug']);
+        }
 
         $this->applyHttpRouting($service);
 
@@ -231,18 +235,6 @@ class RedirectionioAgentService implements ServiceInterface
 
             if ($this->apiTimeout !== null) {
                 $configuration['api']['timeout'] = $this->apiTimeout;
-            }
-        }
-
-        if ($this->debug) {
-            $configuration['log'] = ['level' => 'debug'];
-
-            // A self-hosted API served by the local router presents a
-            // certificate signed by a CA the agent image does not carry: it
-            // ships the public bundle only, and runs on "scratch" so there is
-            // nowhere to add one.
-            if ($this->apiHost !== null) {
-                $configuration['api']['insecure'] = true;
             }
         }
 
