@@ -109,11 +109,30 @@ $rust = (new RustBuilder('rust-builder'))
     ->addRustupTarget('x86_64-unknown-linux-musl')
     ->addRustupComponent('rust-analyzer')        // clippy and rustfmt are there already
     ->addRustupToolchain('nightly', ['rustfmt']) // an extra toolchain
+    ->withNightlyFormatter()                     // format on nightly, build on stable
     ->withApp('agent/agent-application', target: 'x86_64-unknown-linux-musl')
     ->withApp('server/log-injector')
     ->withApp('tools/codegen', 'codegen', toolchain: 'nightly')
 ;
 ```
+
+### Formatting on nightly
+
+Most of rustfmt's options are still unstable, so a `rustfmt.toml` using any of
+them — `imports_granularity`, `group_imports`, `wrap_comments` — is silently
+ignored by a stable rustfmt. Your file looks applied, and nothing happens.
+
+```php
+->withNightlyFormatter()
+```
+
+installs the nightly toolchain with its rustfmt in the image, and points the
+`fmt` task of every application at it. **Only** the formatter moves: `build`,
+`test`, `cargo` and `qa:clippy` stay on the default toolchain, which is the
+point — nightly for the formatter, stable for everything that ships.
+
+Declaring nightly yourself keeps working: `addRustupToolchain('nightly', [...])`
+is completed with `rustfmt` rather than installed twice.
 
 ### `withApp()`
 

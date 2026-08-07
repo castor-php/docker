@@ -41,6 +41,11 @@ class RustBuilder extends AbstractBuilderService
     /** @var list<array{name: string, components: list<string>}> */
     protected array $rustupToolchains = [];
 
+    /** The rustup toolchain rustfmt runs under when withNightlyFormatter() is on. */
+    protected const NIGHTLY_TOOLCHAIN = 'nightly';
+
+    protected bool $nightlyFormatter = false;
+
     protected function getDefaultVersion(): string
     {
         return '1';
@@ -94,6 +99,23 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
+     * Format with the nightly toolchain, leaving everything else on the default
+     * one.
+     *
+     * Most of rustfmt's options are still unstable, so a rustfmt.toml using any
+     * of them is silently ignored by a stable rustfmt — the usual answer is to
+     * build and lint on stable and to format on nightly. This installs the
+     * nightly toolchain with its rustfmt in the image, and points the "fmt"
+     * task of every application at it.
+     */
+    public function withNightlyFormatter(bool $nightlyFormatter = true): static
+    {
+        $this->nightlyFormatter = $nightlyFormatter;
+
+        return $this;
+    }
+
+    /**
      * Declare a crate built by this builder.
      *
      * $target adds "--target <triple>" to its build command; $toolchain runs
@@ -138,8 +160,57 @@ class RustBuilder extends AbstractBuilderService
                 ->arg('rust_version', $this->getVersion())
                 ->arg('rust_components', json_encode($this->rustupComponents, \JSON_THROW_ON_ERROR))
                 ->arg('rust_targets', json_encode($this->rustupTargets, \JSON_THROW_ON_ERROR))
-                ->arg('rust_toolchains', json_encode($this->rustupToolchains, \JSON_THROW_ON_ERROR))
+                ->arg('rust_toolchains', json_encode($this->getRustupToolchains(), \JSON_THROW_ON_ERROR))
         ;
+    }
+
+    /**
+     * The toolchains the image installs: the ones declared, plus the nightly
+     * rustfmt needs when withNightlyFormatter() is on.
+     *
+     * Declaring nightly yourself keeps working — it is completed with rustfmt
+     * rather than added a second time.
+     *
+     * @return list<array{name: string, components: list<string>}>
+     */
+    protected function getRustupToolchains(): array
+    {
+        $toolchains = $this->rustupToolchains;
+
+        if (!$this->nightlyFormatter) {
+            return $toolchains;
+        }
+
+        foreach ($toolchains as $index => $toolchain) {
+            if (static::NIGHTLY_TOOLCHAIN !== $toolchain['name']) {
+                continue;
+            }
+
+            if (!\in_array('rustfmt', $toolchain['components'], true)) {
+                $toolchains[$index]['components'][] = 'rustfmt';
+            }
+
+            return $toolchains;
+        }
+
+        $toolchains[] = ['name' => static::NIGHTLY_TOOLCHAIN, 'components' => ['rustfmt']];
+
+        return $toolchains;
+    }
+
+    /**
+     * The cargo the "fmt" task runs through, which is the only one nightly
+     * applies to.
+     *
+     * @param array<string, mixed> $options
+     */
+    protected function formatCommand(array $options): string
+    {
+        if (!$this->nightlyFormatter) {
+            return $this->cargoCommand($options);
+        }
+
+        return $this->cargoCommand(['toolchain' => static::NIGHTLY_TOOLCHAIN]);
     }
 
     protected function getBuildCommand(string $name, string $directory, array $options): string
@@ -175,10 +246,12 @@ class RustBuilder extends AbstractBuilderService
             $this->run($this->joinArgs($cargo . ' clippy --all-targets', $args), $directory);
         });
 
-        yield $this->task('fmt', $name . ':qa', 'Fixes Coding Style', function (array $args) use ($cargo, $directory): void {
+        $format = $this->formatCommand($options);
+
+        yield $this->task('fmt', $name . ':qa', 'Fixes Coding Style' . ($this->nightlyFormatter ? ' (nightly rustfmt)' : ''), function (array $args) use ($format, $directory): void {
             io()->section('Running rustfmt...');
 
-            $this->run($this->joinArgs($cargo . ' fmt', $args), $directory);
+            $this->run($this->joinArgs($format . ' fmt', $args), $directory);
         });
     }
 

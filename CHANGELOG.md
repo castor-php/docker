@@ -94,6 +94,14 @@
   `{app}:worker:restart` and `{app}:worker:stop`. The container names are read
   from the three compose files, so the services a project declares itself are
   offered alongside the generated ones and completion needs no running daemon.
+* `RustBuilder::withNightlyFormatter()`, which installs the nightly toolchain
+  with its rustfmt in the image and points the `fmt` task of every application
+  at it, leaving `build`, `test`, `cargo` and `qa:clippy` on the default
+  toolchain. Most of rustfmt's options are still unstable, so a `rustfmt.toml`
+  using any of them is silently ignored by a stable rustfmt — building on stable
+  and formatting on nightly is the usual answer. A nightly declared with
+  `addRustupToolchain()` is completed with `rustfmt` rather than installed
+  twice.
 * `RedirectionioAgentService::withDebug()`, raising the agent log level and
   letting it accept a certificate it cannot verify when calling its API — which
   is what a self-hosted `withApiHost()` served by the local router hands it, the
