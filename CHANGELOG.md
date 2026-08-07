@@ -79,6 +79,17 @@
   rejected with the list of those declared, rather than quietly acting on all of
   them. `worker:restart` starts a stopped worker, so there is no separate start
   task. The tasks do not exist on an application without workers.
+* `castor docker:logs:clear [service]`, emptying the log files docker keeps for
+  the containers so `docker:logs` starts from a clean slate. Nothing is
+  restarted: the file is truncated in place. Stopped containers and inactive
+  profiles are covered; a container whose logging driver is not `json-file` is
+  reported as skipped. When the file cannot be written directly — it belongs to
+  `root`, and on Docker Desktop it lives inside the VM — a short-lived
+  `--privileged` container reaches it.
+* Shell completion of the service name on `docker:build`, `docker:up`,
+  `docker:stop`, `docker:logs` and `docker:logs:clear`. The names are read from
+  the three compose files, so the services a project declares itself are offered
+  alongside the generated ones and completion needs no running daemon.
 * `RedirectionioAgentService::withDebug()`, raising the agent log level and
   letting it accept a certificate it cannot verify when calling its API — which
   is what a self-hosted `withApiHost()` served by the local router hands it, the

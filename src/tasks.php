@@ -27,6 +27,7 @@ use function Castor\run;
  */
 #[AsTask(description: 'Builds the infrastructure', aliases: ['build'], namespace: 'docker')]
 function build(
+    #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
@@ -64,6 +65,7 @@ function build(
  */
 #[AsTask(description: 'Builds and starts the infrastructure', aliases: ['up'], namespace: 'docker')]
 function up(
+    #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
@@ -104,6 +106,7 @@ function up(
  */
 #[AsTask(description: 'Stops the infrastructure', aliases: ['stop'], namespace: 'docker')]
 function stop(
+    #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
@@ -132,6 +135,7 @@ function stop(
  */
 #[AsTask(description: 'Displays infrastructure logs', aliases: ['logs'], namespace: 'docker')]
 function logs(
+    #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
@@ -149,6 +153,58 @@ function logs(
     }
 
     docker_compose($command, c: $c, profiles: $profiles);
+}
+
+/**
+ * Truncate the log files docker keeps for the containers of the project.
+ *
+ * The containers are left running: emptying the file in place is what makes
+ * "castor docker:logs" start from a clean slate without restarting anything.
+ */
+#[AsTask(description: 'Clears the logs of a service, or of every service', namespace: 'docker:logs', name: 'clear')]
+function logs_clear(
+    #[AsArgument(description: 'The service to clear, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
+    ?string $service = null,
+): void {
+    $c = context();
+
+    if (null !== $service && !\in_array($service, $names = get_compose_service_names($c), true)) {
+        io()->error(\sprintf('Unknown service "%s".', $service));
+        io()->note('Available: ' . (implode(', ', $names) ?: '(none)'));
+
+        return;
+    }
+
+    $logPaths = get_container_log_paths($service, $c);
+
+    if (!$logPaths) {
+        io()->warning($service === null
+            ? 'No container of this project exists yet: nothing to clear.'
+            : \sprintf('The "%s" service has no container: nothing to clear.', $service));
+
+        return;
+    }
+
+    $cleared = [];
+
+    foreach ($logPaths as $name => $logPath) {
+        if ('' === $logPath) {
+            // Any driver but "json-file" keeps its logs somewhere else, and
+            // there is no file of ours to empty.
+            io()->note(\sprintf('"%s" does not write its logs to a file, its logging driver keeps them elsewhere.', $name));
+
+            continue;
+        }
+
+        truncate_container_log($logPath, $c);
+        $cleared[] = $name;
+    }
+
+    if (!$cleared) {
+        return;
+    }
+
+    io()->success(\sprintf('Cleared the logs of %s.', implode(', ', $cleared)));
 }
 
 #[AsTask(description: 'Lists containers status', aliases: ['ps'], namespace: 'docker')]

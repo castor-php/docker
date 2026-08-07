@@ -57,6 +57,29 @@ castor docker:logs app
 
 Alias: `castor logs`.
 
+### `castor docker:logs:clear`
+
+Empties the log files docker keeps for the containers, so `docker:logs` starts
+from a clean slate.
+
+```bash
+castor docker:logs:clear          # every container of the project
+castor docker:logs:clear app      # a single service
+```
+
+Nothing is restarted: the file is truncated in place, so a running container
+keeps running and keeps writing to the same stream.
+
+Stopped containers are cleared too, and so are the ones on a profile that is not
+active — their logs are still on disk. A container whose logging driver is not
+`json-file` keeps its logs elsewhere and is reported as skipped.
+
+> [!NOTE]
+> The log file belongs to `root`, and on Docker Desktop it lives inside the VM
+> rather than on your machine. When it cannot be written directly, the task runs
+> a short-lived `--privileged` container to reach it — that is the only way to
+> get at it on Docker Desktop.
+
 ### `castor docker:ps`
 
 Lists the containers and their status. Alias: `castor ps`.
@@ -80,6 +103,24 @@ context variable.
 castor docker:push
 castor docker:push --dry-run
 ```
+
+## Completing a service name
+
+Every task taking a service — `docker:build`, `docker:up`, `docker:stop`,
+`docker:logs` and `docker:logs:clear` — completes it from the compose files of
+the project:
+
+```bash
+castor docker:logs app<TAB>       # app1  app1-builder  app1-worker-messenger
+```
+
+The names are read from `compose.generated.yaml`, `compose.yaml` and
+`compose.override.yaml`, so the services you declare yourself are offered
+alongside the generated ones, and completion answers without a running Docker
+daemon.
+
+Install the shell completion once with `castor completion | source` — see the
+[castor documentation](https://castor.jolicode.com/going-further/interacting-with-castor/autocomplete/).
 
 ## Services
 

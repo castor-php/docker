@@ -33,6 +33,7 @@ use Castor\Docker\Service\DatabaseServiceInterface;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\ContextCreatedEvent;
 use Castor\Event\FunctionsResolvedEvent;
+use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -157,6 +158,52 @@ function get_project_network(?Context $c = null): string
     $c ??= context();
 
     return get_project_name($c) . '_default';
+}
+
+/**
+ * The compose services of this project, read from the generated file and from
+ * the ones the project writes itself.
+ *
+ * Read rather than asked to docker: this feeds the shell completion, which has
+ * to answer instantly and must not need a running daemon.
+ *
+ * @return list<string>
+ */
+function get_compose_service_names(?Context $c = null): array
+{
+    $c ??= context();
+    $names = [];
+
+    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
+        $path = $c->workingDirectory . '/' . $file;
+
+        if (!file_exists($path) || !($content = file_get_contents($path))) {
+            continue;
+        }
+
+        $parsed = yaml_parse($content);
+        $services = \is_array($parsed) && \is_array($parsed['services'] ?? null) ? $parsed['services'] : [];
+
+        foreach (array_keys($services) as $name) {
+            if (\is_string($name)) {
+                $names[$name] = true;
+            }
+        }
+    }
+
+    ksort($names);
+
+    return array_keys($names);
+}
+
+/**
+ * Completion callback for the "service" argument of the docker tasks.
+ *
+ * @return list<string>
+ */
+function autocomplete_service_name(CompletionInput $input): array
+{
+    return get_compose_service_names();
 }
 
 /**
@@ -302,6 +349,82 @@ function docker_exit_code(
     );
 
     return $process->getExitCode() ?? 0;
+}
+
+/**
+ * The log file docker writes for each container of the project, or of one
+ * service, keyed by container name.
+ *
+ * Stopped containers are included: their logs are still there, and still worth
+ * clearing. A container whose logging driver keeps no file — anything but
+ * "json-file" — comes back with an empty path.
+ *
+ * @return array<string, string>
+ */
+function get_container_log_paths(?string $service = null, ?Context $c = null): array
+{
+    $c ??= context();
+
+    $command = ['ps', '--all', '--quiet'];
+
+    if (null !== $service) {
+        $command[] = $service;
+    }
+
+    // Every profile: a container of the "builder" profile has logs too.
+    $ids = array_values(array_filter(array_map(
+        trim(...),
+        explode("\n", trim(docker_compose($command, $c->withQuiet()->withAllowFailure(), profiles: ['*'])->getOutput())),
+    )));
+
+    if (!$ids) {
+        return [];
+    }
+
+    $found = capture(
+        ['docker', 'inspect', '--format', '{{.Name}}{{"\t"}}{{.LogPath}}', ...$ids],
+        context: $c->withQuiet()->withAllowFailure(),
+    );
+
+    $paths = [];
+
+    foreach (explode("\n", trim($found)) as $line) {
+        if ('' === trim($line)) {
+            continue;
+        }
+
+        [$name, $path] = array_pad(explode("\t", $line, 2), 2, '');
+        $paths[ltrim(trim($name), '/')] = trim($path);
+    }
+
+    return $paths;
+}
+
+/**
+ * Empty a container log file in place, so the container keeps running and keeps
+ * the same log stream — "docker logs" simply starts again from nothing.
+ *
+ * The file belongs to root, and on Docker Desktop it does not even exist on
+ * this machine: it lives inside the VM docker runs in. Entering the mount
+ * namespace of the docker host's init covers both cases, and is only used when
+ * writing the file directly is not possible.
+ */
+function truncate_container_log(string $logPath, ?Context $c = null): void
+{
+    $c ??= context();
+
+    if (is_writable($logPath)) {
+        file_put_contents($logPath, '');
+
+        return;
+    }
+
+    run([
+        'docker', 'run', '--rm', '--privileged', '--pid=host',
+        'alpine:3',
+        'nsenter', '-t', '1', '-m', '-u', '-i', '-n', '--',
+        'truncate', '-s', '0', $logPath,
+    ], context: $c->withQuiet());
 }
 
 /**
