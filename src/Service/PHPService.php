@@ -420,25 +420,46 @@ class PHPService implements ServiceInterface
     /**
      * Install a QA tool with castor, then run it inside the container.
      *
-     * The tool is installed on the host, once per project, in the directory the
-     * container mounts — and executed in the container, so the analysis sees
-     * the PHP version, the extensions and the vendor/ the application actually
-     * runs on rather than whichever PHP happens to run castor.
+     * The tool is installed on the host, in the directory the container mounts,
+     * and executed in the container — so the analysis sees the PHP version, the
+     * extensions and the vendor/ the application actually runs on rather than
+     * whichever PHP happens to run castor.
      *
      * @param array<string, string> $dependencies the composer requirements of the tool
      * @param list<string>          $arguments
      */
     protected function runQaTool(string $tool, array $dependencies, array $arguments): int
     {
-        create_tools($tool, $dependencies);
+        $directory = $this->getQaToolInstallation($tool, $dependencies);
 
-        $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $tool . '/vendor/bin/' . $tool;
+        create_tools($directory, $dependencies);
+
+        $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $directory . '/vendor/bin/' . $tool;
 
         return docker_exit_code(
             trim($binary . ' ' . implode(' ', $arguments)),
             $this->getBuilderServiceName(),
             workDir: $this->getBuilderWorkingDirectory(),
         );
+    }
+
+    /**
+     * The directory a tool is installed in, named after what is installed in it.
+     *
+     * One directory per tool would be wrong as soon as a repository holds two
+     * applications: pinning PHPStan 1 on one and 2 on the other, or giving them
+     * different extensions, would make every run reinstall over the previous
+     * one — and leave whichever ran last in place. Keying the directory on the
+     * requirements keeps them apart, and still lets applications asking for the
+     * same thing share a single installation.
+     *
+     * @param array<string, string> $dependencies
+     */
+    protected function getQaToolInstallation(string $tool, array $dependencies): string
+    {
+        ksort($dependencies);
+
+        return $tool . '-' . substr(hash('xxh128', json_encode($dependencies, \JSON_THROW_ON_ERROR)), 0, 8);
     }
 
     /**
