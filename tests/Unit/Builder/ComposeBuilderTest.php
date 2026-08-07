@@ -78,9 +78,9 @@ final class ComposeBuilderTest extends TestCase
         $builder = new ComposeBuilder();
 
         $builder
-            ->service('app')->withHttpRouting(['app.demo.test', 'demo.test'])->end()
+            ->service('app')->withHttpRouting(['app.demo.test', 'demo.test'], 80)->end()
             // Already routed by "app": the domain is only returned once.
-            ->service('api')->withHttpRouting(['api.demo.test', 'demo.test'])->end()
+            ->service('api')->withHttpRouting(['api.demo.test', 'demo.test'], 80)->end()
             ->service('postgres')
         ;
 

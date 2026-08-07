@@ -187,12 +187,18 @@ final class ServiceBuilder
      * Expose the service over HTTP/HTTPS through the Caddy router
      * (caddy-docker-proxy) by emitting the matching Docker labels.
      *
+     * The port is required. Left out, caddy-docker-proxy resolves "{{upstreams}}"
+     * against whatever the image happens to expose — the first of several, or
+     * port 80 when it exposes nothing — which routes to the wrong one silently
+     * and answers 502. Naming it is the only way to be sure.
+     *
      * @param string|array<string> $domain
+     * @param int                  $port   the port the service listens on inside the container
      */
-    public function withHttpRouting(string|array $domain, ?int $port = null, bool $allowHttpAccess = false): self
+    public function withHttpRouting(string|array $domain, int $port, bool $allowHttpAccess = false): self
     {
         $domains = \is_array($domain) ? $domain : [$domain];
-        $upstream = $port !== null ? \sprintf('{{upstreams %d}}', $port) : '{{upstreams}}';
+        $upstream = \sprintf('{{upstreams %d}}', $port);
 
         foreach ($domains as $routedDomain) {
             if (!\in_array($routedDomain, $this->routedDomains, true)) {

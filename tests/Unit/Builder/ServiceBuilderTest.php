@@ -81,12 +81,12 @@ final class ServiceBuilderTest extends TestCase
     public function testHttpRoutingMultipleDomains(): void
     {
         $labels = $this->service()
-            ->withHttpRouting(['app.demo.test', 'demo.test'])
+            ->withHttpRouting(['app.demo.test', 'demo.test'], 80)
             ->toArray()['labels']
         ;
 
         static::assertContains('caddy=app.demo.test demo.test', $labels);
-        static::assertContains('caddy.reverse_proxy={{upstreams}}', $labels);
+        static::assertContains('caddy.reverse_proxy={{upstreams 80}}', $labels);
     }
 
     public function testHttpRoutingWithHttpAccess(): void
@@ -181,8 +181,8 @@ final class ServiceBuilderTest extends TestCase
     public function testRoutedDomainsAreRemembered(): void
     {
         $service = $this->service()
-            ->withHttpRouting(['app.demo.test', 'demo.test'])
-            ->withHttpRouting('app.demo.test')
+            ->withHttpRouting(['app.demo.test', 'demo.test'], 80)
+            ->withHttpRouting('app.demo.test', 80)
         ;
 
         static::assertSame(['app.demo.test', 'demo.test'], $service->getRoutedDomains());

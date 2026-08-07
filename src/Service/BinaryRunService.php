@@ -49,6 +49,9 @@ class BinaryRunService implements ServiceInterface
 
     protected ?string $image = null;
 
+    /** The compose restart policy, left to docker's default when null. */
+    protected ?string $restart = null;
+
     /** @var list<string> */
     protected array $runCommand = [];
 
@@ -85,6 +88,22 @@ class BinaryRunService implements ServiceInterface
     {
         $this->builder = $builder;
         $this->appName = $app;
+
+        return $this;
+    }
+
+    /**
+     * The restart policy of the container: "no", "on-failure",
+     * "on-failure:10", "always" or "unless-stopped".
+     *
+     * A binary that exits — because a dependency was not up yet, because it
+     * panicked — otherwise stays down until someone notices, since nothing
+     * watches it. "on-failure" brings it back without fighting a deliberate
+     * "docker:stop", which "always" would.
+     */
+    public function withRestart(string $policy = 'on-failure'): static
+    {
+        $this->restart = $policy;
 
         return $this;
     }
@@ -146,6 +165,10 @@ class BinaryRunService implements ServiceInterface
                 ->workingDir($this->getContainerWorkingDirectory($mountPoint))
                 ->command([$this->joinPath($mountPoint, $this->binaryPath), ...$this->runCommand])
         ;
+
+        if (null !== $this->restart) {
+            $service->restart($this->restart);
+        }
 
         $this->applyEnvironment($service);
         $this->applyHttpRouting($service);

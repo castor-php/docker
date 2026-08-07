@@ -177,9 +177,16 @@ binary, a Go one, or anything else.
     ->withImage('debian:13-slim')              // override the image
     ->withRunCommand(['--listen', '0.0.0.0:18089'])
     ->withEnvironment('BACKEND_URL', 'https://backend.project.test')
+    ->withRestart('on-failure')                // or unless-stopped, always, no
     ->withDomain('agent.project.test')
     ->withPort(8080)
 ```
+
+Nothing watches a binary that exits — because a dependency was not up yet,
+because it panicked — so without a restart policy it stays down until someone
+notices. `withRestart()` defaults to `on-failure`, which brings it back without
+fighting a deliberate `castor docker:stop` the way `always` would. There is no
+policy unless you ask for one.
 
 The constructor takes the service name and the binary path, relative to the
 mounted directory.

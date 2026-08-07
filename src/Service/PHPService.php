@@ -19,6 +19,7 @@ use function Castor\Docker\docker_compose;
 use function Castor\Docker\docker_compose_run;
 use function Castor\io;
 use function Castor\Docker\docker_exit_code;
+use function Castor\Docker\interactive_context;
 use function Castor\PHPQa\create_tools;
 use function Castor\context;
 
@@ -355,9 +356,9 @@ class PHPService implements ServiceInterface
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
             'function' => function (#[AsRawTokens] array $args): void {
                 if (!$args) {
-                    $this->runInBuilder('bash', c: context()->toInteractive());
+                    $this->runInBuilder('bash', c: interactive_context());
                 } else {
-                    $this->runInBuilder(implode(' ', $args), c: context()->toInteractive());
+                    $this->runInBuilder(implode(' ', $args), c: interactive_context());
                 }
             },
         ];

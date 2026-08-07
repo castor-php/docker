@@ -51,7 +51,7 @@ services:
             - 'redis-insight-data:/db'
         labels:
             - caddy=redis.demo.test
-            - 'caddy.reverse_proxy={{upstreams}}'
+            - 'caddy.reverse_proxy={{upstreams 5540}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
         profiles:
@@ -76,7 +76,7 @@ services:
             - 'sessions-insight-data:/db'
         labels:
             - caddy=sessions.demo.test
-            - 'caddy.reverse_proxy={{upstreams}}'
+            - 'caddy.reverse_proxy={{upstreams 5540}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
         profiles:

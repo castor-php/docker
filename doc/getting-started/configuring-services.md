@@ -107,6 +107,15 @@ works whatever the call order is:
 ->withDomain('app.test')->withDomain('www.app.test')
 ```
 
+`withPort()` names the port the service listens on inside the container, and
+the routing labels always carry it — routing without one would let the router
+pick whichever port the image exposes, and answer 502 when it guesses wrong.
+Services that listen somewhere other than their default say so:
+
+```php
+(new RustService('api'))->withPort(18089)->withDomain('api.project.test')
+```
+
 A service with at least one domain gets the `caddy.*` labels the
 [router](../services/router.md) turns into routes. HTTPS is served with an
 on-demand, locally-trusted certificate, and plain HTTP redirects to it. Call

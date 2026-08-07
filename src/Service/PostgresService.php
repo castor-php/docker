@@ -13,6 +13,7 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
+use function Castor\Docker\interactive_context;
 use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface
@@ -52,7 +53,7 @@ class PostgresService implements DatabaseServiceInterface
         yield [
             'task' => new AsTask('client', $this->getName(), 'Open a psql session on the database'),
             'function' => function (): void {
-                docker_compose(['exec', $this->getName(), 'psql', '-U', 'app', 'app'], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'psql', '-U', 'app', 'app'], c: interactive_context());
             },
         ];
 

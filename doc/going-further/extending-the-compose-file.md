@@ -123,6 +123,15 @@ $builder->config('my.conf', $content);          // an inline config, mounted wit
 $builder->service('name');                      // get or create a service, returns a ServiceBuilder
 ```
 
+`withHttpRouting()` takes the port as its **second, required** argument. Left
+out, caddy-docker-proxy would resolve `{{upstreams}}` against whatever the image
+happens to expose — the first of several, or port 80 when it exposes nothing —
+which routes to the wrong one silently and answers 502:
+
+```php
+$builder->service('adminer')->withHttpRouting('adminer.myproject.test', 8080);
+```
+
 `ServiceBuilder` covers what the plugin's own services need — `image()`,
 `build()`, `environment()`, `volume()`, `port()`, `command()`, `user()`,
 `init()`, `workingDir()`, `label()`, `profile()`, `dependsOn()`,

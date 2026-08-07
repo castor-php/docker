@@ -223,6 +223,29 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         ));
     }
 
+    /**
+     * Nothing watches a binary that exits, so a restart policy is the only
+     * thing bringing it back — but it stays opt-in, since it also fights a
+     * deliberate "docker:stop" when set to "always".
+     */
+    public function testBinaryRunServiceRestartPolicy(): void
+    {
+        $compose = $this->build(
+            (new BinaryRunService('agent', 'bin/agent'))->withDirectory('/project')->withImage('alpine:3'),
+        );
+        static::assertArrayNotHasKey('restart', $compose['services']['agent']);
+
+        $compose = $this->build(
+            (new BinaryRunService('agent', 'bin/agent'))->withDirectory('/project')->withImage('alpine:3')->withRestart(),
+        );
+        static::assertSame('on-failure', $compose['services']['agent']['restart']);
+
+        $compose = $this->build(
+            (new BinaryRunService('agent', 'bin/agent'))->withDirectory('/project')->withImage('alpine:3')->withRestart('unless-stopped'),
+        );
+        static::assertSame('unless-stopped', $compose['services']['agent']['restart']);
+    }
+
     public function testPhpMinimal(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(

@@ -18,6 +18,7 @@ use Castor\Docker\Service\Builder\ServiceBuilder;
 use function Castor\context;
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\docker_compose_run;
+use function Castor\Docker\interactive_context;
 use function Castor\io;
 use function Castor\watch;
 
@@ -333,7 +334,7 @@ class RustService implements ServiceInterface
         return [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the Rust container'),
             'function' => function (): void {
-                $this->runInBuilder('bash', context()->toInteractive());
+                $this->runInBuilder('bash', interactive_context());
             },
         ];
     }

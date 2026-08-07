@@ -333,6 +333,31 @@ function get_project_domains(?Context $c = null): array
 }
 
 /**
+ * A context for a command that wants a terminal — a shell, a database session.
+ *
+ * castor's toInteractive() throws when the surrounding environment is not
+ * interactive, which is right for a task that would otherwise hang waiting on a
+ * terminal nobody is watching. It is too strict here: "castor app:bash" with
+ * something piped into it, or with its output piped somewhere, is a scripted
+ * shell and works perfectly well without a TTY — it just must not ask for one.
+ *
+ * So the interactive flags are only requested when they can be honoured. What
+ * the rest of toInteractive() does is kept either way: no timeout, since a
+ * session lasts as long as the user wants, and a non-zero exit is how a shell
+ * reports the last command rather than a failure of the task.
+ */
+function interactive_context(?Context $c = null): Context
+{
+    $c ??= context();
+
+    if ($c->supportsInteraction()) {
+        return $c->toInteractive();
+    }
+
+    return $c->withTimeout(null)->withAllowFailure();
+}
+
+/**
  * The progress writer to give compose for a one-off command.
  *
  * Every "docker compose run" announces the throwaway container it creates —

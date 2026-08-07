@@ -100,6 +100,11 @@
   by default and is skipped with `--no-tidy`. Takes a module name to update a
   single one, and `--patch` to stay inside the current minor version. It runs in
   the builder container, so on the Go version the module is compiled with.
+* `BinaryRunService::withRestart()`, setting the compose restart policy —
+  `on-failure` by default. Nothing watches a binary that exits, so without one
+  it stays down until someone notices; `on-failure` brings it back without
+  fighting a deliberate `docker:stop` the way `always` would. Absent unless
+  asked for.
 * `RustBuilder::withNightlyFormatter()`, which installs the nightly toolchain
   with its rustfmt in the image and points the `fmt` task of every application
   at it, leaving `build`, `test`, `cargo` and `qa:clippy` on the default
@@ -141,6 +146,19 @@
 
 ### Changed
 
+* **`ServiceBuilder::withHttpRouting()` requires the port.** Without one it
+  emitted a bare `{{upstreams}}`, which caddy-docker-proxy resolves against
+  whatever the image happens to expose — the first of several, or port 80 when
+  it exposes nothing — routing to the wrong port silently and answering 502.
+  Every call now names it, `RedisService` included: the RedisInsight UI listens
+  on 5540 and was relying on that guess. Pass the port to any
+  `withHttpRouting()` of your own.
+* `{service}:bash`, and the database sessions, no longer fail outright when the
+  environment has no terminal. They asked castor for an interactive context
+  unconditionally, and that throws a `LogicException` on a pipe, in CI or under
+  an agent — so `castor app:bash < script.sh` could not work. The interactive
+  flags are now only requested when they can be honoured; without a terminal the
+  command still runs on whatever is piped into it.
 * **The QA tasks now run inside the builder container.** `{app}:qa:phpstan`,
   `{app}:qa:cs`, `{app}:qa:rector` and `{app}:qa:twig-cs` used to run on the
   host, against whichever PHP happens to run castor — a different version, and

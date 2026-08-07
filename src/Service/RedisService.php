@@ -54,7 +54,7 @@ class RedisService implements ServiceInterface
             ->service($insight)
                 ->image('redislabs/redisinsight')
                 ->volume($insight . '-data', '/db')
-                ->withHttpRouting("{$name}.{$rootDomain}")
+                ->withHttpRouting("{$name}.{$rootDomain}", 5540)
                 ->profile('default')
             ->end()
         ;

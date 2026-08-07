@@ -16,6 +16,7 @@ use Castor\Docker\Service\Builder\ServiceBuilder;
 
 use function Castor\context;
 use function Castor\Docker\docker_compose_run;
+use function Castor\Docker\interactive_context;
 
 /**
  * A compiler container: it holds the toolchain, mounts the sources, and runs
@@ -205,7 +206,7 @@ abstract class AbstractBuilderService implements ServiceInterface
         return [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the ' . $this->name . ' container'),
             'function' => function (): void {
-                $this->run('bash', c: context()->toInteractive());
+                $this->run('bash', c: interactive_context());
             },
         ];
     }

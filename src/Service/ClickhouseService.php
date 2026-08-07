@@ -13,6 +13,7 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
+use function Castor\Docker\interactive_context;
 use function Castor\context;
 
 class ClickhouseService implements ServiceInterface
@@ -109,7 +110,7 @@ class ClickhouseService implements ServiceInterface
         yield [
             'task' => new AsTask('client', $this->getName(), 'Open a clickhouse-client session on the database'),
             'function' => function (): void {
-                docker_compose(['exec', $this->getName(), 'clickhouse-client', '-d', $this->database], c: context()->toInteractive());
+                docker_compose(['exec', $this->getName(), 'clickhouse-client', '-d', $this->database], c: interactive_context());
             },
         ];
 
