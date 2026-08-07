@@ -10,9 +10,13 @@ Add background processes to a PHP application with `addWorker()`:
 ```php
 (new SymfonyService('app'))
     ->withDirectory(__DIR__)
-    ->addWorker('messenger', 'php bin/console messenger:consume async --time-limit=3600')
+    ->addWorker('messenger', 'php bin/console messenger:consume async --time-limit=3600', 'unless-stopped')
     ->addWorker('notifications', 'php bin/console app:process-notifications')
 ```
+
+The third argument is the compose restart policy of that container —
+`unless-stopped`, `on-failure`, `always`, `no`. There is none by default: a
+worker that exits stays down until the next `castor docker:up`.
 
 Each worker runs in its own container, named `app-worker-{name}`, built from the
 `worker` target of the application image. Workers share the application's
@@ -49,6 +53,24 @@ The containers stay reachable by name for everything else:
 castor docker:logs app-worker-messenger
 ```
 
-> [!TIP]
-> Give your consumers a `--time-limit` or `--memory-limit`: the container
-> restarts them, which keeps long-running PHP processes healthy.
+## Keeping a consumer alive
+
+Give your consumers a `--time-limit` or a `--memory-limit`: a long-running PHP
+process accumulates memory, and letting it stop on its own terms beats letting
+it grow.
+
+That only keeps them running if something brings the container back, and that
+is the restart policy:
+
+```php
+->addWorker('messenger', 'php bin/console messenger:consume async --time-limit=3600', 'unless-stopped')
+```
+
+> [!IMPORTANT]
+> Reaching a `--time-limit` or a `--memory-limit` is a **successful** exit, so
+> `on-failure` does not bring the worker back — it only reacts to a non-zero
+> one. Use `unless-stopped` for a consumer meant to run forever.
+
+`unless-stopped` rather than `always`: it honours `castor app:worker:stop`,
+where `always` would start the container again the next time the Docker daemon
+does.

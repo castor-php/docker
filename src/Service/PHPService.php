@@ -39,7 +39,7 @@ class PHPService implements ServiceInterface
     private array $phpStanExtraDependencies = [];
 
     /**
-     * @var array<string, string>
+     * @var array<string, array{command: string, restart: ?string}>
      */
     private array $workers = [];
 
@@ -115,9 +115,22 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
-    public function addWorker(string $name, string $command): static
+    /**
+     * Run $command in a container of its own, next to the application.
+     *
+     * $restart is the compose restart policy of that container — "on-failure",
+     * "unless-stopped", "always", "no". There is none by default, which means a
+     * worker that exits stays down until the next "docker:up".
+     *
+     * A consumer given "--time-limit" or "--memory-limit" exits *successfully*
+     * when it reaches one, so bringing it back needs "unless-stopped" rather
+     * than "on-failure" — the latter only reacts to a non-zero exit. Prefer
+     * "unless-stopped" over "always": it honours "castor {app}:worker:stop"
+     * instead of fighting it.
+     */
+    public function addWorker(string $name, string $command, ?string $restart = null): static
     {
-        $this->workers[$name] = $command;
+        $this->workers[$name] = ['command' => $command, 'restart' => $restart];
 
         return $this;
     }
@@ -311,7 +324,7 @@ class PHPService implements ServiceInterface
             ;
         }
 
-        foreach ($this->workers as $workerName => $command) {
+        foreach ($this->workers as $workerName => $worker) {
             $workerService = $builder
                 ->service($this->getWorkerServiceName($workerName))
                     ->build($buildBuilder)
@@ -321,9 +334,13 @@ class PHPService implements ServiceInterface
                     ->user("{$userId}:{$userId}")
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
                     ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
-                    ->command($command)
+                    ->command($worker['command'])
                     ->profile('default')
             ;
+
+            if (null !== $worker['restart']) {
+                $workerService->restart($worker['restart']);
+            }
 
             if ('.' !== $this->workingDirectory) {
                 $workerService->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT));

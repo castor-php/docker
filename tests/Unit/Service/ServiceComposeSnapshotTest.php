@@ -224,6 +224,25 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     }
 
     /**
+     * A consumer given "--time-limit" exits successfully when it reaches it, so
+     * without a policy the container stays down until the next "docker:up" —
+     * and "on-failure" would not bring it back either, since the exit was a
+     * success.
+     */
+    public function testWorkerRestartPolicy(): void
+    {
+        $compose = $this->build(
+            (new PHPService('app'))
+                ->withDirectory('/project')
+                ->addWorker('scheduler', 'php bin/console schedule:run')
+                ->addWorker('messenger', 'php bin/console messenger:consume async --time-limit=3600', 'unless-stopped'),
+        );
+
+        static::assertArrayNotHasKey('restart', $compose['services']['app-worker-scheduler']);
+        static::assertSame('unless-stopped', $compose['services']['app-worker-messenger']['restart']);
+    }
+
+    /**
      * Nothing watches a binary that exits, so a restart policy is the only
      * thing bringing it back — but it stays opt-in, since it also fights a
      * deliberate "docker:stop" when set to "always".

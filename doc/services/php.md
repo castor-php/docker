@@ -20,7 +20,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withDomain('app.example.test', 'example.test')
     ->withHttpAccess()               // Also serve plain HTTP, without redirecting to HTTPS
     ->addExtension('redis')          // Adds "php{version}-redis" (fpm) or the FrankenPHP equivalent
-    ->addWorker('messenger', 'php bin/console messenger:consume async')
+    ->addWorker('messenger', 'php bin/console messenger:consume async', 'unless-stopped')
     ->withFrankenPhpWorkerMode('public/index.php', num: 4)
 ```
 

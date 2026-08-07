@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-08-07
 
 ### Added
 
@@ -100,6 +100,12 @@
   by default and is skipped with `--no-tidy`. Takes a module name to update a
   single one, and `--patch` to stay inside the current minor version. It runs in
   the builder container, so on the Go version the module is compiled with.
+* A restart policy for the PHP workers, as a third argument of `addWorker()`.
+  Nothing brought a worker back when it exited, so a consumer given the
+  `--time-limit` the documentation recommends ran once and stayed down until the
+  next `docker:up`. Reaching that limit is a *successful* exit, so it wants
+  `unless-stopped` rather than `on-failure`. There is still no policy unless
+  asked for.
 * `BinaryRunService::withRestart()`, setting the compose restart policy —
   `on-failure` by default. Nothing watches a binary that exits, so without one
   it stays down until someone notices; `on-failure` brings it back without
