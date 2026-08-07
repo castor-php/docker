@@ -180,11 +180,11 @@ They are installed in `.castor/vendor/.tools/`, which the builder container
 mounts at `/castor-tools`. Nothing is added to the image, so changing a tool
 version does not mean rebuilding it.
 
-Each installation is named after what it contains — `phpstan-a1b2c3d4`, keyed on
-the version and the extra dependencies. Two applications of the same repository
-pinning different versions therefore get one installation each, instead of
-reinstalling over each other on every run; two asking for the same thing share a
-single one.
+Each application gets its own installation, named after it — `app-phpstan`,
+`backend-rector`. Two applications of the same repository pinning different
+versions therefore keep one each, instead of reinstalling over each other on
+every run, and bumping a version reinstalls in place rather than leaving the
+previous one behind.
 
 Each task forwards its arguments, and returns the tool's exit code:
 

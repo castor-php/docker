@@ -430,7 +430,7 @@ class PHPService implements ServiceInterface
      */
     protected function runQaTool(string $tool, array $dependencies, array $arguments): int
     {
-        $directory = $this->getQaToolInstallation($tool, $dependencies);
+        $directory = $this->getQaToolInstallation($tool);
 
         create_tools($directory, $dependencies);
 
@@ -444,22 +444,18 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The directory a tool is installed in, named after what is installed in it.
+     * The directory a tool is installed in: one per application, per tool.
      *
-     * One directory per tool would be wrong as soon as a repository holds two
-     * applications: pinning PHPStan 1 on one and 2 on the other, or giving them
-     * different extensions, would make every run reinstall over the previous
-     * one — and leave whichever ran last in place. Keying the directory on the
-     * requirements keeps them apart, and still lets applications asking for the
-     * same thing share a single installation.
-     *
-     * @param array<string, string> $dependencies
+     * A single directory per tool would be wrong as soon as a repository holds
+     * two applications — pinning PHPStan 1 on one and 2 on the other would make
+     * every run reinstall over the previous one, and leave whichever ran last
+     * in place. Naming it after the application keeps them apart, and keeps the
+     * name stable: bumping a version reinstalls in place instead of leaving the
+     * previous installation behind forever.
      */
-    protected function getQaToolInstallation(string $tool, array $dependencies): string
+    protected function getQaToolInstallation(string $tool): string
     {
-        ksort($dependencies);
-
-        return $tool . '-' . substr(hash('xxh128', json_encode($dependencies, \JSON_THROW_ON_ERROR)), 0, 8);
+        return $this->name . '-' . $tool;
     }
 
     /**
