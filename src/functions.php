@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Castor\Docker;
 
 use Castor\Attribute\AsListener;
+use Castor\Console\Output\VerbosityLevel;
 use Castor\Container;
 use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
@@ -74,8 +75,10 @@ function get_default_profiles(?Context $c = null): array
 /**
  * @param list<string> $subCommand
  * @param list<string> $profiles
+ * @param ?string      $progress    one of compose's progress writers — "auto", "tty",
+ *                                  "plain", "json" or "quiet" — left to compose when null
  */
-function docker_compose(array $subCommand, ?Context $c = null, array $profiles = []): Process
+function docker_compose(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): Process
 {
     $c ??= context();
     $profiles = $profiles ?: get_default_profiles($c);
@@ -93,6 +96,11 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         'docker',
         'compose',
     ];
+
+    if (null !== $progress) {
+        $command[] = '--progress';
+        $command[] = $progress;
+    }
 
     foreach ($profiles as $profile) {
         $command[] = '--profile';
@@ -315,6 +323,21 @@ function get_project_domains(?Context $c = null): array
 }
 
 /**
+ * The progress writer to give compose for a one-off command.
+ *
+ * Every "docker compose run" announces the throwaway container it creates —
+ * "Container app-builder-run-8c9d8bef Creating", then "Created" — which is
+ * noise in front of the output of the command you actually asked for. Silenced
+ * unless the user asked for more output, where it becomes useful again.
+ */
+function get_compose_progress(?Context $c = null): ?string
+{
+    $c ??= context();
+
+    return $c->verbosityLevel->value > VerbosityLevel::NORMAL->value ? null : 'quiet';
+}
+
+/**
  * Run a one-off command in a service container ("docker compose run --rm").
  *
  * @param array<string, string> $environment extra variables, passed as "-e KEY=VALUE"
@@ -370,7 +393,7 @@ function docker_compose_run(
     $command[] = "exec {$runCommand}";
 
     try {
-        return docker_compose($command, c: $c);
+        return docker_compose($command, c: $c, progress: get_compose_progress($c));
     } catch (ExceptionInterface $e) {
         // The process exception only names "docker compose", which says nothing
         // about which container the command actually broke in.

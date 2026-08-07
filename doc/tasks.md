@@ -206,3 +206,8 @@ A failing command raises a `RuntimeException` naming the service and the command
 that broke, instead of the bare `docker compose` error. Use
 `docker_exit_code()`, which takes the same arguments, when you want the exit
 code rather than an exception.
+
+Compose announces the throwaway container each run creates —
+`Container app-builder-run-8c9d8bef Creating`, then `Created` — in front of the
+output you asked for. Those lines are silenced, and come back as soon as you run
+a task with `-v`.

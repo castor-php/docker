@@ -147,6 +147,11 @@
   behaviour traits' properties are `protected` too.
 * `docker_exit_code()` now forwards `portMapping` to `docker_compose_run()`,
   which it silently dropped.
+* `docker_compose_run()` no longer prints the two lines compose emits for the
+  throwaway container it creates — `Container app-builder-run-8c9d8bef
+  Creating`, then `Created` — in front of the output of the command asked for.
+  They come back with `-v`, where knowing which container ran is the point.
+  `docker_compose()` takes a `progress` argument for the same purpose.
 * **The tasks of a named service are now called `{service}:{task}`.** The
   database sessions moved out of the shared `db:` namespace and are named after
   what they do rather than after the client they run: `db:psql` is now
