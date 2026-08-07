@@ -15,9 +15,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 
-use function Castor\capture;
 use function Castor\context;
-use function Castor\exit_code;
 use function Castor\io;
 use function Castor\variable;
 use function Castor\run;

@@ -3,7 +3,7 @@
     "description": "Castor plugin for docker",
     "type": "library",
     "require-dev": {
-        "jolicode/castor": "^1.1",
+        "jolicode/castor": "^1.7",
         "phpunit/phpunit": "^13.2",
         "twig/twig": "^3.28"
     },

@@ -6,7 +6,6 @@ namespace Castor\Docker;
 
 use Castor\Attribute\AsListener;
 use Castor\Console\Output\VerbosityLevel;
-use Castor\Container;
 use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
 use Castor\Docker\Attribute\AsDockerComposeBuilder;
@@ -43,6 +42,7 @@ use Symfony\Component\Yaml\Yaml;
 
 use function Castor\capture;
 use function Castor\context;
+use function Castor\dispatch;
 use function Castor\fs;
 use function Castor\get_cache;
 use function Castor\input;
@@ -714,25 +714,6 @@ function initialize_project(Context $context): Context
 function collect_services(): array
 {
     return dispatch(new RegisterServiceEvent())->services;
-}
-
-/**
- * Dispatch an event on castor's dispatcher and return it.
- *
- * Castor exposes no public way to dispatch an event: reaching for the container
- * is the only way in, and doing it here keeps that to a single place.
- *
- * @template T of object
- *
- * @param T $event
- *
- * @return T
- */
-function dispatch(object $event): object
-{
-    Container::get()->eventDispatcher->dispatch($event);
-
-    return $event;
 }
 
 /**
