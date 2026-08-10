@@ -64,6 +64,36 @@ function get_router_image(): string
 }
 
 /**
+ * The socket of the Docker daemon the projects run on, which the router has to
+ * watch to see their "caddy.*" labels.
+ *
+ * Not always /var/run/docker.sock: a CI job installing a daemon of its own, a
+ * rootless daemon and Colima all put theirs somewhere else, and the daemon of
+ * /var/run/docker.sock may then be a *different* one — where the containers of
+ * the project do not exist. The router would come up, see no label at all and
+ * serve nothing, refusing the connections on 443 rather than failing outright.
+ *
+ * DOCKER_SOCKET_PATH is the convention such setups export; DOCKER_HOST is what
+ * the Docker CLI itself reads, and only a unix one can be bind-mounted.
+ */
+function get_docker_socket_path(): string
+{
+    $socket = $_SERVER['DOCKER_SOCKET_PATH'] ?? null;
+
+    if (\is_string($socket) && '' !== $socket) {
+        return $socket;
+    }
+
+    $host = $_SERVER['DOCKER_HOST'] ?? null;
+
+    if (\is_string($host) && str_starts_with($host, 'unix://')) {
+        return substr($host, \strlen('unix://'));
+    }
+
+    return '/var/run/docker.sock';
+}
+
+/**
  * Ensure the global router compose file exists and is up to date.
  */
 function ensure_router_compose(): void
@@ -109,7 +139,7 @@ function ensure_router_compose(): void
                 'volumes' => [
                     // caddy-docker-proxy watches the Docker socket to build its
                     // configuration from the "caddy.*" labels of the services.
-                    '/var/run/docker.sock:/var/run/docker.sock',
+                    get_docker_socket_path() . ':/var/run/docker.sock',
                     // Persist issued certificates and the local CA between restarts.
                     'router-data:/data',
                     "{$certsDir}:/certs:cached",
@@ -337,6 +367,19 @@ function router_enable(): void
     // Create the compose file
     ensure_router_compose();
     io()->comment('Router compose file created at: ' . get_router_compose_file());
+
+    $socket = get_docker_socket_path();
+
+    // A router watching a socket that is not there sees no service of any
+    // project, and answers nothing on 443 — with only "connection refused" on
+    // the caller's side to go by. Say it here instead.
+    if (!file_exists($socket)) {
+        io()->warning([
+            \sprintf('The Docker socket %s does not exist.', $socket),
+            'The router builds its routes from the labels it reads there, so it will serve nothing at all.',
+            'Set DOCKER_SOCKET_PATH to the socket of the daemon your projects run on.',
+        ]);
+    }
 
     // Install certificates if mkcert is available
     install_certificate_authority();

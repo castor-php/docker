@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.2 - 2026-08-10
+
+### Fixed
+
+* The router watches the Docker socket of the daemon the projects run on, rather
+  than always `/var/run/docker.sock`. It builds its routes from the `caddy.*`
+  labels it reads there, and a CI job installing a daemon of its own — as the
+  `docker/setup-docker-action` family does — a rootless daemon or Colima all put
+  their socket somewhere else. Watching the wrong one is silent: the router comes
+  up, finds no label, serves nothing, and every routed domain answers "connection
+  refused" on 443 — which then reads as a plain 404 from anything calling a
+  project's own API through it. `DOCKER_SOCKET_PATH` is read first, then a
+  `unix://` `DOCKER_HOST`; `docker:router:enable` also warns when the socket it
+  resolved does not exist.
+
 ## 0.3.1 - 2026-08-10
 
 ### Fixed

@@ -110,6 +110,25 @@ The router handles HTTP and HTTPS only: raw TCP protocols cannot be
 hostname-routed, use [`{service}:expose`](../tasks.md#exposing-a-service-over-tcp)
 for those.
 
+### The Docker socket it watches
+
+The routes come from the `caddy.*` labels the router reads on the Docker socket,
+so it has to watch the socket of the daemon your projects actually run on —
+`/var/run/docker.sock` by default.
+
+When that is not the right one — a CI job installing a daemon of its own, a
+rootless daemon, Colima — export `DOCKER_SOCKET_PATH`, or set a `unix://`
+`DOCKER_HOST`, before `docker:router:enable`:
+
+```bash
+DOCKER_SOCKET_PATH=/run/user/1000/docker.sock castor docker:router:enable
+```
+
+Watching the wrong daemon is silent: the router comes up, finds no label to
+build a route from, and serves nothing — every domain then answers "connection
+refused" on 443. `docker:router:enable` warns when the socket does not exist at
+all.
+
 ## Certificates
 
 Caddy provisions TLS certificates **on demand**: the first time a domain is
