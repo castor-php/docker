@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.1 - 2026-08-10
+
+### Fixed
+
+* The `{app}:qa:phpstan`, `{app}:qa:cs` and `{app}:qa:rector` tasks let the
+  configuration of the application decide what is analysed. They used to pass a
+  path by default — the application directory for PHPStan, its `src/` for the two
+  others — and none of these tools treats a path on the command line as a
+  restriction of its configured paths: it *replaces* them. PHPStan only falls
+  back to `parameters.paths` when the command line names none, PHP CS Fixer
+  ignores the finder of its configuration unless asked for
+  `--path-mode=intersection`, and Rector does the same with `withPaths()`. So an
+  application whose `phpstan.neon` says `paths: [src]` was analysed whole,
+  `vendor/` and `var/` included — while PHPStan still reported that
+  configuration file as used, because everything else in it did apply — and a
+  PHP CS Fixer finder covering `tests/`, `config/` and `migrations/` was cut down
+  to `src/`. The tasks now name no path at all when the working directory of the
+  application holds a configuration file the tool discovers on its own
+  (`phpstan.neon` & co, `.php-cs-fixer.php`, `.php-cs-fixer.dist.php`,
+  `rector.php`), and keep the previous fallback for an application that
+  configures nothing. Arguments passed to the task still win over both.
+
 ## 0.3.0 - 2026-08-07
 
 ### Added

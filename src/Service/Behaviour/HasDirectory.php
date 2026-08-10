@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service\Behaviour;
 
+use Castor\Context;
+
 /**
  * For application services whose sources are mounted from a directory of the
  * project.
@@ -64,6 +66,22 @@ trait HasDirectory
     protected function getHostWorkingDirectory(): string
     {
         return $this->joinPath($this->getDirectory(), $this->workingDirectory);
+    }
+
+    /**
+     * The working directory as seen from the host, as an absolute path: a
+     * withDirectory() left out or given a relative path is relative to the
+     * project, which only the context knows about.
+     */
+    protected function getAbsoluteHostWorkingDirectory(Context $context): string
+    {
+        $directory = $this->getDirectory();
+
+        if (!str_starts_with($directory, '/')) {
+            $directory = $this->joinPath($context->workingDirectory, $directory);
+        }
+
+        return $this->joinPath($directory, $this->workingDirectory);
     }
 
     /**

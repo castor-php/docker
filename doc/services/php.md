@@ -193,6 +193,22 @@ castor app:qa:phpstan --level=8 src
 castor app:qa:cs --dry-run
 ```
 
+**What gets analysed** is the tool's own business whenever the application
+configures it. A `phpstan.neon`, a `.php-cs-fixer.php` or a `rector.php` in the
+working directory of the application means the task runs the tool with no path
+at all, so the `paths` of your PHPStan configuration, the finder of your PHP CS
+Fixer one and the `withPaths()` of your Rector one are what decide.
+
+That is not a detail: none of these tools treats a path on the command line as a
+restriction of its configured paths, it *replaces* them. Passing the application
+directory by default would analyse `vendor/` and `var/` along with the sources of
+an application whose `phpstan.neon` says `paths: [src]` — while still reporting
+that configuration file as used, since everything else in it does apply.
+
+Only an application configuring nothing gets a path from the plugin: the
+application directory for PHPStan, its `src/` for PHP CS Fixer and Rector, which
+write rather than report.
+
 > [!NOTE]
 > Composer resolves the tools against the PHP version running castor, not the
 > one in the container, so the version it picks has to be able to run on both.

@@ -65,6 +65,16 @@ class PHPService implements ServiceInterface
     protected const QA_TOOLS_MOUNT_POINT = '/castor-tools';
 
     /**
+     * The configuration file names each QA tool discovers on its own, in the
+     * directory it runs in.
+     */
+    protected const QA_TOOLS_CONFIGURATION_FILES = [
+        'phpstan' => ['.phpstan.neon', 'phpstan.neon', '.phpstan.neon.dist', 'phpstan.neon.dist', '.phpstan.dist.neon', 'phpstan.dist.neon'],
+        'php-cs-fixer' => ['.php-cs-fixer.php', '.php-cs-fixer.dist.php'],
+        'rector' => ['rector.php'],
+    ];
+
+    /**
      * The application whose builder container this one uses, or false when no
      * builder container is generated at all. Null means "generate my own".
      */
@@ -403,7 +413,7 @@ class PHPService implements ServiceInterface
                 return $this->runQaTool(
                     'phpstan',
                     ['phpstan/phpstan' => $this->phpStanVersion, ...$this->phpStanExtraDependencies],
-                    $args ?: ['analyze', $this->getContainerWorkingDirectory(static::MOUNT_POINT)],
+                    $args ?: $this->getDefaultQaToolArguments('phpstan', context(), ['analyze']),
                 );
             },
         ];
@@ -417,7 +427,7 @@ class PHPService implements ServiceInterface
                 return $this->runQaTool(
                     'php-cs-fixer',
                     ['friendsofphp/php-cs-fixer' => $this->phpCsFixerVersion],
-                    $args ?: ['fix', $this->getContainerWorkingDirectory(static::MOUNT_POINT) . '/src'],
+                    $args ?: $this->getDefaultQaToolArguments('php-cs-fixer', context(), ['fix'], '/src'),
                 );
             },
         ];
@@ -431,7 +441,7 @@ class PHPService implements ServiceInterface
                 return $this->runQaTool(
                     'rector',
                     ['rector/rector' => $this->rectorVersion],
-                    $args ?: [$this->getContainerWorkingDirectory(static::MOUNT_POINT) . '/src'],
+                    $args ?: $this->getDefaultQaToolArguments('rector', context(), [], '/src'),
                 );
             },
         ];
@@ -463,6 +473,57 @@ class PHPService implements ServiceInterface
             $this->getBuilderServiceName(),
             workDir: $this->getBuilderWorkingDirectory(),
         );
+    }
+
+    /**
+     * What a QA tool analyses when the task was given no arguments of its own.
+     *
+     * None of these tools treats a path on the command line as a restriction of
+     * the paths its configuration file declares: it *replaces* them. PHPStan
+     * only falls back to `parameters.paths` when the command line names no path
+     * at all, PHP CS Fixer ignores the finder of its config unless asked for
+     * `--path-mode=intersection`, and Rector does the same with `withPaths()`.
+     *
+     * Naming a path by default is therefore wrong wherever the application
+     * configures the tool: it would analyse `vendor/` and `var/` along with the
+     * sources of an application whose phpstan.neon says `paths: [src]`, and skip
+     * the `tests/` and `config/` a php-cs-fixer finder covers — while still
+     * reporting the configuration file as used, because everything else in it
+     * does apply.
+     *
+     * So the default names no path when the application ships a configuration
+     * the tool discovers on its own, and only falls back to the application
+     * directory — `$suffix` below it, for the tools whose out-of-the-box
+     * behaviour is to fix rather than to report — for one that ships none.
+     *
+     * @param list<string> $command the sub-command the tool needs, if any
+     *
+     * @return list<string>
+     */
+    protected function getDefaultQaToolArguments(string $tool, Context $context, array $command, string $suffix = ''): array
+    {
+        if ($this->hasQaToolConfiguration($tool, $context)) {
+            return $command;
+        }
+
+        return [...$command, $this->getContainerWorkingDirectory(static::MOUNT_POINT) . $suffix];
+    }
+
+    /**
+     * Whether the application ships a configuration file the tool discovers on
+     * its own, in the directory it runs in.
+     */
+    protected function hasQaToolConfiguration(string $tool, Context $context): bool
+    {
+        $directory = $this->getAbsoluteHostWorkingDirectory($context);
+
+        foreach (static::QA_TOOLS_CONFIGURATION_FILES[$tool] ?? [] as $name) {
+            if (is_file($directory . '/' . $name)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
