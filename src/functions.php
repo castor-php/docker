@@ -333,6 +333,131 @@ function get_project_domains(?Context $c = null): array
 }
 
 /**
+ * Every HTTP(S) URL the project serves, keyed by the compose service serving it.
+ *
+ * Read from the "caddy" labels of every compose file of the project — the
+ * generated one, and the ones the project writes itself — so a domain declared
+ * by a service, by an #[AsDockerComposeBuilder] function or straight in
+ * compose.override.yaml is listed the same way.
+ *
+ * @return array<string, list<string>>
+ */
+function get_project_urls(?Context $c = null): array
+{
+    $c ??= context();
+    $urls = [];
+
+    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
+        $path = $c->workingDirectory . '/' . $file;
+
+        if (!file_exists($path) || !($content = file_get_contents($path))) {
+            continue;
+        }
+
+        $parsed = yaml_parse($content);
+        $services = \is_array($parsed) && \is_array($parsed['services'] ?? null) ? $parsed['services'] : [];
+
+        foreach ($services as $name => $service) {
+            if (!\is_string($name) || !\is_array($service)) {
+                continue;
+            }
+
+            foreach (normalize_compose_labels($service['labels'] ?? null) as $label => $value) {
+                // "caddy=a.test b.test", and "caddy_1=http://a.test" for the
+                // plain HTTP site withHttpAccess() adds.
+                if (1 !== preg_match('/^caddy(?:_\d+)?$/', $label)) {
+                    continue;
+                }
+
+                foreach (preg_split('/\s+/', trim($value)) ?: [] as $domain) {
+                    $scheme = str_starts_with($domain, 'http://') ? 'http' : 'https';
+                    $domain = (string) preg_replace('#^https?://#', '', $domain);
+
+                    // Anything but a host name — a caddy matcher, a placeholder
+                    // left uninterpolated — is not a URL we could print.
+                    if (1 !== preg_match('/^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/', $domain)) {
+                        continue;
+                    }
+
+                    $urls[$name]["{$scheme}://{$domain}"] = true;
+                }
+            }
+        }
+    }
+
+    ksort($urls);
+
+    return array_map(array_keys(...), $urls);
+}
+
+/**
+ * Compose accepts the labels of a service either as a map or as a list of
+ * "key=value" strings — the generated file uses the list, a project writing its
+ * own service may use either.
+ *
+ * @return array<string, string>
+ */
+function normalize_compose_labels(mixed $labels): array
+{
+    if (!\is_array($labels)) {
+        return [];
+    }
+
+    $normalized = [];
+
+    foreach ($labels as $key => $value) {
+        if (\is_string($key)) {
+            $normalized[$key] = (string) $value;
+
+            continue;
+        }
+
+        if (!\is_string($value) || !str_contains($value, '=')) {
+            continue;
+        }
+
+        [$name, $labelValue] = explode('=', $value, 2);
+        $normalized[$name] = $labelValue;
+    }
+
+    return $normalized;
+}
+
+/**
+ * The compose services of this project that have a running container.
+ *
+ * Asked to docker rather than read from a file, and tolerant of a daemon that is
+ * not there: an unreachable docker simply means nothing runs.
+ *
+ * @return list<string>
+ */
+function get_running_service_names(?Context $c = null): array
+{
+    $c ??= context();
+
+    try {
+        $output = trim(capture([
+            'docker', 'ps',
+            '--filter', 'label=com.docker.compose.project=' . get_project_name($c),
+            '--format', '{{.Label "com.docker.compose.service"}}',
+        ], context: $c->withQuiet()->withAllowFailure()));
+    } catch (\Throwable) {
+        // No docker on this machine, or none this user may talk to: nothing of
+        // the project runs, which is all the caller asked.
+        return [];
+    }
+
+    if ('' === $output) {
+        return [];
+    }
+
+    $names = array_values(array_filter(array_map(trim(...), explode("\n", $output))));
+    sort($names);
+
+    return array_values(array_unique($names));
+}
+
+/**
  * A context for a command that wants a terminal — a shell, a database session.
  *
  * castor's toInteractive() throws when the surrounding environment is not

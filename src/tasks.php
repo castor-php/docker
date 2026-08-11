@@ -211,6 +211,61 @@ function ps(): void
     docker_compose(['ps']);
 }
 
+/**
+ * Sum up the project: what it is made of, and every address it answers on.
+ *
+ * Everything is read from the compose files, so the task answers whether or not
+ * the infrastructure runs — what is running only decorates the listing.
+ */
+#[AsTask(description: 'Sums up the project and lists all its URLs', aliases: ['about'], namespace: 'docker')]
+function about(): void
+{
+    $c = context();
+    $running = get_running_service_names($c);
+    $routerRunning = is_router_running();
+
+    io()->title('About this project');
+
+    io()->comment('Run <comment>castor</comment> to display all available commands.');
+    io()->comment('Run <comment>castor about</comment> to display this project help.');
+    io()->comment('Run <comment>castor help [command]</comment> to display Castor help.');
+
+    io()->section('Available URLs for this project:');
+
+    $urls = get_project_urls($c);
+
+    if (!$urls) {
+        io()->text('This project routes no domain. Give a service a domain with withDomain() to reach it over HTTP.');
+    } else {
+        $rows = [];
+
+        foreach ($urls as $service => $serviceUrls) {
+            foreach ($serviceUrls as $index => $url) {
+                $rows[] = [
+                    0 === $index ? $service : '',
+                    \sprintf('<href=%s>%s</>', $url, $url),
+                    0 === $index ? status_label($service, $running) : '',
+                ];
+            }
+        }
+
+        io()->table(['Service', 'URL', 'Status'], $rows);
+
+        if (!$routerRunning) {
+            io()->warning('The router is stopped: none of these URLs answers.');
+            io()->note('Start it with "castor docker:router:enable".');
+        }
+    }
+}
+
+/**
+ * @param list<string> $running
+ */
+function status_label(string $service, array $running): string
+{
+    return \in_array($service, $running, true) ? '<fg=green>running</>' : '<fg=yellow>stopped</>';
+}
+
 #[AsTask(description: 'Install a service, register it in castor.php, then build and start it', namespace: 'docker:service', name: 'install')]
 function service_install(
     #[AsArgument(description: 'The service to install (omit to list the available ones)', autocomplete: 'Castor\Docker\autocomplete_installer_name')]

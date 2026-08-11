@@ -10,6 +10,41 @@ contributed by the services you registered. Run `castor list` to see them all.
 
 ## Infrastructure
 
+### `castor docker:about`
+
+Sums up the project — its name, its root domain, how many of its containers run,
+whether the router is up — then lists **every URL the project answers on**.
+
+```bash
+castor docker:about
+```
+
+Alias: `castor about`.
+
+The URLs are read from the `caddy` labels of `compose.generated.yaml`,
+`compose.yaml` and `compose.override.yaml`, so a domain declared by a service
+with `withDomain()`, by an `#[AsDockerComposeBuilder]` function or straight in
+your own compose file is listed the same way — and each is shown against the
+service serving it, with its status:
+
+```
+ --------------- ---------------------------------- ---------
+  Service         URL                                Status
+ --------------- ---------------------------------- ---------
+  app             https://app.project.test           running
+                  https://project.test
+                  http://app.project.test
+  adminer         https://adminer.project.test       stopped
+ --------------- ---------------------------------- ---------
+```
+
+The `http://` entries are the services that also allow plain HTTP with
+`withHttpAccess()`; every other domain is served over HTTPS only.
+
+Everything comes from the compose files, so the task answers with the
+infrastructure stopped, and without a running Docker daemon — only the
+running/stopped statuses need one.
+
 ### `castor docker:build`
 
 Builds the Docker images of the infrastructure.

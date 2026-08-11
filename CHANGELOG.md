@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.3 - 2026-08-11
+
+### Added
+
+* `castor docker:about` (alias `castor about`), which lists every URL the
+  project answers on. Nothing told you what a project serves: the domains live
+  in the `caddy` labels of the generated compose file, and finding the address
+  of a service meant reading them — or guessing from the root domain. Each URL
+  is listed against the service serving it, and against whether that service
+  runs. They are read from `compose.generated.yaml`, `compose.yaml` and
+  `compose.override.yaml`, so a domain declared by a service, by an
+  `#[AsDockerComposeBuilder]` function or straight in your own compose file is
+  listed the same way, and the task answers with everything stopped — only the
+  running/stopped statuses need a docker daemon.
+
 ## 0.3.2 - 2026-08-10
 
 ### Fixed

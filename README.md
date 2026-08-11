@@ -77,6 +77,15 @@ castor docker:build
 castor docker:up
 ```
 
+4. See what it serves:
+
+```bash
+castor docker:about
+```
+
+It lists every URL the project answers on, with the service serving each of
+them.
+
 ## Global router
 
 The Caddy router is **global**: one instance, living outside of any project,
