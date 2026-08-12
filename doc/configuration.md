@@ -30,6 +30,7 @@ function default_context(): Context
 | `build_args` | Build arguments `castor docker:build` passes to every service, also readable as [Twig variables](going-further/custom-dockerfile.md#build-arguments-are-twig-variables) |
 | `resolve_domains_via_host` | Whether the containers resolve the project's own public domains, `true` by default — see [below](#resolving-your-own-domains-from-a-container) |
 | `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
+| `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
 
 ### Resolving your own domains from a container
 
@@ -38,6 +39,22 @@ project, pointing at the host gateway where the router answers — so
 `https://api.myproject.test` works from inside a container as well as from your
 browser. Set `resolve_domains_via_host` to `false` to stop generating them; see
 [router and HTTPS](services/router.md#reaching-your-own-domains-from-inside-a-container).
+
+### Starting and stopping the router with your projects
+
+`docker:up` starts the global router when the project routes a domain, and
+`docker:stop` stops it once no routed container is left running on the machine.
+Set `router_autostart` to `false` to manage it yourself with
+`docker:router:enable` and `docker:router:disable`:
+
+```php
+return new Context([
+    'router_autostart' => false,
+]);
+```
+
+`CASTOR_DOCKER_ROUTER_AUTOSTART` overrides it for a single command — see
+[router and HTTPS](services/router.md#it-starts-and-stops-with-your-projects).
 
 ### Running two checkouts side by side
 
@@ -136,3 +153,10 @@ The plugin sets these in the containers it generates:
 | `REGISTRY` | Docker registry URL |
 | `DATABASE_URL` | Connection string, when the service is linked to a database |
 | `MAILER_DSN` | Mailpit DSN, when the service is linked to a mailer |
+
+And it reads these from your own environment:
+
+| Variable | Role |
+|----------|------|
+| `CASTOR_DOCKER_ROUTER_AUTOSTART` | Turns the router autostart on or off for a single command, over the `router_autostart` context variable |
+| `DOCKER_SOCKET_PATH` | The Docker socket the router watches, before `DOCKER_HOST` and `/var/run/docker.sock` — see [the socket it watches](services/router.md#the-docker-socket-it-watches) |

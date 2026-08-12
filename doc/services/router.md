@@ -29,8 +29,48 @@ castor docker:router:restart
 castor docker:router:disable
 ```
 
-`docker:router:enable` is a one-time setup: the router keeps running across
-project restarts and reboots.
+## It starts and stops with your projects
+
+You do not have to start the router at all: `castor docker:up` starts it when the
+project routes a domain and it is not already running, and `castor docker:stop`
+— or `castor docker:destroy` — stops it once no routed container is left running
+on the machine.
+
+```bash
+castor docker:up      # starts the router if this project needs it
+castor docker:stop    # stops it, unless another project is still using it
+```
+
+A project routing no domain never touches it: it neither starts it nor stops it.
+
+`docker:router:enable` is still there, and is what you want to run once when you
+would rather keep a router up whatever happens to your projects — it also copies
+the mkcert CA and joins the projects that are already running. Note that a
+router left running is still stopped by the last project going down, unless you
+turn the autostart off:
+
+```php
+#[AsContext(default: true)]
+function default_context(): Context
+{
+    return new Context([
+        'router_autostart' => false,
+    ]);
+}
+```
+
+The environment variable wins over the context, for a CI job or a single shell
+that must not touch the router of the machine:
+
+```bash
+CASTOR_DOCKER_ROUTER_AUTOSTART=0 castor docker:up
+```
+
+With the autostart off, nothing starts or stops the router but you:
+`docker:router:enable` and `docker:router:disable`.
+
+`castor docker:router:status` shows whether the autostart is on, and which
+projects the router currently serves.
 
 ## How your services are reached
 

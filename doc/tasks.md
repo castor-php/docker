@@ -193,12 +193,21 @@ Exposed services are remembered across `docker:stop` / `docker:up`.
 The router is global and shared by every project, so its tasks are not tied to
 the current one — see [router and HTTPS](services/router.md).
 
+`docker:up` starts it when the project routes a domain, and `docker:stop` and
+`docker:destroy` stop it once no routed container is left running on the
+machine. These tasks are for the times you want to decide yourself:
+
 * `castor docker:router:enable` — create, start and trust the router, copying
-  the mkcert CA if available. Run once
-* `castor docker:router:status` — whether it runs, and the projects it serves
+  the mkcert CA if available
+* `castor docker:router:status` — whether it runs, whether the autostart is on,
+  and the projects it serves
 * `castor docker:router:logs` — its logs, `--follow` to tail them
 * `castor docker:router:restart` — restart it
 * `castor docker:router:disable` — stop it
+
+Set the `router_autostart` [context variable](configuration.md#starting-and-stopping-the-router-with-your-projects)
+to `false`, or `CASTOR_DOCKER_ROUTER_AUTOSTART=0` for a single command, to leave
+the router entirely to those tasks.
 
 ## Profiles
 

@@ -132,10 +132,22 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         disconnect_router_from_network($network);
     }
 
+    // Before the containers start, so the router is there to be attached to the
+    // project network below.
+    if ('up' === $subCommandName) {
+        autostart_router($c);
+    }
+
     $process = run($command, context: $c);
 
     if ('up' === $subCommandName) {
         connect_router_to_network($network, get_project_domains($c));
+    }
+
+    // The containers this project routed are gone by now, so what the router
+    // still serves is what other projects need it for.
+    if ('stop' === $subCommandName || 'down' === $subCommandName) {
+        autostop_router($c);
     }
 
     return $process;

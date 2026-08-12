@@ -10,7 +10,8 @@ parameters:
                 build_args?: string[],
                 twig_dockerfile_frontend?: string,
                 docker_profiles?: string[],
-                resolve_domains_via_host?: bool
+                resolve_domains_via_host?: bool,
+                router_autostart?: bool
             }
         '''
     paths:

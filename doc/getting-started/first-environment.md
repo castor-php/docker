@@ -55,15 +55,19 @@ containers to the generated compose file, and its own tasks to the Castor CLI.
 # Build the images
 castor docker:build
 
-# Start the containers
+# Start the containers, and the router serving their domains
 castor docker:up
-
-# Enable the router to reach your domains over HTTPS (once per machine)
-castor docker:router:enable
 ```
 
 Your application is now served on `https://myproject.test`. Point that domain to
 `127.0.0.1` in your `/etc/hosts` if it does not resolve already.
+
+`docker:up` starts the global router for you, since the project routes a domain,
+and `docker:stop` stops it again once no project needs it — see
+[router and HTTPS](../services/router.md#it-starts-and-stops-with-your-projects).
+Run `castor docker:router:enable` once per machine if you would rather keep it
+running whatever happens to your projects; it is also what copies the mkcert CA,
+so your browser trusts the certificates.
 
 ## What you get
 

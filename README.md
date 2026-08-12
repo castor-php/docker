@@ -64,20 +64,17 @@ function register_service(RegisterServiceEvent $event)
 }
 ```
 
-2. Enable the global Caddy router (one time setup):
-
-```bash
-castor docker:router:enable
-```
-
-3. Start your project infrastructure:
+2. Start your project infrastructure:
 
 ```bash
 castor docker:build
 castor docker:up
 ```
 
-4. See what it serves:
+The global Caddy router serving your domains is started along with it, and
+stopped again when no project needs it anymore.
+
+3. See what it serves:
 
 ```bash
 castor docker:about
@@ -92,16 +89,22 @@ The Caddy router is **global**: one instance, living outside of any project,
 serves every Castor Docker project on the machine. Ports 80 and 443 are bound
 once, projects run side by side, and the router survives their restarts.
 
-It lives in `~/.castor/docker/router/` and is managed separately from your
-project services:
+`docker:up` starts it when the project routes a domain, `docker:stop` stops it
+once no routed container is left running anywhere. It lives in
+`~/.castor/docker/router/`, and these tasks are for the times you want to decide
+yourself:
 
 ```bash
-castor docker:router:enable     # create, start and trust it — run once
+castor docker:router:enable     # create, start and trust it
 castor docker:router:status     # is it running, which projects it serves
 castor docker:router:logs       # add --follow to tail them
 castor docker:router:restart
 castor docker:router:disable
 ```
+
+Set the `router_autostart` context variable to `false`, or
+`CASTOR_DOCKER_ROUTER_AUTOSTART=0` for a single command, to leave the router
+entirely to those tasks.
 
 Each project keeps its own compose network, and the router joins it on
 `docker:up` rather than every project joining a shared one — so two projects can

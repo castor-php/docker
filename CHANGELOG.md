@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* The global router starts and stops with the projects. `docker:up` starts it
+  when the project routes a domain and it is not already running, and
+  `docker:stop` — `docker:destroy` too — stops it once no routed container is
+  left running on the machine. `docker:router:enable` was a one-time setup
+  nobody remembers on a new machine, and forgetting it is silent: the containers
+  come up, the domains answer "connection refused" on 443, and nothing says why.
+  A project routing no domain neither starts nor stops it, and a project that
+  goes down while another still runs leaves it up.
+* The `router_autostart` context variable and the `CASTOR_DOCKER_ROUTER_AUTOSTART`
+  environment variable, both turning that off — the environment wins, so a CI
+  job or a single shell can leave the router of the machine alone without
+  touching the project. With it off, only `docker:router:enable` and
+  `docker:router:disable` start and stop the router.
+
+### Changed
+
+* `docker:router:status` reports whether the autostart is on, and the projects
+  the router currently serves.
+
 ## 0.3.3 - 2026-08-11
 
 ### Added
