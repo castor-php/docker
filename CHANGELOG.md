@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.3.4 - 2026-08-12
 
 ### Added
 
-* `RedirectionIoAgentService` allow to set test mode / logging option of the agent
+* `RedirectionioAgentService::withTestMode()` and `withLogging()`, writing the
+  `test_mode` and `logging` keys of the agent instance — a development
+  environment can run the rules it is still testing, and keep its traffic out of
+  the logs. Neither key is written unless asked for, so the agent's own defaults
+  stand otherwise.
 * The global router starts and stops with the projects. `docker:up` starts it
   when the project routes a domain and it is not already running, and
   `docker:stop` — `docker:destroy` too — stops it once no routed container is

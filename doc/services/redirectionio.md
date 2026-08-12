@@ -69,6 +69,18 @@ router hands it. The agent image ships the public CA bundle only, and runs on
 
 Development only, as the name says.
 
+## Test mode and traffic logs
+
+```php
+(new RedirectionioAgentService())
+    ->withTestMode()        // instance.test_mode
+    ->withLogging(false)    // instance.logging
+```
+
+Both write the matching key of the `instance` section of the generated
+`agent.yml`, and neither is written unless you call it — the agent keeps its own
+default otherwise.
+
 ## Applying a configuration change
 
 The generated `agent.yml` is shipped as a compose config, and the agent reads it
