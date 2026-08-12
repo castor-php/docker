@@ -4,6 +4,7 @@
 
 ### Added
 
+* `RedirectionIoAgentService` allow to set test mode / logging option of the agent
 * The global router starts and stops with the projects. `docker:up` starts it
   when the project routes a domain and it is not already running, and
   `docker:stop` — `docker:destroy` too — stops it once no routed container is

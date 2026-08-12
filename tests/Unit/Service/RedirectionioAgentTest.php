@@ -130,4 +130,12 @@ final class RedirectionioAgentTest extends SnapshotTestCase
             static fn(string $label): bool => str_starts_with($label, 'castor.config.redirectionio-agent='),
         ));
     }
+
+    public function testTestModeAndLogging(): void
+    {
+        $agent = $this->configuration((new RedirectionioAgentService())->withLogging(false)->withTestMode());
+
+        static::assertSame($agent['instance']['test_mode'], true);
+        static::assertSame($agent['instance']['logging'], false);
+    }
 }

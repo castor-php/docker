@@ -39,12 +39,6 @@ class RedirectionioAgentService implements ServiceInterface
 
     /**
      * Whether the agent forwards the Host header it received.
-     *
-     * The agent derives it from the forward address: an IP keeps the original,
-     * a host name replaces it with itself. Every target here is a compose
-     * service reached by name, so without this the application would receive
-     * "Host: backend" — which Symfony rejects as an untrusted host, and which
-     * makes every absolute URL it generates wrong.
      */
     private bool $preserveHost = true;
 
@@ -59,6 +53,10 @@ class RedirectionioAgentService implements ServiceInterface
     private ?string $apiHost = null;
 
     private ?int $apiTimeout = null;
+
+    private ?bool $testMode = null;
+
+    private ?bool $logging = null;
 
     protected function getDefaultName(): string
     {
@@ -76,10 +74,6 @@ class RedirectionioAgentService implements ServiceInterface
         return $this;
     }
 
-    /**
-     * The timeout, in seconds, of the calls to the API. Only written when an
-     * API host is set.
-     */
     public function withApiTimeout(int $apiTimeout): static
     {
         $this->apiTimeout = $apiTimeout;
@@ -113,16 +107,23 @@ class RedirectionioAgentService implements ServiceInterface
         return $this;
     }
 
-    /**
-     * Run the agent with debug, which let it accept a certificate it
-     * cannot verify when talking to its API — which is what a self-hosted
-     * withApiHost() served by the local router hands it.
-     *
-     * Development only, as the name says.
-     */
     public function withDebug(bool $debug = true): static
     {
         $this->debug = $debug;
+
+        return $this;
+    }
+
+    public function withTestMode(bool $testMode = true): static
+    {
+        $this->testMode = $testMode;
+
+        return $this;
+    }
+
+    public function withLogging(bool $logging = true): static
+    {
+        $this->logging = $logging;
 
         return $this;
     }
@@ -213,8 +214,6 @@ class RedirectionioAgentService implements ServiceInterface
         $configuration = [
             'instance' => [
                 'name' => $this->instanceName,
-                // Rules and certificates are refetched on boot: nothing worth
-                // persisting for a development environment.
                 'persist' => false,
             ],
             'reverse_proxy' => [
@@ -229,6 +228,14 @@ class RedirectionioAgentService implements ServiceInterface
                 ],
             ],
         ];
+
+        if ($this->testMode !== null) {
+            $configuration['instance']['test_mode'] = $this->testMode;
+        }
+
+        if ($this->logging !== null) {
+            $configuration['instance']['logging'] = $this->logging;
+        }
 
         if ($this->apiHost !== null) {
             $configuration['api'] = ['host' => $this->apiHost];
