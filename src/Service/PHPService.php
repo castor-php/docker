@@ -324,12 +324,16 @@ class PHPService implements ServiceInterface
 
         if ($this->mailerService) {
             $appService
-                ->dependsOn($this->mailerService->getName())
+                ->dependsOn($this->mailerService->getName(), [
+                    'condition' => 'service_started',
+                ])
                 ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
             ;
 
             $builderService
-                ?->dependsOn($this->mailerService->getName())
+                ?->dependsOn($this->mailerService->getName(), [
+                    'condition' => 'service_started',
+                ])
                 ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
             ;
         }
@@ -367,7 +371,9 @@ class PHPService implements ServiceInterface
 
             if ($this->mailerService) {
                 $workerService
-                    ->dependsOn($this->mailerService->getName())
+                    ->dependsOn($this->mailerService->getName(), [
+                        'condition' => 'service_started',
+                    ])
                     ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
                 ;
             }
