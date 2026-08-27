@@ -180,6 +180,11 @@ They are installed in `.castor/vendor/.tools/`, which the builder container
 mounts at `/castor-tools`. Nothing is added to the image, so changing a tool
 version does not mean rebuilding it.
 
+> [!NOTE]
+> By default it installs the latest version of each tool, which may change 
+> over time. Pin the version with `withPhpStanVersion()` & co if you want to
+> keep it stable.
+
 Each application gets its own installation, named after it — `app-phpstan`,
 `backend-rector`. Two applications of the same repository pinning different
 versions therefore keep one each, instead of reinstalling over each other on

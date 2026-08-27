@@ -18,3 +18,6 @@ anything the plugin does not cover.
 2. [Your first environment](first-environment.md) — a Symfony application and its database
 3. [Installing services](installing-services.md) — add services without writing code
 4. [Configuring services](configuring-services.md) — the fluent API shared by every service
+
+Coming from [docker-starter](https://github.com/jolicode/docker-starter)? See
+[migrating from docker-starter](migrating-from-docker-starter.md).

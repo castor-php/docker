@@ -4,6 +4,7 @@
     - [Your first environment](getting-started/first-environment.md)
     - [Installing services](getting-started/installing-services.md)
     - [Configuring services](getting-started/configuring-services.md)
+    - [Migrating from docker-starter](getting-started/migrating-from-docker-starter.md)
 - [Services](services/index.md)
     - [PHP and Symfony](services/php.md)
     - [Go](services/go.md)
