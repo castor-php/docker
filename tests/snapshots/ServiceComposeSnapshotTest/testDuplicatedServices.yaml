@@ -147,7 +147,7 @@ services:
             - default
     events:
         build:
-            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            context: '%PACKAGE%/src/Service/../Resources/clickhouse'
             dockerfile: Dockerfile
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -170,7 +170,7 @@ services:
             - default
     events-keeper:
         build:
-            context: %PACKAGE%/src/Service/../Resources/clickhouse
+            context: '%PACKAGE%/src/Service/../Resources/clickhouse'
             dockerfile: Dockerfile.keeper
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

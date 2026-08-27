@@ -15,8 +15,8 @@ services:
             - default
     app:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: frontend
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -42,8 +42,8 @@ services:
             - default
     app-builder:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: builder
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

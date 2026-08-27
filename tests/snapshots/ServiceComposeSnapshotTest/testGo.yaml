@@ -1,8 +1,8 @@
 services:
     api:
         build:
-            context: %PACKAGE%/src/Service/../Resources/go
-            dockerfile: %PACKAGE%/src/Service/../Resources/go/Dockerfile
+            context: '%PACKAGE%/src/Service/../Resources/go'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/go/Dockerfile'
             target: runtime
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

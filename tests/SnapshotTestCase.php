@@ -31,9 +31,8 @@ abstract class SnapshotTestCase extends TestCase
      */
     protected function assertMatchesYamlSnapshot(array $data): void
     {
-        $yaml = Yaml::dump($data, 6, 4, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
         // package paths (__DIR__-based resources) are machine-dependent
-        $yaml = str_replace(\dirname(__DIR__), '%PACKAGE%', $yaml);
+        $yaml = self::dumpYaml(self::maskPackagePath($data));
 
         $file = $this->snapshotFile();
 
@@ -45,10 +44,51 @@ abstract class SnapshotTestCase extends TestCase
             file_put_contents($file, $yaml);
         }
 
-        static::assertStringEqualsFile($file, $yaml, \sprintf(
+        $snapshot = Yaml::parseFile($file);
+        static::assertIsArray($snapshot, \sprintf('Snapshot "%s" is not a valid YAML mapping.', basename($file)));
+
+        static::assertSame(self::dumpYaml($snapshot), $yaml, \sprintf(
             'Snapshot "%s" does not match. Run "UPDATE_SNAPSHOTS=1 vendor/bin/phpunit" to regenerate it, then review the diff.',
             basename($file),
         ));
+    }
+
+    /**
+     * Replaces the absolute path of the package by a placeholder, on the data
+     * rather than on the dumped YAML: the dumper then quotes the values, while
+     * a raw "%" at the beginning of a plain scalar is a reserved indicator that
+     * the parser rejects.
+     *
+     * @param array<mixed> $data
+     *
+     * @return array<mixed>
+     */
+    private static function maskPackagePath(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (\is_array($value)) {
+                $data[$key] = self::maskPackagePath($value);
+            } elseif (\is_string($value)) {
+                $data[$key] = str_replace(\dirname(__DIR__), '%PACKAGE%', $value);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Snapshots are compared through the dumper instead of byte by byte: this
+     * repository does not commit a composer.lock, so CI always runs against
+     * the latest symfony/yaml, and its exact formatting changes between
+     * releases (v8.1.5 for instance stopped packing "- key: value" on a single
+     * line when a custom indentation is used). Re-dumping the stored snapshot
+     * keeps the assertion about the data we generate.
+     *
+     * @param array<mixed> $data
+     */
+    private static function dumpYaml(array $data): string
+    {
+        return Yaml::dump($data, 6, 4, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
     }
 
     private function snapshotFile(): string

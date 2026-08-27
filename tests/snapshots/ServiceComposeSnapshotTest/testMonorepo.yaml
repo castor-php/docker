@@ -1,8 +1,8 @@
 services:
     rust-builder:
         build:
-            context: %PACKAGE%/src/Service/../Resources/rust
-            dockerfile: %PACKAGE%/src/Service/../Resources/rust/Dockerfile
+            context: '%PACKAGE%/src/Service/../Resources/rust'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/rust/Dockerfile'
             target: runtime
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -25,8 +25,8 @@ services:
             - builder
     go-builder:
         build:
-            context: %PACKAGE%/src/Service/../Resources/go
-            dockerfile: %PACKAGE%/src/Service/../Resources/go/Dockerfile
+            context: '%PACKAGE%/src/Service/../Resources/go'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/go/Dockerfile'
             target: runtime
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -82,8 +82,8 @@ services:
             - /app/server/exporter/exporter
     backend:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: frontend
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -106,8 +106,8 @@ services:
             - default
     backend-builder:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: builder
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -126,8 +126,8 @@ services:
             - builder
     demo:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: frontend
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

@@ -1,14 +1,15 @@
 services:
     redirectionio-agent:
         build:
-            context: %PACKAGE%/src/Service/../Resources/redirectionio-agent
+            context: '%PACKAGE%/src/Service/../Resources/redirectionio-agent'
         labels:
             - castor.config.redirectionio-agent=0dbbcd4f9d7b
         profiles:
             - default
         configs:
-            - source: redirectionio-agent
-              target: /etc/redirectionio/agent.yml
+            -
+                source: redirectionio-agent
+                target: /etc/redirectionio/agent.yml
 volumes: {}
 configs:
     redirectionio-agent:

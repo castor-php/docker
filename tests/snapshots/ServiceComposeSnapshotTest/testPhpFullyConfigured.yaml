@@ -17,8 +17,8 @@ services:
             - default
     app:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: frontend
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -46,8 +46,8 @@ services:
             - default
     app-builder:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: builder
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -70,8 +70,8 @@ services:
             - builder
     app-worker-messenger:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: worker
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
@@ -93,8 +93,8 @@ services:
         command: 'php bin/console messenger:consume async'
     app-worker-scheduler:
         build:
-            context: %PACKAGE%/src/Service/../Resources/php
-            dockerfile: %PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
             target: worker
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

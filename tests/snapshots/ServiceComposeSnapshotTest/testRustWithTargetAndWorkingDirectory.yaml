@@ -1,8 +1,8 @@
 services:
     agent:
         build:
-            context: %PACKAGE%/src/Service/../Resources/rust
-            dockerfile: %PACKAGE%/src/Service/../Resources/rust/Dockerfile
+            context: '%PACKAGE%/src/Service/../Resources/rust'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/rust/Dockerfile'
             target: runtime
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'

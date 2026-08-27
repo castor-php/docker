@@ -1,7 +1,7 @@
 services:
     rabbitmq:
         build:
-            context: %PACKAGE%/src/Service/../Resources/rabbitmq
+            context: '%PACKAGE%/src/Service/../Resources/rabbitmq'
         volumes:
             - 'rabbitmq-data:/var/lib/rabbitmq'
         healthcheck:
