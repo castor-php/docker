@@ -59,6 +59,8 @@ class PHPService implements ServiceInterface
      */
     protected string $nodeVersion = '20.x';
 
+    protected PackageManager $packageManager = PackageManager::Npm;
+
     protected string $phpStanVersion = '*';
     protected string $phpCsFixerVersion = '*';
     protected string $rectorVersion = '*';
@@ -137,6 +139,27 @@ class PHPService implements ServiceInterface
     public function getNodeVersion(): string
     {
         return $this->nodeVersion;
+    }
+
+    /**
+     * The package manager the builder image prepares.
+     *
+     * Corepack is enabled whichever one this is, so a project declaring a
+     * "packageManager" field in its package.json gets that one regardless. This
+     * decides what a project declaring nothing finds ready to run: npm comes
+     * with node and needs nothing prepared, yarn is pinned to its current
+     * stable, pnpm is activated through corepack.
+     */
+    public function withPackageManager(PackageManager $packageManager): static
+    {
+        $this->packageManager = $packageManager;
+
+        return $this;
+    }
+
+    public function getPackageManager(): PackageManager
+    {
+        return $this->packageManager;
     }
 
     public function withPhpStanVersion(string $version): static
@@ -323,7 +346,8 @@ class PHPService implements ServiceInterface
                     ->build($buildBuilder)
                         ->target('builder')
                         ->withRegistryCache($this->name . '-builder')
-                        ->arg('NODEJS_VERSION', $this->nodeVersion)
+                        ->arg('node_version', $this->nodeVersion)
+                        ->arg('package_manager', $this->packageManager->value)
                     ->end()
                     ->user("{$userId}:{$userId}")
                     ->init(true)

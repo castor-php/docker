@@ -4,6 +4,13 @@
 
 ### Added
 
+* `PHPService::withPackageManager()`, choosing between `PackageManager::Npm`,
+  `Yarn` and `Pnpm`. The image used to pin yarn to its current stable and
+  nothing else, so a project on npm or pnpm carried a yarn it never called, and
+  one wanting pnpm had to prepare it itself. Corepack is enabled whichever one
+  is chosen, so a `packageManager` field in a package.json is still honoured
+  either way; this only decides what a project declaring no such field finds
+  ready to run.
 * `PHPService::withNodeVersion()`, the Node.js the builder container installs.
   The Dockerfile has always taken a `NODEJS_VERSION` build argument, but nothing
   ever passed it, so every project was pinned to the Node 20 it defaults to and
@@ -13,6 +20,26 @@
   is declared rather than when the image builds. Only the builder stage installs
   Node, so only it is given the version — an application sharing the builder of
   another one gets the version of that one.
+
+### Changed
+
+* The builder image no longer pins yarn to its current stable unless asked for
+  it: the default is now npm, which comes with node. A project relying on `yarn`
+  meaning yarn 4 without declaring a `packageManager` field in its package.json
+  gets corepack's default, yarn 1, instead — declare the field, which is what
+  corepack reads anyway, or pass `PackageManager::Yarn`.
+* The Node.js version is a Twig variable of the Dockerfile, `node_version`,
+  rather than a `NODEJS_VERSION` build argument. It sits with `php_version` and
+  the rest, so a project extending the Dockerfile can read it, and the default
+  now lives in one place instead of two that could drift.
+
+### Fixed
+
+* The builder image builds on Node 25, which dropped corepack from the
+  distribution. `corepack enable` was chained with `&&` behind the node install,
+  so a version without it failed the build outright — the whole image, not the
+  frontend tooling. Corepack is now installed from npm when the version asked
+  for does not ship it, leaving the majors that still bundle it untouched.
 
 ### Documentation
 

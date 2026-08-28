@@ -133,6 +133,8 @@ its own step.
 |----------|------|------------|
 | `php_version` | string | `withVersion()` (default `8.5`) |
 | `php_extensions` | list of strings | the default list plus `addExtension()` |
+| `node_version` | string | `withNodeVersion()` (default `20.x`), only in the builder stage |
+| `package_manager` | string | `withPackageManager()` (default `npm`), only in the builder stage |
 | `app_root` | string | `withWorkingDirectory()`, as a path under `/var/www`; absent when the application owns its directory |
 | `frankenphp_worker_file` | string | `withFrankenPhpWorkerMode()`, as a path under `/var/www` |
 | `frankenphp_worker_num` | int | its `$num` argument, only when you pass one |
@@ -170,15 +172,26 @@ Nothing else is assumed: this plugin declares no asset task and no package
 manager, and `app:install` installs the PHP dependencies only.
 
 ```php
-(new SymfonyService('app'))->withNodeVersion('22')
+(new SymfonyService('app'))
+    ->withNodeVersion('22')
+    ->withPackageManager(PackageManager::Pnpm)   // Npm (default), Yarn or Pnpm
 ```
 
 NodeSource publishes one repository per major version, so the major is all that
 is used: `22`, `22.x` and `v22.11.0` all name the same one. A version naming no
 major is rejected when the service is declared, rather than failing the build.
 
-Corepack is enabled in the image, so `npm`, `yarn` and `pnpm` are all reachable
-and the `packageManager` field of your `package.json` decides which one runs.
+Corepack is enabled whichever package manager you pick, so `npm`, `yarn` and
+`pnpm` are all reachable and a `packageManager` field in your `package.json` is
+honoured either way. `withPackageManager()` only decides what a project
+declaring no such field finds ready to run: npm comes with node and needs
+nothing prepared, yarn is pinned to its current stable, pnpm is activated
+through corepack.
+
+> [!NOTE]
+> Node 25 dropped corepack from its distribution. The image installs it from npm
+> when the version you asked for does not ship it, so none of this depends on
+> the major you run.
 
 > [!NOTE]
 > Only the builder stage installs Node — it is where the build commands run.

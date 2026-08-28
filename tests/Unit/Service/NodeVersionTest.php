@@ -24,7 +24,7 @@ final class NodeVersionTest extends SnapshotTestCase
 
     private function nodeVersionOf(PHPService $app): ?string
     {
-        return $this->build($app)['services']['app-builder']['build']['args']['NODEJS_VERSION'] ?? null;
+        return $this->build($app)['services']['app-builder']['build']['args']['node_version'] ?? null;
     }
 
     public function testTheVersionReachesTheStageInstallingNode(): void
@@ -52,15 +52,16 @@ final class NodeVersionTest extends SnapshotTestCase
         (new PHPService('app'))->withNodeVersion('lts/jod');
     }
 
-    public function testTheDefaultIsTheOneTheDockerfileDeclares(): void
+    /**
+     * The version is a Twig variable now, so the Dockerfile holds no default of
+     * its own to drift from — but it does have to read the one we send.
+     */
+    public function testTheDockerfileReadsTheVariableWeSend(): void
     {
         $dockerfile = file_get_contents(\dirname(__DIR__, 3) . '/src/Resources/php/Dockerfile');
 
-        static::assertMatchesRegularExpression(
-            '/^ARG NODEJS_VERSION=' . preg_quote((new PHPService('app'))->getNodeVersion(), '/') . '$/m',
-            $dockerfile,
-            'The default of PHPService and the one of the Dockerfile drifted apart.',
-        );
+        static::assertStringContainsString('node_{{ node_version }}', $dockerfile);
+        static::assertStringNotContainsString('NODEJS_VERSION', $dockerfile, 'The old build argument is still there.');
     }
 
     /**
@@ -71,6 +72,6 @@ final class NodeVersionTest extends SnapshotTestCase
     {
         $compose = $this->build((new PHPService('app'))->withNodeVersion('22'));
 
-        static::assertArrayNotHasKey('NODEJS_VERSION', $compose['services']['app']['build']['args']);
+        static::assertArrayNotHasKey('node_version', $compose['services']['app']['build']['args']);
     }
 }
