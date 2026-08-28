@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.5 - 2026-08-28
+
+### Fixed
+
+* A project declaring a mailer with `withMailerService()` generated a compose
+  file docker refuses to load: `services.app.depends_on.mailpit missing
+  property 'condition'`. Dependencies are written with the long compose syntax,
+  the one that carries a condition, because a dependency on a database waits for
+  its health check — and the syntax is chosen per service, not per dependency.
+  The mailer asked for none, so it came out as `mailpit: {}`, and compose
+  validates the file as a whole: every task of the project stopped, not only the
+  mailer. Reported by @HedicGuibert in #4.
+* `ServiceBuilder::dependsOn()` now defaults that condition to
+  `service_started`, so a dependency declared without one no longer writes an
+  entry compose rejects. This is what the short syntax, a plain list of names,
+  means. `#[AsDockerComposeBuilder]` functions and services outside this
+  repository call the same builder, and the mailer was only the caller that hit
+  it first.
+
 ## 0.3.4 - 2026-08-12
 
 ### Added

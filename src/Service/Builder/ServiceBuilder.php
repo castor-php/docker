@@ -131,10 +131,16 @@ final class ServiceBuilder
     }
 
     /**
+     * "condition" is mandatory in the long syntax used here: without a default,
+     * dependsOn('mailpit') writes "mailpit: {}" and compose rejects the file.
+     * "service_started" is what the short syntax, a plain list, means.
+     *
      * @param array<mixed> $config
      */
     public function dependsOn(string $serviceName, array $config = []): self
     {
+        $config['condition'] ??= 'service_started';
+
         $this->dependsOn[$serviceName] = $config;
 
         return $this;
