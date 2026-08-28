@@ -315,6 +315,23 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build($postgres, $php));
     }
 
+    public function testPhpWithMailerDependsOnServiceStarted(): void
+    {
+        $mailer = new MailpitService();
+
+        $compose = $this->build(
+            $mailer,
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
+                ->withMailerService($mailer)
+                ->addWorker('messenger', 'php bin/console messenger:consume async'),
+        );
+
+        static::assertSame('service_started', $compose['services']['app']['depends_on']['mailpit']['condition']);
+        static::assertSame('service_started', $compose['services']['app-builder']['depends_on']['mailpit']['condition']);
+        static::assertSame('service_started', $compose['services']['app-worker-messenger']['depends_on']['mailpit']['condition']);
+    }
+
     public function testSymfonyWithMysql(): void
     {
         $mysql = new MySQLService();
