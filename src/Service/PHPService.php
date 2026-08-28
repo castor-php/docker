@@ -53,6 +53,12 @@ class PHPService implements ServiceInterface
 
     protected PhpMode $mode = PhpMode::FrankenPhp;
 
+    /**
+     * NodeSource publishes one repository per major version, so a major is all
+     * this can hold. It is the version the Dockerfile defaults to.
+     */
+    protected string $nodeVersion = '20.x';
+
     protected string $phpStanVersion = '*';
     protected string $phpCsFixerVersion = '*';
     protected string $rectorVersion = '*';
@@ -60,7 +66,7 @@ class PHPService implements ServiceInterface
     protected const MOUNT_POINT = '/var/www';
 
     /**
-     * Where the QA tools castor installs on the host are mounted in the
+     * Where the QA tools are installed, and mounted in the
      * container that runs them.
      */
     protected const QA_TOOLS_MOUNT_POINT = '/castor-tools';
@@ -103,6 +109,34 @@ class PHPService implements ServiceInterface
         $this->mode = $mode;
 
         return $this;
+    }
+
+    /**
+     * The Node.js the builder container installs.
+     *
+     * NodeSource publishes one repository per major version, named "node_22.x",
+     * so only the major is used: "22", "22.x" and "v22.11.0" all name the same
+     * one. An application sharing the builder of another one gets the version of
+     * that one, since it is that image which carries node.
+     */
+    public function withNodeVersion(string $version): static
+    {
+        if (!preg_match('/^v?(\d+)/', $version, $matches)) {
+            throw new \InvalidArgumentException(\sprintf(
+                'The Node.js version of the "%s" application must start with a major version, got "%s".',
+                $this->name,
+                $version,
+            ));
+        }
+
+        $this->nodeVersion = $matches[1] . '.x';
+
+        return $this;
+    }
+
+    public function getNodeVersion(): string
+    {
+        return $this->nodeVersion;
     }
 
     public function withPhpStanVersion(string $version): static
@@ -289,13 +323,12 @@ class PHPService implements ServiceInterface
                     ->build($buildBuilder)
                         ->target('builder')
                         ->withRegistryCache($this->name . '-builder')
+                        ->arg('NODEJS_VERSION', $this->nodeVersion)
                     ->end()
                     ->user("{$userId}:{$userId}")
                     ->init(true)
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
                     ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
-                    // The QA tools castor installs on the host run here, so
-                    // they analyse the application on its own PHP version.
                     ->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached')
                     ->profile('builder')
             ;

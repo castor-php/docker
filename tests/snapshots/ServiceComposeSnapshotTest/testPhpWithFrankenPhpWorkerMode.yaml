@@ -31,6 +31,7 @@ services:
                 frankenphp_worker_file: /var/www/public/index.php
                 frankenphp_worker_watch: 'true'
                 frankenphp_worker_num: '4'
+                NODEJS_VERSION: 20.x
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
         user: '1000:1000'

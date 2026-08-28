@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `PHPService::withNodeVersion()`, the Node.js the builder container installs.
+  The Dockerfile has always taken a `NODEJS_VERSION` build argument, but nothing
+  ever passed it, so every project was pinned to the Node 20 it defaults to and
+  changing it meant forking the Dockerfile. Only the major is used, since
+  NodeSource publishes one repository per major: `22`, `22.x` and `v22.11.0` all
+  name the same one, and a version naming no major is rejected when the service
+  is declared rather than when the image builds. Only the builder stage installs
+  Node, so only it is given the version — an application sharing the builder of
+  another one gets the version of that one.
+
+### Documentation
+
+* The quality assurance page still said composer resolves the tools against the
+  PHP version running castor. It has not since 0.3.5, which moved the
+  installation into the container.
+
 ## 0.3.5 - 2026-08-28
 
 ### Changed

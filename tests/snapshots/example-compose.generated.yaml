@@ -107,6 +107,7 @@ services:
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
                 app_root: /var/www/app1
+                NODEJS_VERSION: 20.x
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1-builder:cache'
         user: %UID%

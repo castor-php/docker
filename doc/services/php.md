@@ -14,6 +14,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
 (new SymfonyService('app'))          // Service name, the only constructor argument
     ->withDirectory(__DIR__)         // Application directory (default: '.')
     ->withVersion('8.5')             // PHP version (default: 8.5)
+    ->withNodeVersion('22')          // Node.js in the builder container (default: 20)
     ->withMode(PhpMode::FrankenPhp)  // PhpMode::FrankenPhp (default) or PhpMode::Fpm
     ->withDatabaseService($databaseService)
     ->withMailerService($mailpitService)
@@ -161,6 +162,30 @@ there: `base/php-configuration/`, `builder/php-configuration/`,
 The [Dockerfile cookbook](../going-further/dockerfile-cookbook.md) turns all of
 this into concrete recipes.
 
+## Node.js
+
+The builder container ships Node, installed from the NodeSource repository, so
+`castor app:bash` can run whatever your application builds its assets with.
+Nothing else is assumed: this plugin declares no asset task and no package
+manager, and `app:install` installs the PHP dependencies only.
+
+```php
+(new SymfonyService('app'))->withNodeVersion('22')
+```
+
+NodeSource publishes one repository per major version, so the major is all that
+is used: `22`, `22.x` and `v22.11.0` all name the same one. A version naming no
+major is rejected when the service is declared, rather than failing the build.
+
+Corepack is enabled in the image, so `npm`, `yarn` and `pnpm` are all reachable
+and the `packageManager` field of your `package.json` decides which one runs.
+
+> [!NOTE]
+> Only the builder stage installs Node — it is where the build commands run.
+> An application sharing the builder of another one
+> ([see above](#sharing-one-builder-container)) therefore gets the Node version
+> of that one, since it is that image which carries it.
+
 ## Quality assurance
 
 ```bash
@@ -223,10 +248,10 @@ application directory for PHPStan, its `src/` for PHP CS Fixer and Rector, which
 write rather than report.
 
 > [!NOTE]
-> Composer resolves the tools against the PHP version running castor, not the
-> one in the container, so the version it picks has to be able to run on both.
-> Pin it with `withPhpStanVersion()` & co if your host PHP is far ahead of the
-> one the application runs.
+> Composer resolves the tools in the container, against the PHP version and the
+> extensions of the application, so nothing has to be able to run on your host.
+> Pin a version with `withPhpStanVersion()` & co when you want it stable rather
+> than latest.
 
 Pin the tool versions and add PHPStan extensions from the service:
 

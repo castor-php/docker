@@ -25,6 +25,7 @@ services:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                NODEJS_VERSION: 20.x
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
         user: '1000:1000'
