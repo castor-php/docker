@@ -77,6 +77,11 @@ CMD ["runsvdir", "-P", "/etc/service"]
 
 {% block worker %}
 FROM php-base AS worker
+
+# php-base carries the configuration but enables nothing, and a worker runs the
+# same commands the builder does: without this it ran on the Debian defaults,
+# which is where its "memory_limit = -1" came from.
+RUN phpenmod app-default
 {% endblock %}
 
 {% block builder %}

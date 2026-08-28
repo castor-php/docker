@@ -8,6 +8,13 @@ FROM dunglas/frankenphp:php{{ php_version }} AS frontend
 RUN install-php-extensions {% for extension in php_extensions %}{{ extension }} {% endfor %}
 {% endif %}
 
+# This image is the official PHP one, not php-base, so nothing of the
+# configuration the other stages share reaches it on its own: without this an
+# application served by FrankenPHP ran on the bare PHP defaults while the same
+# application served by FPM did not. conf.d here is what mods-available plus
+# phpenmod is over there.
+COPY base/php-configuration/mods-available/app-default.ini /usr/local/etc/php/conf.d/30-app-default.ini
+
 {{ copy('frontend-frankenphp/Caddyfile.twig', '/etc/frankenphp/Caddyfile') }}
 
 ENV PHP_VERSION {{ php_version }}

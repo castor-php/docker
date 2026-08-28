@@ -201,6 +201,56 @@ through corepack.
 > ([see above](#sharing-one-builder-container)) therefore gets the Node version
 > of that one, since it is that image which carries it.
 
+## PHP configuration
+
+```php
+use Castor\Docker\Service\PhpIniScope;
+
+(new SymfonyService('app'))
+    ->withPhpIni(['memory_limit' => '1G'])
+    ->withPhpIni(['memory_limit' => '-1', 'max_execution_time' => 0], PhpIniScope::Cli)
+    ->withPhpIni(['opcache.validate_timestamps' => false], PhpIniScope::Web)
+```
+
+The directives are written to an ini file **mounted into the containers**, not
+built into the image, so changing one costs a `castor docker:up` and not a
+rebuild. The containers concerned are recreated when the file changes, so the
+new value is actually in effect rather than sitting in the compose file.
+
+The scope says which PHP they reach, and the two rarely want the same settings:
+
+| Scope | Containers | The PHP that |
+|-------|------------|--------------|
+| `PhpIniScope::Cli` | the builder, the workers | runs your commands |
+| `PhpIniScope::Web` | the application | serves your requests |
+| `PhpIniScope::All` (default) | both | |
+
+Values are written the way php.ini reads them, so `true` and `false` come out as
+`On` and `Off` rather than as `1` and the empty string. The file is loaded as
+`99-castor.ini`, after everything the image ships, so what you set here wins
+over the defaults below.
+
+> [!NOTE]
+> An application [sharing the builder](#sharing-one-builder-container) of
+> another one has no builder of its own to configure, so a `Cli` scope only
+> reaches its workers. Set the builder's directives on the application that owns
+> it.
+
+### What the images already set
+
+This plugin ships two ini files, and your directives are read after both:
+
+| File | Priority | Applies to |
+|------|----------|------------|
+| `app-default.ini` | 30 | every container |
+| `app-fpm.ini` | 40 | the application container, in FPM mode |
+
+`app-default.ini` sets a 512M memory limit, no time limit, `display_errors` on,
+UTC, a writable phar and opcache sizes; `app-fpm.ini` then takes the application
+container down to 128M with a 30 second limit, the shape of a web request.
+[Extend the Dockerfile](#dockerfile-extension-points) if you would rather change
+them at build time than mount over them.
+
 ## Sudo in the builder
 
 ```php

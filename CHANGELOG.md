@@ -4,6 +4,13 @@
 
 ### Added
 
+* `PHPService::withPhpIni()`, setting PHP ini directives for an application,
+  scoped to the PHP running its commands (`PhpIniScope::Cli`, the builder and
+  the workers), the one serving its requests (`PhpIniScope::Web`), or both. The
+  file is mounted into the containers rather than built into the image, so
+  changing a directive costs a `docker:up` and not a rebuild, and the containers
+  concerned are recreated so the new value is in effect. It is read last, after
+  the defaults the images ship.
 * `docker_compose_exec()`, running a command in the container a service already
   has up rather than in a throwaway one — to read a cache it has warmed, to look
   at what it is actually running. It takes the same command forms, `workDir` and
@@ -56,6 +63,16 @@
 
 ### Fixed
 
+* An application served by FrankenPHP now gets the same base PHP configuration
+  as one served by FPM. FrankenPHP is built on the official PHP image rather
+  than on the plugin's own base, so none of `app-default.ini` reached it: the
+  same application changed its memory limit, its error reporting, its timezone
+  and its opcache settings depending on how it was served — and FrankenPHP,
+  which is the default, was the one running on the bare PHP defaults.
+* Workers get that base configuration too. The base image carries the file but
+  enables nothing, and only the application and builder stages ever ran
+  `phpenmod`, so a worker ran on the Debian defaults — which is where its
+  `memory_limit = -1` came from, rather than the 512M everything else had.
 * The builder image builds on Node 25, which dropped corepack from the
   distribution. `corepack enable` was chained with `&&` behind the node install,
   so a version without it failed the build outright — the whole image, not the
