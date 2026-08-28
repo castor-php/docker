@@ -57,9 +57,11 @@ class PHPService implements ServiceInterface
      * NodeSource publishes one repository per major version, so a major is all
      * this can hold. It is the version the Dockerfile defaults to.
      */
-    protected string $nodeVersion = '20.x';
+    protected string $nodeVersion = '24.x';
 
     protected PackageManager $packageManager = PackageManager::Npm;
+
+    protected bool $sudo = false;
 
     protected string $phpStanVersion = '*';
     protected string $phpCsFixerVersion = '*';
@@ -160,6 +162,27 @@ class PHPService implements ServiceInterface
     public function getPackageManager(): PackageManager
     {
         return $this->packageManager;
+    }
+
+    /**
+     * Install a passwordless sudo in the builder container.
+     *
+     * It is a two line script around gosu, so anyone reaching the container
+     * becomes root in it without knowing anything. That is convenient while
+     * developing — installing a package to try something out, fixing the owner
+     * of a file the container wrote — and it is a hole in an image that is
+     * anything more than a developer machine. Off by default for that reason.
+     */
+    public function withSudo(bool $sudo = true): static
+    {
+        $this->sudo = $sudo;
+
+        return $this;
+    }
+
+    public function hasSudo(): bool
+    {
+        return $this->sudo;
     }
 
     public function withPhpStanVersion(string $version): static
@@ -349,6 +372,16 @@ class PHPService implements ServiceInterface
                         ->arg('node_version', $this->nodeVersion)
                         ->arg('package_manager', $this->packageManager->value)
                     ->end()
+            ;
+
+            if ($this->sudo) {
+                // Sent only when it is on: the template tests it with "is
+                // defined", which the string "false" — true to Twig — cannot
+                // fool into installing it anyway.
+                $builderService->build()->arg('sudo', 'true');
+            }
+
+            $builderService
                     ->user("{$userId}:{$userId}")
                     ->init(true)
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')

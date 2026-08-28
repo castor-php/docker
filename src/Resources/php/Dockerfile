@@ -111,14 +111,18 @@ RUN yarn set version stable
 RUN corepack prepare pnpm@latest --activate
 {% endif %}
 
-# Install a fake sudo command
-# This is commented out by default because it exposes a security risk if you use this image in production, but it may be useful for development
-# Use it at your own risk
-# COPY base/sudo.sh /usr/local/bin/sudo
-# RUN curl -L https://github.com/tianon/gosu/releases/download/1.16/gosu-amd64 -o /usr/local/bin/gosu && \
-#    chmod u+s /usr/local/bin/gosu && \
-#    chmod +x /usr/local/bin/gosu && \
-#    chmod +x /usr/local/bin/sudo
+{% if sudo|default('false') == 'true' %}
+# A passwordless sudo, asked for with withSudo(). It is a two line script around
+# gosu, so whoever reaches this container is root in it without knowing
+# anything: convenient while developing, a hole anywhere else. Never in an image
+# that leaves a developer machine.
+ARG TARGETARCH
+COPY base/sudo.sh /usr/local/bin/sudo
+RUN curl -fL "https://github.com/tianon/gosu/releases/download/1.16/gosu-${TARGETARCH}" -o /usr/local/bin/gosu \
+    && chmod u+s /usr/local/bin/gosu \
+    && chmod +x /usr/local/bin/gosu \
+    && chmod +x /usr/local/bin/sudo
+{% endif %}
 
 # Config
 COPY builder/php-configuration /etc/php/{{ php_version }}

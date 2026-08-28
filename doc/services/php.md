@@ -14,7 +14,8 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
 (new SymfonyService('app'))          // Service name, the only constructor argument
     ->withDirectory(__DIR__)         // Application directory (default: '.')
     ->withVersion('8.5')             // PHP version (default: 8.5)
-    ->withNodeVersion('22')          // Node.js in the builder container (default: 20)
+    ->withNodeVersion('22')          // Node.js in the builder container (default: 24)
+    ->withSudo()                     // Passwordless sudo in the builder, off by default
     ->withMode(PhpMode::FrankenPhp)  // PhpMode::FrankenPhp (default) or PhpMode::Fpm
     ->withDatabaseService($databaseService)
     ->withMailerService($mailpitService)
@@ -133,8 +134,9 @@ its own step.
 |----------|------|------------|
 | `php_version` | string | `withVersion()` (default `8.5`) |
 | `php_extensions` | list of strings | the default list plus `addExtension()` |
-| `node_version` | string | `withNodeVersion()` (default `20.x`), only in the builder stage |
+| `node_version` | string | `withNodeVersion()` (default `24.x`), only in the builder stage |
 | `package_manager` | string | `withPackageManager()` (default `npm`), only in the builder stage |
+| `sudo` | string | `withSudo()`, only in the builder stage and only when it is on |
 | `app_root` | string | `withWorkingDirectory()`, as a path under `/var/www`; absent when the application owns its directory |
 | `frankenphp_worker_file` | string | `withFrankenPhpWorkerMode()`, as a path under `/var/www` |
 | `frankenphp_worker_num` | int | its `$num` argument, only when you pass one |
@@ -198,6 +200,24 @@ through corepack.
 > An application sharing the builder of another one
 > ([see above](#sharing-one-builder-container)) therefore gets the Node version
 > of that one, since it is that image which carries it.
+
+## Sudo in the builder
+
+```php
+(new SymfonyService('app'))->withSudo()
+```
+
+Installs a passwordless `sudo` in the builder container: a two line script around
+[gosu](https://github.com/tianon/gosu), so anything running in that container
+becomes root in it without knowing anything. It is there for the everyday
+development need — installing a package to try something out, taking back a file
+the container wrote as another user — and it is off unless you ask.
+
+> [!WARNING]
+> Ask for it on developer machines only. An image carrying this has no root
+> barrier left inside it, so anything that reaches the container has it too.
+> The builder container is not published by these tasks, but a pipeline reusing
+> the image would carry the sudo with it.
 
 ## Quality assurance
 

@@ -4,6 +4,12 @@
 
 ### Added
 
+* `PHPService::withSudo()`, installing the passwordless sudo the Dockerfile has
+  always carried commented out with a note to uncomment it at your own risk —
+  which meant forking the Dockerfile for four lines. It stays off by default and
+  the warning stays with it: it is a script around gosu, so whatever reaches the
+  container is root in it. The binary now follows the architecture being built
+  instead of naming amd64, which left it unbuildable on Apple Silicon.
 * `PHPService::withPackageManager()`, choosing between `PackageManager::Npm`,
   `Yarn` and `Pnpm`. The image used to pin yarn to its current stable and
   nothing else, so a project on npm or pnpm carried a yarn it never called, and
@@ -23,6 +29,8 @@
 
 ### Changed
 
+* The default Node.js is 24, up from 20, which is past its support window. Pass
+  `withNodeVersion('20')` to stay on it.
 * The builder image no longer pins yarn to its current stable unless asked for
   it: the default is now npm, which comes with node. A project relying on `yarn`
   meaning yarn 4 without declaring a `packageManager` field in its package.json
