@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-08-28
 
 ### Added
 
@@ -91,6 +91,27 @@
 * The quality assurance page still said composer resolves the tools against the
   PHP version running castor. It has not since 0.3.5, which moved the
   installation into the container.
+
+### Upgrading
+
+Four things change under a project that did nothing:
+
+* **The images rebuild on a newer Node**, 24 rather than 20. Pin the old one
+  with `withNodeVersion('20')` if something in your frontend build needs it.
+* **`yarn` is no longer pinned to its stable release.** Corepack is still
+  enabled, so a `packageManager` field in your package.json gives you the
+  version it names; without one, `yarn` is corepack's default, yarn 1. Declare
+  the field, or ask for `PackageManager::Yarn`.
+* **An application served by FrankenPHP now reads `app-default.ini`**, which it
+  never did. Its memory limit becomes 512M, `display_errors` comes on, the
+  timezone becomes UTC and opcache is sized — the settings an application served
+  by FPM already had. The same goes for workers, whose memory limit stops being
+  unlimited and becomes that 512M. `withPhpIni()` sets whatever you would rather
+  have.
+* **A project subclassing `GoBuilder` or `RustBuilder`** and overriding
+  `getBuildCommand()`, `cargoCommand()` or `formatCommand()` has to widen its
+  return type: they return a list of tokens now, and `getBuildCommand()` is
+  `string|array` so a command a project supplies as a string keeps its shell.
 
 ## 0.3.5 - 2026-08-28
 
