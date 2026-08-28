@@ -189,9 +189,14 @@ abstract class AbstractBuilderService implements ServiceInterface
     /**
      * The command compiling one application, as it runs in the container.
      *
+     * Tokens for a command this plugin builds; a string for one a project gave
+     * it, which may be written to use a shell.
+     *
      * @param array<string, mixed> $options
+     *
+     * @return string|list<string>
      */
-    abstract protected function getBuildCommand(string $name, string $directory, array $options): string;
+    abstract protected function getBuildCommand(string $name, string $directory, array $options): string|array;
 
     /**
      * Declare the build producing the toolchain image.
@@ -206,7 +211,7 @@ abstract class AbstractBuilderService implements ServiceInterface
         return [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the ' . $this->name . ' container'),
             'function' => function (): void {
-                $this->run('bash', c: interactive_context());
+                $this->run(['bash'], c: interactive_context());
             },
         ];
     }
@@ -214,8 +219,10 @@ abstract class AbstractBuilderService implements ServiceInterface
     /**
      * Run a command in the builder container, optionally in the directory of
      * one of its applications.
+     *
+     * @param string|array<int, string> $command
      */
-    public function run(string $command, ?string $directory = null, ?Context $c = null): void
+    public function run(string|array $command, ?string $directory = null, ?Context $c = null): void
     {
         docker_compose_run(
             $command,
@@ -226,10 +233,23 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * @param array<int, string> $args
+     * A command with the arguments of the task appended.
+     *
+     * Tokens stay tokens, so nothing a user typed is split or expanded. A
+     * command given as a string keeps its shell — that is what a project
+     * supplying its own build command through withApp() may well want.
+     *
+     * @param string|array<int, string> $command
+     * @param array<int, string>        $args
+     *
+     * @return string|list<string>
      */
-    protected function joinArgs(string $command, array $args): string
+    protected function joinArgs(string|array $command, array $args): string|array
     {
+        if (\is_array($command)) {
+            return [...$command, ...$args];
+        }
+
         return trim($command . ' ' . implode(' ', $args));
     }
 

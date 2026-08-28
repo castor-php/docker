@@ -512,11 +512,18 @@ function get_compose_progress(?Context $c = null): ?string
 /**
  * Run a one-off command in a service container ("docker compose run --rm").
  *
- * @param array<string, string> $environment extra variables, passed as "-e KEY=VALUE"
+ * Give the command as a list of tokens rather than as a string: the tokens are
+ * handed to docker as they are, so nothing quotes, splits or expands them, and
+ * an argument holding a space, a quote or a "$" arrives whole. A string is
+ * still accepted, and still goes through a shell in the container, which is
+ * what you want for a command written to use one.
+ *
+ * @param string|array<int, string> $runCommand
+ * @param array<string, string>     $environment extra variables, passed as "-e KEY=VALUE"
  * @param list<string>          $ports       extra published ports, passed as "-p 10080:10080"
  */
 function docker_compose_run(
-    string $runCommand,
+    string|array $runCommand,
     string $service,
     ?Context $c = null,
     bool $noDeps = true,
@@ -560,25 +567,101 @@ function docker_compose_run(
     }
 
     $command[] = $service;
-    $command[] = '/bin/sh';
-    $command[] = '-c';
-    $command[] = "exec {$runCommand}";
+
+    foreach (to_container_command($runCommand) as $token) {
+        $command[] = $token;
+    }
 
     try {
         return docker_compose($command, c: $c, progress: get_compose_progress($c));
     } catch (ExceptionInterface $e) {
         // The process exception only names "docker compose", which says nothing
         // about which container the command actually broke in.
-        throw new \RuntimeException(\sprintf('The command "%s" failed in the "%s" service.', $runCommand, $service), previous: $e);
+        throw new \RuntimeException(\sprintf('The command "%s" failed in the "%s" service.', describe_command($runCommand), $service), previous: $e);
     }
 }
 
 /**
- * @param array<string, string> $environment
- * @param list<string>          $ports
+ * Run a command in the container a service is already running
+ * ("docker compose exec"), rather than in a throwaway one.
+ *
+ * @param string|array<int, string> $command
+ * @param array<string, string>     $environment extra variables, passed as "-e KEY=VALUE"
+ */
+function docker_compose_exec(
+    string|array $command,
+    string $service,
+    ?Context $c = null,
+    ?string $workDir = null,
+    array $environment = [],
+    bool $privileged = false,
+): Process {
+    $arguments = ['exec'];
+
+    if (null !== $workDir) {
+        $arguments[] = '-w';
+        $arguments[] = $workDir;
+    }
+
+    if ($privileged) {
+        $arguments[] = '--privileged';
+    }
+
+    foreach ($environment as $key => $value) {
+        $arguments[] = '-e';
+        $arguments[] = "{$key}={$value}";
+    }
+
+    $arguments[] = $service;
+
+    foreach (to_container_command($command) as $token) {
+        $arguments[] = $token;
+    }
+
+    try {
+        return docker_compose($arguments, c: $c, progress: get_compose_progress($c));
+    } catch (ExceptionInterface $e) {
+        throw new \RuntimeException(\sprintf('The command "%s" failed in the running "%s" service.', describe_command($command), $service), previous: $e);
+    }
+}
+
+/**
+ * The tokens docker is given to run in the container.
+ *
+ * A list is passed through untouched, so docker execs it as it is. A string
+ * keeps the shell it has always been given — it may well hold a pipe or a "&&"
+ * — and "exec" replaces that shell with the command, so signals reach it.
+ *
+ * @param string|array<int, string> $command
+ *
+ * @return list<string>
+ */
+function to_container_command(string|array $command): array
+{
+    if (\is_array($command)) {
+        return array_values($command);
+    }
+
+    return ['/bin/sh', '-c', "exec {$command}"];
+}
+
+/**
+ * A command named in an error message, whichever form it was given in.
+ *
+ * @param string|array<int, string> $command
+ */
+function describe_command(string|array $command): string
+{
+    return \is_array($command) ? implode(' ', $command) : $command;
+}
+
+/**
+ * @param string|array<int, string> $runCommand
+ * @param array<string, string>     $environment
+ * @param list<string>              $ports
  */
 function docker_exit_code(
-    string $runCommand,
+    string|array $runCommand,
     string $service = 'builder',
     ?Context $c = null,
     bool $noDeps = true,

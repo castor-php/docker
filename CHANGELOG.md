@@ -4,6 +4,10 @@
 
 ### Added
 
+* `docker_compose_exec()`, running a command in the container a service already
+  has up rather than in a throwaway one — to read a cache it has warmed, to look
+  at what it is actually running. It takes the same command forms, `workDir` and
+  `environment` as `docker_compose_run()`, plus `privileged`.
 * `PHPService::withSudo()`, installing the passwordless sudo the Dockerfile has
   always carried commented out with a note to uncomment it at your own risk —
   which meant forking the Dockerfile for four lines. It stays off by default and
@@ -29,6 +33,15 @@
 
 ### Changed
 
+* `docker_compose_run()` and `docker_exit_code()` take the command as a list of
+  tokens, which reach docker untouched: an argument holding a space, a quote, a
+  `$` or a `;` arrives whole instead of being split or expanded by a shell in
+  the container. Every task of this plugin passes tokens now — `app:symfony`
+  used to wrap each argument in double quotes, which broke on an argument
+  holding one and expanded `$VAR` inside it, and the other tasks joined their
+  arguments with spaces and quoted nothing at all. A command given as a string
+  still runs through a shell, so a project passing one, or supplying its own
+  build command to `withApp()`, keeps working.
 * The default Node.js is 24, up from 20, which is past its support window. Pass
   `withNodeVersion('20')` to stay on it.
 * The builder image no longer pins yarn to its current stable unless asked for

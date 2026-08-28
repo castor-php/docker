@@ -203,8 +203,10 @@ class RustBuilder extends AbstractBuilderService
      * applies to.
      *
      * @param array<string, mixed> $options
+     *
+     * @return list<string>
      */
-    protected function formatCommand(array $options): string
+    protected function formatCommand(array $options): array
     {
         if (!$this->nightlyFormatter) {
             return $this->cargoCommand($options);
@@ -213,15 +215,16 @@ class RustBuilder extends AbstractBuilderService
         return $this->cargoCommand(['toolchain' => static::NIGHTLY_TOOLCHAIN]);
     }
 
-    protected function getBuildCommand(string $name, string $directory, array $options): string
+    protected function getBuildCommand(string $name, string $directory, array $options): string|array
     {
         if (\is_string($options['build_command'] ?? null)) {
+            // given by the project, and may be written to use a shell
             return $options['build_command'];
         }
 
-        $target = \is_string($options['target'] ?? null) ? " --target {$options['target']}" : '';
+        $target = \is_string($options['target'] ?? null) ? ['--target', $options['target']] : [];
 
-        return $this->cargoCommand($options) . ' build' . $target;
+        return [...$this->cargoCommand($options), 'build', ...$target];
     }
 
     protected function getAppTasks(string $name, string $directory, array $options): iterable
@@ -233,7 +236,7 @@ class RustBuilder extends AbstractBuilderService
         });
 
         yield $this->task('test', $name, 'Run the test suite of the ' . $name . ' application', function (array $args) use ($cargo, $directory): void {
-            $this->run($this->joinArgs($cargo . ' test', $args), $directory);
+            $this->run($this->joinArgs([...$cargo, 'test'], $args), $directory);
         });
 
         yield $this->task('cargo', $name, 'Run cargo for the ' . $name . ' application', function (array $args) use ($cargo, $directory): void {
@@ -243,7 +246,7 @@ class RustBuilder extends AbstractBuilderService
         yield $this->task('clippy', $name . ':qa', 'Runs Clippy', function (array $args) use ($cargo, $directory): void {
             io()->section('Running Clippy...');
 
-            $this->run($this->joinArgs($cargo . ' clippy --all-targets', $args), $directory);
+            $this->run($this->joinArgs([...$cargo, 'clippy', '--all-targets'], $args), $directory);
         });
 
         $format = $this->formatCommand($options);
@@ -251,17 +254,19 @@ class RustBuilder extends AbstractBuilderService
         yield $this->task('fmt', $name . ':qa', 'Fixes Coding Style' . ($this->nightlyFormatter ? ' (nightly rustfmt)' : ''), function (array $args) use ($format, $directory): void {
             io()->section('Running rustfmt...');
 
-            $this->run($this->joinArgs($format . ' fmt', $args), $directory);
+            $this->run($this->joinArgs([...$format, 'fmt'], $args), $directory);
         });
     }
 
     /**
      * @param array<string, mixed> $options
+     *
+     * @return list<string>
      */
-    protected function cargoCommand(array $options): string
+    protected function cargoCommand(array $options): array
     {
         $toolchain = $options['toolchain'] ?? null;
 
-        return \is_string($toolchain) ? "rustup run {$toolchain} cargo" : 'cargo';
+        return \is_string($toolchain) ? ['rustup', 'run', $toolchain, 'cargo'] : ['cargo'];
     }
 }

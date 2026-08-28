@@ -25,7 +25,10 @@ final class QaToolContainerInstallationTest extends TestCase
                 return $this->getQaToolManifest($directory, $dependencies);
             }
 
-            public function installCommand(string $directory): string
+            /**
+             * @return list<string>
+             */
+            public function installCommand(string $directory): array
             {
                 return $this->getQaToolInstallCommand($directory);
             }
@@ -46,8 +49,8 @@ final class QaToolContainerInstallationTest extends TestCase
     {
         $command = $this->application()->installCommand('app-phpstan');
 
-        static::assertStringStartsWith('composer update ', $command);
-        static::assertStringContainsString('--no-interaction', $command);
+        static::assertSame(['composer', 'update'], \array_slice($command, 0, 2));
+        static::assertContains('--no-interaction', $command);
     }
 
     /**
@@ -59,7 +62,7 @@ final class QaToolContainerInstallationTest extends TestCase
     {
         $app = $this->application();
 
-        static::assertStringContainsString(
+        static::assertContains(
             '--working-dir=' . $app->mountPoint() . '/app-phpstan',
             $app->installCommand('app-phpstan'),
         );

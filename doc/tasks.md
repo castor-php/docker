@@ -234,10 +234,10 @@ what your own tasks should use to reach a container:
 ```php
 use function Castor\Docker\docker_compose_run;
 
-docker_compose_run('bin/console app:import', 'app-builder');
+docker_compose_run(['bin/console', 'app:import'], 'app-builder');
 
 docker_compose_run(
-    'bin/replay --verbose',
+    ['bin/replay', '--verbose'],
     service: 'agent',
     workDir: '/app/agent',
     environment: ['RUST_LOG' => 'debug'],   // -e RUST_LOG=debug
@@ -246,10 +246,45 @@ docker_compose_run(
 );
 ```
 
+Give the command as a list of tokens. They reach docker as they are, so nothing
+splits or expands them, and an argument holding a space, a quote, a `$` or a
+`;` arrives whole — which is what you want as soon as an argument comes from
+whoever typed the task:
+
+```php
+// the message arrives as one argument, and $USER is not expanded
+docker_compose_run(['bin/console', 'app:notify', 'deployed by $USER'], 'app-builder');
+```
+
+A string is still accepted, and still runs through a shell in the container,
+which is what a command written to use one needs:
+
+```php
+docker_compose_run('bin/console app:import | tee /tmp/import.log', 'app-builder');
+```
+
 A failing command raises a `RuntimeException` naming the service and the command
 that broke, instead of the bare `docker compose` error. Use
 `docker_exit_code()`, which takes the same arguments, when you want the exit
 code rather than an exception.
+
+### In a container already running
+
+`docker_compose_run()` starts a throwaway container. To reach the one a service
+is already running — to look at a cache it has warmed, to send it a signal —
+use `docker_compose_exec()`:
+
+```php
+use function Castor\Docker\docker_compose_exec;
+
+docker_compose_exec(['bin/console', 'cache:pool:list'], 'app');
+docker_compose_exec(['apt-get', 'update'], 'app', privileged: true);
+```
+
+It takes the same `workDir` and `environment` arguments, and the same two
+command forms. The service has to be up: `docker compose exec` fails on a
+service that is not running, where `docker_compose_run()` would have started
+one.
 
 Compose announces the throwaway container each run creates —
 `Container app-builder-run-8c9d8bef Creating`, then `Created` — in front of the

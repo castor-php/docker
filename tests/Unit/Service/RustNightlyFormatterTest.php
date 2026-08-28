@@ -30,7 +30,10 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
             /**
              * @param array<string, mixed> $options
              */
-            public function format(array $options = []): string
+            /**
+             * @return list<string>
+             */
+            public function format(array $options = []): array
             {
                 return $this->formatCommand($options);
             }
@@ -38,7 +41,10 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
             /**
              * @param array<string, mixed> $options
              */
-            public function build(array $options = []): string
+            /**
+             * @return string|list<string>
+             */
+            public function build(array $options = []): string|array
             {
                 return $this->getBuildCommand('app', 'app', $options);
             }
@@ -52,7 +58,7 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
         $builder = $this->builder(false);
 
         static::assertSame([], $builder->toolchains());
-        static::assertSame('cargo', $builder->format());
+        static::assertSame(['cargo'], $builder->format());
     }
 
     public function testTheFlagInstallsNightlyWithRustfmt(): void
@@ -67,9 +73,9 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
     {
         $builder = $this->builder(true);
 
-        static::assertSame('rustup run nightly cargo', $builder->format());
+        static::assertSame(['rustup', 'run', 'nightly', 'cargo'], $builder->format());
         // Building and linting stay on the default toolchain.
-        static::assertSame('cargo build', $builder->build());
+        static::assertSame(['cargo', 'build'], $builder->build());
     }
 
     /**
@@ -123,7 +129,7 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
 
         // The application already runs on nightly: the formatter flag changes
         // nothing for it.
-        static::assertSame('rustup run nightly cargo', $builder->format(['toolchain' => 'nightly']));
-        static::assertSame('rustup run beta cargo build', $builder->build(['toolchain' => 'beta']));
+        static::assertSame(['rustup', 'run', 'nightly', 'cargo'], $builder->format(['toolchain' => 'nightly']));
+        static::assertSame(['rustup', 'run', 'beta', 'cargo', 'build'], $builder->build(['toolchain' => 'beta']));
     }
 }

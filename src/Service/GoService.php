@@ -108,9 +108,14 @@ class GoService implements ServiceInterface
         return $this->binaryPath ?? $this->name;
     }
 
-    public function getBuildCommand(): string
+    /**
+     * Tokens unless the project gave its own command, which may use a shell.
+     *
+     * @return string|list<string>
+     */
+    public function getBuildCommand(): string|array
     {
-        return $this->buildCommand ?? 'go build -o ' . $this->getBinaryPath();
+        return $this->buildCommand ?? ['go', 'build', '-o', $this->getBinaryPath()];
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
@@ -208,7 +213,10 @@ class GoService implements ServiceInterface
         ;
     }
 
-    protected function runInBuilder(string $command, ?Context $c = null): void
+    /**
+     * @param string|array<int, string> $command
+     */
+    protected function runInBuilder(string|array $command, ?Context $c = null): void
     {
         docker_compose_run(
             $command,

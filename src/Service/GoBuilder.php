@@ -74,13 +74,14 @@ class GoBuilder extends AbstractBuilderService
         ;
     }
 
-    protected function getBuildCommand(string $name, string $directory, array $options): string
+    protected function getBuildCommand(string $name, string $directory, array $options): string|array
     {
         if (\is_string($options['build_command'] ?? null)) {
+            // given by the project, and may be written to use a shell
             return $options['build_command'];
         }
 
-        return 'go build -o ' . (\is_string($options['output'] ?? null) ? $options['output'] : $name);
+        return ['go', 'build', '-o', \is_string($options['output'] ?? null) ? $options['output'] : $name];
     }
 
     protected function getAppTasks(string $name, string $directory, array $options): iterable
@@ -90,11 +91,11 @@ class GoBuilder extends AbstractBuilderService
         });
 
         yield $this->task('test', $name, 'Run the test suite of the ' . $name . ' application', function (array $args) use ($directory): void {
-            $this->run($this->joinArgs('go test ./...', $args), $directory);
+            $this->run($this->joinArgs(['go', 'test', './...'], $args), $directory);
         });
 
         yield $this->task('go', $name, 'Run go for the ' . $name . ' application', function (array $args) use ($directory): void {
-            $this->run($this->joinArgs('go', $args), $directory);
+            $this->run($this->joinArgs(['go'], $args), $directory);
         });
 
         yield $this->updateTask($name, $directory);
@@ -129,7 +130,7 @@ class GoBuilder extends AbstractBuilderService
                 $this->run(\sprintf('go get %s %s', $patch ? '-u=patch' : '-u', $module ?? './...'), $directory);
 
                 if ($tidy) {
-                    $this->run('go mod tidy', $directory);
+                    $this->run(['go', 'mod', 'tidy'], $directory);
                 }
             },
         ];

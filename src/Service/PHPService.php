@@ -480,9 +480,9 @@ class PHPService implements ServiceInterface
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the PHP container'),
             'function' => function (#[AsRawTokens] array $args): void {
                 if (!$args) {
-                    $this->runInBuilder('bash', c: interactive_context());
+                    $this->runInBuilder(['bash'], c: interactive_context());
                 } else {
-                    $this->runInBuilder(implode(' ', $args), c: interactive_context());
+                    $this->runInBuilder($args, c: interactive_context());
                 }
             },
         ];
@@ -490,14 +490,14 @@ class PHPService implements ServiceInterface
         yield [
             'task' => new AsTask('install', $this->name, 'Install PHP dependencies using Composer'),
             'function' => function (): void {
-                $this->runInBuilder('composer install');
+                $this->runInBuilder(['composer', 'install']);
             },
         ];
 
         yield [
             'task' => new AsTask('composer', $this->name, 'Run composer for this service'),
             'function' => function (#[AsRawTokens] array $args): void {
-                $this->runInBuilder('composer ' . implode(' ', $args));
+                $this->runInBuilder(['composer', ...$args]);
             },
         ];
 
@@ -564,7 +564,7 @@ class PHPService implements ServiceInterface
         $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $directory . '/vendor/bin/' . $tool;
 
         return docker_exit_code(
-            trim($binary . ' ' . implode(' ', $arguments)),
+            [$binary, ...$arguments],
             $this->getBuilderServiceName(),
             workDir: $this->getBuilderWorkingDirectory(),
         );
@@ -634,12 +634,17 @@ class PHPService implements ServiceInterface
      * Run in the builder container, so --working-dir names the mount point and
      * not the host directory behind it.
      */
-    protected function getQaToolInstallCommand(string $directory): string
+    /**
+     * @return list<string>
+     */
+    protected function getQaToolInstallCommand(string $directory): array
     {
-        return \sprintf(
-            'composer update --working-dir=%s --no-interaction',
-            static::QA_TOOLS_MOUNT_POINT . '/' . $directory,
-        );
+        return [
+            'composer',
+            'update',
+            '--working-dir=' . static::QA_TOOLS_MOUNT_POINT . '/' . $directory,
+            '--no-interaction',
+        ];
     }
 
     /**
@@ -795,8 +800,10 @@ class PHPService implements ServiceInterface
      * Run a command in the builder container of this application — which may be
      * the one of another application (withSharedBuilder()), in the
      * sub-directory this application lives in.
+     *
+     * @param string|array<int, string> $command
      */
-    protected function runInBuilder(string $command, ?Context $c = null): void
+    protected function runInBuilder(string|array $command, ?Context $c = null): void
     {
         docker_compose_run(
             $command,

@@ -199,13 +199,20 @@ class RustService implements ServiceInterface
             : "target/debug/{$this->name}";
     }
 
-    public function getBuildCommand(): string
+    /**
+     * Tokens unless the project gave its own command, which may use a shell.
+     *
+     * @return string|list<string>
+     */
+    public function getBuildCommand(): string|array
     {
         if ($this->buildCommand !== null) {
             return $this->buildCommand;
         }
 
-        return $this->target !== null ? "cargo build --target {$this->target}" : 'cargo build';
+        return $this->target !== null
+            ? ['cargo', 'build', '--target', $this->target]
+            : ['cargo', 'build'];
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
@@ -308,7 +315,7 @@ class RustService implements ServiceInterface
         return [
             'task' => new AsTask('test', $this->name, 'Run the test suite of the ' . $this->name . ' application'),
             'function' => function (#[AsRawTokens] array $args): void {
-                $this->runInBuilder(trim('cargo test ' . implode(' ', $args)));
+                $this->runInBuilder(['cargo', 'test', ...$args]);
             },
         ];
     }
@@ -321,7 +328,7 @@ class RustService implements ServiceInterface
         return [
             'task' => new AsTask('cargo', $this->name, 'Run cargo for this service'),
             'function' => function (#[AsRawTokens] array $args): void {
-                $this->runInBuilder(trim('cargo ' . implode(' ', $args)));
+                $this->runInBuilder(['cargo', ...$args]);
             },
         ];
     }
@@ -334,7 +341,7 @@ class RustService implements ServiceInterface
         return [
             'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the Rust container'),
             'function' => function (): void {
-                $this->runInBuilder('bash', interactive_context());
+                $this->runInBuilder(['bash'], interactive_context());
             },
         ];
     }
@@ -349,7 +356,7 @@ class RustService implements ServiceInterface
             'function' => function (#[AsRawTokens] array $args): void {
                 io()->section('Running Clippy...');
 
-                $this->runInBuilder(trim('cargo clippy --all-targets ' . implode(' ', $args)));
+                $this->runInBuilder(['cargo', 'clippy', '--all-targets', ...$args]);
             },
         ];
     }
@@ -364,7 +371,7 @@ class RustService implements ServiceInterface
             'function' => function (#[AsRawTokens] array $args): void {
                 io()->section('Running rustfmt...');
 
-                $this->runInBuilder(trim('cargo fmt ' . implode(' ', $args)));
+                $this->runInBuilder(['cargo', 'fmt', ...$args]);
             },
         ];
     }
@@ -390,7 +397,10 @@ class RustService implements ServiceInterface
         ;
     }
 
-    protected function runInBuilder(string $command, ?Context $c = null): void
+    /**
+     * @param string|array<int, string> $command
+     */
+    protected function runInBuilder(string|array $command, ?Context $c = null): void
     {
         docker_compose_run(
             $command,
