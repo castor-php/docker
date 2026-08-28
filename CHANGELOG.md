@@ -79,6 +79,13 @@
   frontend tooling. Corepack is now installed from npm when the version asked
   for does not ship it, leaving the majors that still bundle it untouched.
 
+### Removed
+
+* An unused `mods-available/app-builder.ini` at the root of the PHP build
+  context, an exact copy of the one under `builder/php-configuration` that the
+  image actually installs. Nothing referenced it, so editing it — the shorter
+  path, and the obvious one to reach for — changed nothing.
+
 ### Documentation
 
 * The quality assurance page still said composer resolves the tools against the
