@@ -2,6 +2,28 @@
 
 ## 0.3.5 - 2026-08-28
 
+### Changed
+
+* The QA tools are installed by the composer of the builder image instead of the
+  one castor embeds. Composer resolves against the platform it runs on, and the
+  tools run in the container: installing from the host picked versions for
+  whichever PHP happens to run castor, so an application on an older PHP got a
+  tool it cannot run, and one on a newer PHP got a tool older than it deserves.
+  The extensions differ as much as the version does — a tool dependency
+  requiring `ext-amqp` or `ext-pgsql` could not be installed from a host without
+  them, while one requiring `ext-gd` installed happily and then found no `ext-gd`
+  in the container. Installations still live in `.castor/vendor/.tools/`, mounted
+  at `/castor-tools`, so they outlive the containers and no image is rebuilt to
+  change a tool version. An installation is now also redone when the PHP version
+  of the application changes, which is part of what it was resolved against.
+
+### Removed
+
+* The `castor-php/php-qa` dependency. `create_tools()` was the only thing used
+  from it, and installing on the host is what it does. Projects calling its
+  functions — `phpstan()`, `php_cs_fixer()` — had them through this plugin by
+  accident and should now require `castor-php/php-qa` themselves.
+
 ### Fixed
 
 * A project declaring a mailer with `withMailerService()` generated a compose

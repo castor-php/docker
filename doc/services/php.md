@@ -170,15 +170,23 @@ castor app:qa:rector    # Rector
 castor app:qa:twig-cs   # Twig CS Fixer (SymfonyService only)
 ```
 
-The tools are **installed on the host by castor** and **run inside the builder
-container**, so they see the PHP version, the extensions and the `vendor/` the
-application actually runs on — not whichever PHP happens to run castor. PHPStan
-resolving a class against the wrong PHP version, or PHP CS Fixer warning that
-your host PHP is newer than the one your `composer.json` supports, both go away.
+The tools are **installed and run inside the builder container**, by the
+composer of the image, so they see the PHP version, the extensions and the
+`vendor/` the application actually runs on — not whichever PHP happens to run
+castor. Composer resolves a package against the platform it runs on, so
+installing from the host is how you end up with a tool the container cannot run,
+or one older than the application deserves; a dependency requiring an extension
+of the image — `ext-amqp`, `ext-pgsql` — cannot be installed from a host that
+does not have it either. PHPStan resolving a class against the wrong PHP
+version, or PHP CS Fixer warning that your host PHP is newer than the one your
+`composer.json` supports, both go away.
 
 They are installed in `.castor/vendor/.tools/`, which the builder container
-mounts at `/castor-tools`. Nothing is added to the image, so changing a tool
-version does not mean rebuilding it.
+mounts at `/castor-tools`. The directory being on the host, an installation
+outlives the containers; nothing is added to the image, so changing a tool
+version does not mean rebuilding it. An installation is redone when the tools it
+requires change, and when the PHP version of the application does — the version
+the tool was resolved against.
 
 > [!NOTE]
 > By default it installs the latest version of each tool, which may change 

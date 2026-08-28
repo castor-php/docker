@@ -31,7 +31,6 @@
     ],
     "require": {
         "php": ">=8.3",
-        "castor-php/php-qa": "^0.3.0",
         "nikic/php-parser": "^5.3"
     }
 }

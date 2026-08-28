@@ -20,8 +20,9 @@ use function Castor\Docker\docker_compose_run;
 use function Castor\io;
 use function Castor\Docker\docker_exit_code;
 use function Castor\Docker\interactive_context;
-use function Castor\PHPQa\create_tools;
 use function Castor\context;
+use function Castor\fingerprint;
+use function Castor\hasher;
 
 class PHPService implements ServiceInterface
 {
@@ -456,12 +457,10 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Install a QA tool with castor, then run it inside the container.
-     *
-     * The tool is installed on the host, in the directory the container mounts,
-     * and executed in the container — so the analysis sees the PHP version, the
-     * extensions and the vendor/ the application actually runs on rather than
-     * whichever PHP happens to run castor.
+     * Install a QA tool, then run it — both inside the container, so the
+     * analysis sees the PHP version, the extensions and the vendor/ the
+     * application actually runs on rather than whichever PHP happens to run
+     * castor.
      *
      * @param array<string, string> $dependencies the composer requirements of the tool
      * @param list<string>          $arguments
@@ -470,7 +469,7 @@ class PHPService implements ServiceInterface
     {
         $directory = $this->getQaToolInstallation($tool);
 
-        create_tools($directory, $dependencies);
+        $this->installQaTool($directory, $dependencies);
 
         $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $directory . '/vendor/bin/' . $tool;
 
@@ -478,6 +477,78 @@ class PHPService implements ServiceInterface
             trim($binary . ' ' . implode(' ', $arguments)),
             $this->getBuilderServiceName(),
             workDir: $this->getBuilderWorkingDirectory(),
+        );
+    }
+
+    /**
+     * Resolving the tool with the composer of the container rather than the one
+     * castor embeds is what makes the installation match the PHP the tool runs
+     * on: composer picks versions against the platform it runs on, so a host on
+     * PHP 8.5 installing for a container on 8.1 gets a tool the container
+     * cannot run — and the reverse silently analyses with a tool older than the
+     * application deserves. The container is also where the extensions the
+     * application declares are, which some tool dependencies require.
+     *
+     * The directory is on the host, mounted in the container: an installation
+     * survives the containers, and the composer cache of the shared home is
+     * reused across the tools.
+     *
+     * @param array<string, string> $dependencies
+     */
+    protected function installQaTool(string $directory, array $dependencies): void
+    {
+        $path = $this->getQaToolsDirectory(context()) . '/' . $directory;
+        $manifest = $this->getQaToolManifest($directory, $dependencies);
+
+        // The PHP version takes part in the fingerprint because it takes part
+        // in the resolution: bumping the application to a version the installed
+        // tool does not support has to reinstall it.
+        fingerprint(
+            callback: function () use ($path, $manifest, $directory): void {
+                if (!is_dir($path)) {
+                    mkdir($path, 0o777, true);
+                }
+
+                file_put_contents($path . '/composer.json', $manifest);
+
+                io()->comment('Installing/Updating ' . $directory . '...');
+
+                $this->runInBuilder($this->getQaToolInstallCommand($directory));
+            },
+            id: 'docker-tools-' . $directory,
+            fingerprint: hasher()->write($manifest)->write($this->getVersion())->finish(),
+            force: !is_file($path . '/composer.json'),
+        );
+    }
+
+    /**
+     * The composer.json of the installation. It pins nothing beyond what the
+     * task asks for: the resolution is the container's to make.
+     *
+     * @param array<string, string> $dependencies
+     */
+    protected function getQaToolManifest(string $directory, array $dependencies): string
+    {
+        return json_encode([
+            'name' => 'tools/' . $directory,
+            'require' => $dependencies,
+            'config' => [
+                // A tool is a leaf: its own plugins are the only ones that can
+                // run here, and none of them is worth an interactive prompt.
+                'allow-plugins' => array_fill_keys(array_keys($dependencies), true),
+            ],
+        ], \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Run in the builder container, so --working-dir names the mount point and
+     * not the host directory behind it.
+     */
+    protected function getQaToolInstallCommand(string $directory): string
+    {
+        return \sprintf(
+            'composer update --working-dir=%s --no-interaction',
+            static::QA_TOOLS_MOUNT_POINT . '/' . $directory,
         );
     }
 
