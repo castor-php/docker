@@ -24,8 +24,8 @@ extend `Dockerfile` instead — the block names are the same.
 
 ## A system package in every container
 
-`php_base` is the shared ancestor of the builder and the workers, and of the
-frontend in `PhpMode::Fpm`:
+`php_base` is the shared ancestor of every container of the application — the
+frontend, the builder and the workers, in both modes:
 
 ```dockerfile
 # syntax=ghcr.io/castor-php/twig-dockerfile:0.1
@@ -42,9 +42,7 @@ RUN apt-get update \
 {% endblock %}
 ```
 
-In FrankenPHP mode the frontend comes from `dunglas/frankenphp` and does not
-inherit this. Repeat the step in `frontend` when the web container needs the
-package too — that image is Debian-based as well, so the same `apt-get` works.
+Both base images are Debian, so the same `apt-get` works in either mode.
 
 ## A tool only the builder needs
 
@@ -62,10 +60,32 @@ RUN curl -sS https://get.symfony.com/cli/installer | bash -s -- --install-dir=/u
 
 ## PHP settings
 
-Drop an ini file in `mods-available` and enable it. The priority comment orders
-it against the ones the plugin ships (`app-default` is 30, `app-builder` 40):
+[`withPhpIni()`](../services/php.md#php-configuration) sets directives without a
+rebuild and is what you want most of the time. At build time, the file goes
+where the image reads it — one `conf.d` for every SAPI in `PhpMode::FrankenPhp`,
+`mods-available` plus `phpenmod` in `PhpMode::Fpm`. Either way `php_base` is the
+block, so the setting reaches every container of the application.
 
 ```dockerfile
+{% extends 'Dockerfile.frankenphp' %}
+
+{% block php_base %}
+    {{ parent() }}
+
+COPY <<EOF /usr/local/etc/php/conf.d/50-project.ini
+[PHP]
+memory_limit = 512M
+max_execution_time = 60
+EOF
+{% endblock %}
+```
+
+The number orders the file against the ones the plugin ships (`app-default` is
+30, `app-builder` 40). In `PhpMode::Fpm` the same idea reads:
+
+```dockerfile
+{% extends 'Dockerfile' %}
+
 {% block php_base %}
     {{ parent() }}
 
@@ -77,19 +97,6 @@ max_execution_time = 60
 EOF
 
 RUN phpenmod project
-{% endblock %}
-```
-
-The FrankenPHP frontend uses the upstream image layout instead, with no
-`phpenmod`:
-
-```dockerfile
-{% block frontend %}
-    {{ parent() }}
-
-COPY <<EOF /usr/local/etc/php/conf.d/zz-project.ini
-memory_limit = 512M
-EOF
 {% endblock %}
 ```
 
@@ -221,7 +228,9 @@ WORKDIR /var/www
 ```
 
 Keep the stage name `php-base` and the `WORKDIR`: the other blocks build on
-them.
+them. In `PhpMode::FrankenPhp` that image is also what serves — it has to carry
+the `frankenphp` binary, and the extensions are then yours to install, since the
+shipped block is what calls `install-php-extensions`.
 
 ## Project files in the image
 

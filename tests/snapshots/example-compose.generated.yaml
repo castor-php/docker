@@ -62,7 +62,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip","amqp","redis"]'
                 app_root: /var/www/app1
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1:cache'
@@ -105,7 +105,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip","amqp","redis"]'
                 app_root: /var/www/app1
                 node_version: 24.x
                 package_manager: npm
@@ -144,7 +144,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip","amqp","redis"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip","amqp","redis"]'
                 app_root: /var/www/app1
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1-worker:cache'

@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* **`PhpMode::FrankenPhp` runs one PHP for the whole application.** The builder
+  and the workers used to run the Debian packages of sury while the application
+  was served by the PHP of the FrankenPHP image: two installations, two
+  catalogues of extensions, two versions of the same `8.5`. An extension could
+  be in one and missing from the other — `addExtension('pgsql')` gave the
+  builder pdo_pgsql, since the Debian package ships it, and gave the server none
+  — so a command could pass and the page it prepared break. Every stage is now
+  built on `dunglas/frankenphp`, so the CLI of `castor app:bash`, of the QA
+  tools and of the workers is the binary FrankenPHP serves with. `PhpMode::Fpm`
+  is unchanged and stays on the Debian packages.
+* Extensions are named after the Debian packages in both modes. The few whose
+  package ships several modules are translated for `install-php-extensions`,
+  which names one module at a time: `pgsql` also installs pdo_pgsql, `mysql`
+  installs mysqli and pdo_mysql, `sqlite3` installs pdo_sqlite. A FrankenPHP
+  application on Postgres or MySQL therefore gains the PDO driver it was
+  missing.
+* `withPhpIni(..., PhpIniScope::Cli)` writes to `/usr/local/etc/php/conf.d` in
+  FrankenPHP mode, the conf.d of the image the builder and the workers now run.
+* The application container of a FrankenPHP application starts in `/var/www`
+  with `HOME=/home/app`, like every other container of the plugin: it used to
+  keep the `/app` working directory of the upstream image, so a
+  `docker_compose_exec()` had to name the directory itself.
+* **No shipped Dockerfile carries a `# syntax=` line any more**, so any of them
+  can be extended. A template that extends another one cannot hold text outside
+  its blocks and that directive is text, which made a template carrying it
+  buildable but not extensible: a project writing
+  `{% extends 'Dockerfile.frankenphp' %}` — what the documentation asks for —
+  was rejected by Twig on line 1, and the same trap waited on every other
+  template the day it started extending one. What pins the frontend is the
+  `BUILDKIT_SYNTAX` build argument every generated service already carries, and
+  BuildKit honours it over the directive. Two tests hold the rule: no shipped
+  template pins the frontend itself, and no service builds a template without
+  passing the argument.
+* The `builder` block of the Dockerfiles has two new inner blocks,
+  `builder_php_dev` and `builder_php_configuration`, which is what the FrankenPHP
+  file overrides instead of duplicating the whole stage. The NodeSource
+  repository key is used armoured, so the builder no longer needs gnupg to
+  dearmour it.
+
 ## 0.4.1 - 2026-09-01
 
 ### Fixed

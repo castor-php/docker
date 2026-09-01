@@ -48,7 +48,8 @@ in any Twig template, across Dockerfiles:
 * `{{ parent() }}` keeps the shipped content and appends yours — the usual case
 * omitting it replaces the block entirely, base image included
 * you can extend a Dockerfile that already extends another one:
-  `Dockerfile.frankenphp` extends `Dockerfile` and only overrides `frontend`
+  `Dockerfile.frankenphp` extends `Dockerfile` and overrides the blocks where
+  the two PHP installations differ
 
 Only the blocks you override change, so the plugin can keep improving the rest
 of the image without breaking your build.
@@ -144,9 +145,19 @@ plugin: names without `@` always resolve in the build context.
 ## Pinning the frontend
 
 The frontend runs inside your builds, so the plugin pins the version it is
-tested against and passes it as the `BUILDKIT_SYNTAX` build argument, which
-BuildKit honours over the `# syntax=` line. Your own Dockerfile is therefore
-built with that same pinned version, whatever its first line says.
+tested against and passes it as the `BUILDKIT_SYNTAX` build argument, on every
+service it generates. BuildKit honours that over the `# syntax=` line, so your
+own Dockerfile is built with that same pinned version, whatever its first line
+says.
+
+That argument is also the only thing pinning it for the Dockerfiles shipped by
+the plugin, which carry **no `# syntax=` line at all**. The reason is the rule
+above: a template that extends another one cannot hold anything outside its
+blocks, and that directive is a comment — text. A template carrying it can be
+built and cannot be extended, which is the opposite of what a shipped template
+is for. Keep it in mind for your own files too: the Dockerfile you point a
+service at is the one being built and keeps its `# syntax=` line, but the moment
+another of your Dockerfiles extends it, that line has to go.
 
 To try another one — a release candidate, or a local build of the frontend —
 set it in your context:

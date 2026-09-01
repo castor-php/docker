@@ -1,4 +1,11 @@
-# syntax=ghcr.io/castor-php/twig-dockerfile:0.1
+{#
+    No "# syntax=" line: the frontend is pinned by the BUILDKIT_SYNTAX build
+    argument the plugin sets on every service it generates, and BuildKit honours
+    that over the directive. Carrying it too would cost this file the one thing
+    a shipped template is for — a template that extends another one cannot hold
+    text outside its blocks, and the directive is text, so the day this file
+    extends anything, every project extending it breaks on line 1.
+#}
 # hadolint global ignore=DL3008
 
 {% block Dockerfile %}

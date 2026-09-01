@@ -7,7 +7,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip"]'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
@@ -24,7 +24,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip"]'
                 node_version: 24.x
                 package_manager: npm
             cache_from:

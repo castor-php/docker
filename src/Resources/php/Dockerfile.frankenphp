@@ -1,24 +1,76 @@
-# syntax=ghcr.io/castor-php/twig-dockerfile:0.1
+{#
+    No "# syntax=" line here, unlike the other Dockerfiles of the plugin. A
+    template that extends another one cannot hold text outside its blocks, and
+    that directive is text: carrying it would make this file buildable and not
+    extensible, so a project writing {% extends 'Dockerfile.frankenphp' %} would
+    be rejected by Twig on line 1. The frontend reaches this build through the
+    BUILDKIT_SYNTAX argument the plugin sets on every service it generates, and
+    BuildKit honours that over the directive anyway.
+#}
 {% extends 'Dockerfile' %}
 
-{% block frontend %}
-FROM dunglas/frankenphp:php{{ php_version }} AS frontend
+{#
+    One PHP for the whole application.
+
+    php-base is the FrankenPHP image itself, so the CLI of the builder and of
+    the workers is the binary FrankenPHP serves with: the same version, the
+    same extensions, the same ini files. Installing them twice — from sury for
+    the Debian stages, from install-php-extensions for the server — is what let
+    an extension be there and missing there, and a test pass in the builder
+    only to break in the browser.
+#}
+{% block php_base %}
+FROM dunglas/frankenphp:php{{ php_version }} AS php-base
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash-completion \
+        procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 {% if php_extensions %}
 RUN install-php-extensions {% for extension in php_extensions %}{{ extension }} {% endfor %}
-{% endif %}
 
-# This image is the official PHP one, not php-base, so nothing of the
-# configuration the other stages share reaches it on its own: without this an
-# application served by FrankenPHP ran on the bare PHP defaults while the same
-# application served by FPM did not. conf.d here is what mods-available plus
-# phpenmod is over there.
+{% endif %}
+# conf.d is to this image what mods-available plus phpenmod is to the Debian
+# one, and every SAPI of it reads that directory: this file configures the CLI
+# and the server at once.
 COPY base/php-configuration/mods-available/app-default.ini /usr/local/etc/php/conf.d/30-app-default.ini
+
+ENV PHP_VERSION={{ php_version }}
+ENV HOME=/home/app
+ENV COMPOSER_MEMORY_LIMIT=-1
+
+WORKDIR /var/www
+
+# The image serves by default. Everything built on php-base runs commands, and
+# the frontend puts the server back.
+CMD ["bash"]
+{% endblock %}
+
+{% block frontend %}
+FROM php-base AS frontend
 
 {{ copy('frontend-frankenphp/Caddyfile.twig', '/etc/frankenphp/Caddyfile') }}
 
-ENV PHP_VERSION {{ php_version }}
 ENV SERVER_NAME=:80
 
 EXPOSE 80
+
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--adapter", "caddyfile"]
+{% endblock %}
+
+{# php-base enables its configuration by copying it, there is no phpenmod. #}
+{% block worker %}
+FROM php-base AS worker
+{% endblock %}
+
+{# The headers and phpize come with the image, there is no -dev package. #}
+{% block builder_php_dev %}{% endblock %}
+
+{% block builder_php_configuration %}
+COPY builder/php-configuration/mods-available/app-builder.ini /usr/local/etc/php/conf.d/40-app-builder.ini
 {% endblock %}

@@ -47,6 +47,22 @@ class PHPService implements ServiceInterface
     /** @var string[] */
     private array $extensions = ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pgsql', 'uuid', 'xml', 'zip'];
 
+    /**
+     * Extensions are named after the Debian packages of sury, which is what
+     * PhpMode::Fpm installs from. A few of those packages ship several modules,
+     * and install-php-extensions — what PhpMode::FrankenPhp installs with —
+     * names each module on its own: "pgsql" there is the pgsql extension and
+     * not pdo_pgsql, so an application asking for it the historical way got a
+     * PHP without a Doctrine driver.
+     *
+     * @var array<string, list<string>>
+     */
+    private const EXTENSION_MODULES = [
+        'mysql' => ['mysqli', 'pdo_mysql'],
+        'pgsql' => ['pgsql', 'pdo_pgsql'],
+        'sqlite3' => ['sqlite3', 'pdo_sqlite'],
+    ];
+
     private ?string $frankenPhpWorkerScript = null;
     private ?int $frankenPhpWorkerNum = null;
     private bool $frankenPhpWorkerWatch = true;
@@ -262,14 +278,19 @@ class PHPService implements ServiceInterface
 
     /**
      * Where the mounted file goes, which is the one thing the two ways of
-     * serving disagree on: FrankenPHP is built on the official PHP image and
-     * reads /usr/local/etc/php/conf.d, the rest is Debian and reads a directory
-     * per SAPI. 99 puts it after everything the image ships, so a project
-     * always has the last word.
+     * serving disagree on: every container of a FrankenPHP application runs the
+     * PHP of the official image, which reads one /usr/local/etc/php/conf.d
+     * whatever the SAPI, and a PhpMode::Fpm one runs the Debian packages, which
+     * read a directory per SAPI. 99 puts the file after everything the image
+     * ships, so a project always has the last word.
+     *
+     * The two scopes landing on the same path in FrankenPHP mode is not a
+     * conflict: they are mounted in different containers, the web one in the
+     * application and the CLI one in the builder and the workers.
      */
     protected function getPhpIniPath(PhpIniScope $scope): string
     {
-        if (PhpIniScope::Web === $scope && PhpMode::FrankenPhp === $this->mode) {
+        if (PhpMode::FrankenPhp === $this->mode) {
             return '/usr/local/etc/php/conf.d/99-castor.ini';
         }
 
@@ -398,6 +419,28 @@ class PHPService implements ServiceInterface
     }
 
     /**
+     * The extensions the image installs, in the spelling the mode needs.
+     *
+     * @return list<string>
+     */
+    public function getExtensions(): array
+    {
+        if (PhpMode::FrankenPhp !== $this->mode) {
+            return array_values(array_unique($this->extensions));
+        }
+
+        $extensions = [];
+
+        foreach ($this->extensions as $extension) {
+            foreach (self::EXTENSION_MODULES[$extension] ?? [$extension] as $module) {
+                $extensions[] = $module;
+            }
+        }
+
+        return array_values(array_unique($extensions));
+    }
+
+    /**
      * Enables FrankenPHP worker mode (PhpMode::FrankenPhp only): the given
      * script is booted once and kept in memory to handle every request,
      * instead of being re-interpreted on each request. Your application
@@ -424,7 +467,7 @@ class PHPService implements ServiceInterface
                     ->target('frontend')
                     ->withRegistryCache($this->name)
                     ->arg('php_version', $this->getVersion())
-                    ->arg('php_extensions', json_encode(array_values($this->extensions), \JSON_THROW_ON_ERROR))
+                    ->arg('php_extensions', json_encode($this->getExtensions(), \JSON_THROW_ON_ERROR))
                 ->end()
                 ->user("{$userId}:{$userId}")
                 ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')

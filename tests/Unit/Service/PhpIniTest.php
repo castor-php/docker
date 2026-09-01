@@ -111,6 +111,27 @@ final class PhpIniTest extends SnapshotTestCase
     }
 
     /**
+     * Every container of a FrankenPHP application runs the PHP of that image,
+     * builder and workers included, so the CLI file goes to the same conf.d as
+     * the web one — the containers are what keeps the two scopes apart.
+     */
+    public function testTheCliFileFollowsTheImageTheCommandsRunOn(): void
+    {
+        $franken = (new PHPService('app'))
+            ->withMode(PhpMode::FrankenPhp)
+            ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
+        ;
+        $fpm = (new PHPService('app'))
+            ->withMode(PhpMode::Fpm)
+            ->withVersion('8.4')
+            ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
+        ;
+
+        static::assertSame(['/usr/local/etc/php/conf.d/99-castor.ini'], $this->targetsOf($franken, 'app-builder'));
+        static::assertSame(['/etc/php/8.4/cli/conf.d/99-castor.ini'], $this->targetsOf($fpm, 'app-builder'));
+    }
+
+    /**
      * 99 is after everything the image ships, so the project has the last word
      * over the defaults this plugin installs at 30 and 40.
      */

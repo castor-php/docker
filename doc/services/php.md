@@ -21,7 +21,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withMailerService($mailpitService)
     ->withDomain('app.example.test', 'example.test')
     ->withHttpAccess()               // Also serve plain HTTP, without redirecting to HTTPS
-    ->addExtension('redis')          // Adds "php{version}-redis" (fpm) or the FrankenPHP equivalent
+    ->addExtension('redis')          // An extension, in every container of the application
     ->addWorker('messenger', 'php bin/console messenger:consume async', 'unless-stopped')
     ->withFrankenPhpWorkerMode('public/index.php', num: 4)
 ```
@@ -73,15 +73,38 @@ in the application container itself — only enough if it carries the tooling.
   A single process, no PHP-FPM and no nginx.
 * `PhpMode::Fpm` — the classic nginx + PHP-FPM stack.
 
-Only the frontend container differs between modes: the builder and worker
-containers are identical either way. Known limitation of `PhpMode::FrankenPhp`:
-there is no `/php-fpm-status` monitoring endpoint.
+The mode decides which PHP the whole application runs on, not only the one
+serving it: in `PhpMode::FrankenPhp` the builder and the workers run the PHP of
+the FrankenPHP image, and in `PhpMode::Fpm` they run the Debian packages the
+frontend serves with. One installation either way — a version, an extension or
+an ini directive cannot be in the container running your tests and missing from
+the one serving your pages.
+
+Known limitation of `PhpMode::FrankenPhp`: there is no `/php-fpm-status`
+monitoring endpoint.
 
 ## Extensions
 
 These extensions are installed by default: `apcu`, `bcmath`, `curl`, `iconv`,
 `intl`, `mbstring`, `pgsql`, `uuid`, `xml`, `zip`. Add more with
-`->addExtension('name')` — no custom Dockerfile needed.
+`->addExtension('name')` — no custom Dockerfile needed. They are installed once,
+in the stage every container is built on, so the list is the same in the
+application, in the builder and in the workers.
+
+Names are the Debian ones, which is what `PhpMode::Fpm` installs
+(`php{version}-{name}` from sury). `PhpMode::FrankenPhp` installs with
+[`install-php-extensions`](https://github.com/mlocati/docker-php-extension-installer),
+whose catalogue names one module at a time where a Debian package sometimes
+ships several — the plugin translates the ones that differ:
+
+| Written | Installed in `PhpMode::FrankenPhp` |
+|---------|------------------------------------|
+| `mysql` | `mysqli`, `pdo_mysql` |
+| `pgsql` | `pgsql`, `pdo_pgsql` |
+| `sqlite3` | `sqlite3`, `pdo_sqlite` |
+
+Anything else reaches the installer as written, so an extension it does not know
+fails the build with the name you gave it.
 
 ## FrankenPHP worker mode
 
@@ -118,15 +141,16 @@ Then point the service at your file with
 
 | Block | Stage | Container | What it holds |
 |-------|-------|-----------|---------------|
-| `php_base` | `php-base` | — | Debian + PHP CLI from sury, with the extensions and the base ini files |
-| `frontend` | `frontend` | `app` | FrankenPHP, or nginx + PHP-FPM in `PhpMode::Fpm` |
+| `php_base` | `php-base` | — | The PHP every container runs: `dunglas/frankenphp`, or Debian + sury in `PhpMode::Fpm`, with the extensions and the base ini files |
+| `frontend` | `frontend` | `app` | The Caddyfile and the server command, or nginx + PHP-FPM in `PhpMode::Fpm` |
 | `worker` | `worker` | `app-worker-{name}` | `php-base`, nothing more |
 | `builder` | `builder` | `app-builder` | Composer, PIE, Node, git, make and the shell completion |
 
-`worker` and `builder` always start `FROM php-base`, so a change in `php_base`
-reaches them in both modes. The frontend only does in `PhpMode::Fpm` — in
-FrankenPHP mode it starts from the `dunglas/frankenphp` image instead, and needs
-its own step.
+Every other stage starts `FROM php-base`, in both modes, so a step added there
+reaches the whole application. The `builder` block has two inner blocks for what
+depends on the PHP installation, already overridden in FrankenPHP mode:
+`builder_php_dev` (the `-dev` package, which the FrankenPHP image carries
+already) and `builder_php_configuration` (where the builder ini file goes).
 
 ### Variables
 
