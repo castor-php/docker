@@ -10,11 +10,10 @@ use Castor\Docker\Service\PHPService;
 use Castor\Docker\Tests\SnapshotTestCase;
 
 /**
- * The two modes install extensions from different places — the sury packages
- * for PhpMode::Fpm, install-php-extensions for PhpMode::FrankenPhp — and a few
- * names disagree. Inside one application they must not: the CLI of the builder
- * and the PHP serving the requests are the same binary, so they get the same
- * list.
+ * An extension is named the way the mode installs it — the Debian packages of
+ * sury for PhpMode::Fpm, the install-php-extensions catalogue for
+ * PhpMode::FrankenPhp — and reaches the image as written. Inside one
+ * application there is one PHP, so there is one list.
  */
 final class PhpExtensionTest extends SnapshotTestCase
 {
@@ -38,42 +37,7 @@ final class PhpExtensionTest extends SnapshotTestCase
         return json_decode($json, true, flags: \JSON_THROW_ON_ERROR);
     }
 
-    /**
-     * A Debian package shipping several modules is one install-php-extensions
-     * name per module: "pgsql" alone left a FrankenPHP application without
-     * pdo_pgsql, which is the driver Doctrine actually connects with.
-     */
-    public function testTheDebianNamesAreTranslatedForFrankenPhp(): void
-    {
-        $app = (new PHPService('app'))
-            ->withMode(PhpMode::FrankenPhp)
-            ->addExtension('mysql')
-            ->addExtension('sqlite3')
-        ;
-
-        $extensions = $app->getExtensions();
-
-        static::assertContains('pdo_pgsql', $extensions);
-        static::assertContains('pdo_mysql', $extensions);
-        static::assertContains('mysqli', $extensions);
-        static::assertContains('pdo_sqlite', $extensions);
-        static::assertNotContains('mysql', $extensions, 'There is no "mysql" extension upstream, only the Debian package.');
-    }
-
-    /**
-     * The Debian names are the ones the packages have, so PhpMode::Fpm keeps
-     * them untouched.
-     */
-    public function testTheDebianNamesAreKeptForFpm(): void
-    {
-        $app = (new PHPService('app'))->withMode(PhpMode::Fpm)->addExtension('mysql');
-
-        static::assertContains('mysql', $app->getExtensions());
-        static::assertNotContains('pdo_mysql', $app->getExtensions());
-        static::assertNotContains('pdo_pgsql', $app->getExtensions());
-    }
-
-    public function testAnExtensionNamedTheSameOnBothSidesIsPassedThrough(): void
+    public function testAnExtensionReachesTheImageAsWritten(): void
     {
         foreach ([PhpMode::FrankenPhp, PhpMode::Fpm] as $mode) {
             $app = (new PHPService('app'))->withMode($mode)->addExtension('redis');
@@ -83,14 +47,33 @@ final class PhpExtensionTest extends SnapshotTestCase
     }
 
     /**
-     * The mode is what decides the spelling, and it can be set after the
-     * extensions have been added.
+     * The default list is the same set of capabilities in both modes, spelled
+     * the way each installs it: a Debian "pgsql" is pdo_pgsql too, and upstream
+     * that driver is a name of its own — without it an application talking to
+     * the PostgreSQL of this plugin has nothing to connect with.
      */
-    public function testTheModeIsReadWhenTheListIsBuilt(): void
+    public function testTheDefaultsAreSpelledTheWayTheModeInstallsThem(): void
     {
-        $app = (new PHPService('app'))->addExtension('mysql')->withMode(PhpMode::Fpm);
+        $franken = (new PHPService('app'))->withMode(PhpMode::FrankenPhp)->getExtensions();
+        $fpm = (new PHPService('app'))->withMode(PhpMode::Fpm)->getExtensions();
 
-        static::assertNotContains('pdo_mysql', $app->getExtensions());
+        static::assertContains('pdo_pgsql', $franken);
+        static::assertContains('pgsql', $franken);
+
+        static::assertContains('pgsql', $fpm);
+        static::assertNotContains('pdo_pgsql', $fpm, 'There is no "php{version}-pdo_pgsql" package to install.');
+    }
+
+    /**
+     * The mode is read when the list is built, not when the service is
+     * constructed: withMode() comes after the constructor.
+     */
+    public function testTheDefaultsFollowAModeSetAfterwards(): void
+    {
+        $app = (new PHPService('app'))->addExtension('redis')->withMode(PhpMode::Fpm);
+
+        static::assertNotContains('pdo_pgsql', $app->getExtensions());
+        static::assertContains('redis', $app->getExtensions());
     }
 
     /**
@@ -111,7 +94,7 @@ final class PhpExtensionTest extends SnapshotTestCase
 
     public function testTheListHoldsNoDuplicate(): void
     {
-        $app = (new PHPService('app'))->addExtension('pdo_pgsql')->addExtension('redis')->addExtension('redis');
+        $app = (new PHPService('app'))->addExtension('pgsql')->addExtension('redis')->addExtension('redis');
 
         static::assertSame(array_values(array_unique($app->getExtensions())), $app->getExtensions());
     }

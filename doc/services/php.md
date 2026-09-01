@@ -86,25 +86,25 @@ monitoring endpoint.
 ## Extensions
 
 These extensions are installed by default: `apcu`, `bcmath`, `curl`, `iconv`,
-`intl`, `mbstring`, `pgsql`, `uuid`, `xml`, `zip`. Add more with
-`->addExtension('name')` — no custom Dockerfile needed. They are installed once,
+`intl`, `mbstring`, `pgsql`, `uuid`, `xml`, `zip` — plus `pdo_pgsql` in
+`PhpMode::FrankenPhp`, where it is a name of its own rather than part of the
+`pgsql` package. Add more with `->addExtension('name')` — no custom Dockerfile
+needed. They are installed once,
 in the stage every container is built on, so the list is the same in the
 application, in the builder and in the workers.
 
-Names are the Debian ones, which is what `PhpMode::Fpm` installs
-(`php{version}-{name}` from sury). `PhpMode::FrankenPhp` installs with
-[`install-php-extensions`](https://github.com/mlocati/docker-php-extension-installer),
-whose catalogue names one module at a time where a Debian package sometimes
-ships several — the plugin translates the ones that differ:
+A name you add reaches the installer as written, and the installer depends on
+the mode:
 
-| Written | Installed in `PhpMode::FrankenPhp` |
-|---------|------------------------------------|
-| `mysql` | `mysqli`, `pdo_mysql` |
-| `pgsql` | `pgsql`, `pdo_pgsql` |
-| `sqlite3` | `sqlite3`, `pdo_sqlite` |
+| Mode | Installed with | Named after |
+|------|----------------|-------------|
+| `PhpMode::FrankenPhp` | [`install-php-extensions`](https://github.com/mlocati/docker-php-extension-installer) | its catalogue — one module at a time, so `pdo_pgsql` and `pdo_mysql` are their own names |
+| `PhpMode::Fpm` | apt, from sury | the Debian packages, `php{version}-{name}` — one of which sometimes ships several modules |
 
-Anything else reaches the installer as written, so an extension it does not know
-fails the build with the name you gave it.
+So an extension whose Debian package ships several modules is several names in
+`PhpMode::FrankenPhp`: `mysql` is `mysqli` and `pdo_mysql` there. A name the
+installer does not know fails the build with the name you gave it, which is
+where you find out.
 
 ## FrankenPHP worker mode
 

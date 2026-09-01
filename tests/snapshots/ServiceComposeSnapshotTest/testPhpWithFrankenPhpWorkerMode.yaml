@@ -7,7 +7,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
                 frankenphp_worker_file: /var/www/public/index.php
                 frankenphp_worker_watch: 'true'
                 frankenphp_worker_num: '4'
@@ -27,7 +27,7 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","pdo_pgsql","uuid","xml","zip"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
                 frankenphp_worker_file: /var/www/public/index.php
                 frankenphp_worker_watch: 'true'
                 frankenphp_worker_num: '4'

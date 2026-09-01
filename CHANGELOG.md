@@ -7,9 +7,11 @@
 * `PhpMode::FrankenPhp` runs one PHP for the whole application: every stage is
   built on `dunglas/frankenphp`, so the builder and the workers run the binary
   that serves. `PhpMode::Fpm` stays on the Debian packages.
-* Extensions keep their Debian names; those whose package ships several modules
-  are translated for install-php-extensions — `pgsql` installs pdo_pgsql too,
-  `mysql` mysqli and pdo_mysql, `sqlite3` pdo_sqlite.
+* Extensions are named after the installer of the mode: the sury packages for
+  `PhpMode::Fpm`, the install-php-extensions catalogue for
+  `PhpMode::FrankenPhp`, which names one module at a time. The default list
+  follows, and installs `pdo_pgsql` by name in FrankenPHP mode where `pgsql`
+  does not bring it.
 * `withPhpIni(..., PhpIniScope::Cli)` writes to `/usr/local/etc/php/conf.d` in
   FrankenPHP mode.
 * A FrankenPHP application container starts in `/var/www` with `HOME=/home/app`,
@@ -20,6 +22,18 @@
 * Two new blocks in the builder stage, `builder_php_dev` and
   `builder_php_configuration`. The NodeSource key is used armoured, so the
   builder installs no gnupg.
+
+### Upgrading
+
+* Every container of a `PhpMode::FrankenPhp` application rebuilds on
+  `dunglas/frankenphp` instead of Debian and sury. Its PHP is the one that
+  serves — a ZTS build, the version the image ships for that minor — and no
+  `php{version}-*` package is installed any more.
+* An extension added in that mode is a name of the install-php-extensions
+  catalogue, which the FrankenPHP frontend already used: `addExtension('mysql')`
+  is `mysqli` and `pdo_mysql` there. A name it does not know fails the build.
+* A Dockerfile extending a shipped one keeps working. One extending
+  `Dockerfile.frankenphp` now works at all — it could not before.
 
 ## 0.4.1 - 2026-09-01
 

@@ -44,24 +44,8 @@ class PHPService implements ServiceInterface
      */
     private array $workers = [];
 
-    /** @var string[] */
-    private array $extensions = ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pgsql', 'uuid', 'xml', 'zip'];
-
-    /**
-     * Extensions are named after the Debian packages of sury, which is what
-     * PhpMode::Fpm installs from. A few of those packages ship several modules,
-     * and install-php-extensions — what PhpMode::FrankenPhp installs with —
-     * names each module on its own: "pgsql" there is the pgsql extension and
-     * not pdo_pgsql, so an application asking for it the historical way got a
-     * PHP without a Doctrine driver.
-     *
-     * @var array<string, list<string>>
-     */
-    private const EXTENSION_MODULES = [
-        'mysql' => ['mysqli', 'pdo_mysql'],
-        'pgsql' => ['pgsql', 'pdo_pgsql'],
-        'sqlite3' => ['sqlite3', 'pdo_sqlite'],
-    ];
+    /** @var string[] the extensions asked for, on top of the defaults of the mode */
+    private array $extensions = [];
 
     private ?string $frankenPhpWorkerScript = null;
     private ?int $frankenPhpWorkerNum = null;
@@ -419,25 +403,33 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The extensions the image installs, in the spelling the mode needs.
+     * The extensions the image installs, named the way the mode installs them:
+     * the Debian packages of sury for PhpMode::Fpm, the install-php-extensions
+     * catalogue for PhpMode::FrankenPhp.
      *
      * @return list<string>
      */
     public function getExtensions(): array
     {
-        if (PhpMode::FrankenPhp !== $this->mode) {
-            return array_values(array_unique($this->extensions));
-        }
+        return array_values(array_unique([...$this->getDefaultExtensions(), ...$this->extensions]));
+    }
 
-        $extensions = [];
-
-        foreach ($this->extensions as $extension) {
-            foreach (self::EXTENSION_MODULES[$extension] ?? [$extension] as $module) {
-                $extensions[] = $module;
-            }
-        }
-
-        return array_values(array_unique($extensions));
+    /**
+     * What an application asking for nothing gets. The two modes install from
+     * two catalogues that do not name things the same, so they do not hold the
+     * same list: a sury package sometimes ships several modules —
+     * "php-pgsql" is pdo_pgsql too — where install-php-extensions names one at
+     * a time, and an application talking to the PostgreSQL of this plugin wants
+     * that driver either way.
+     *
+     * @return list<string>
+     */
+    protected function getDefaultExtensions(): array
+    {
+        return match ($this->mode) {
+            PhpMode::FrankenPhp => ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pdo_pgsql', 'pgsql', 'uuid', 'xml', 'zip'],
+            PhpMode::Fpm => ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pgsql', 'uuid', 'xml', 'zip'],
+        };
     }
 
     /**
