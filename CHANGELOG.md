@@ -4,541 +4,294 @@
 
 ### Changed
 
-* **`PhpMode::FrankenPhp` runs one PHP for the whole application.** The builder
-  and the workers used to run the Debian packages of sury while the application
-  was served by the PHP of the FrankenPHP image: two installations, two
-  catalogues of extensions, two versions of the same `8.5`. An extension could
-  be in one and missing from the other — `addExtension('pgsql')` gave the
-  builder pdo_pgsql, since the Debian package ships it, and gave the server none
-  — so a command could pass and the page it prepared break. Every stage is now
-  built on `dunglas/frankenphp`, so the CLI of `castor app:bash`, of the QA
-  tools and of the workers is the binary FrankenPHP serves with. `PhpMode::Fpm`
-  is unchanged and stays on the Debian packages.
-* Extensions are named after the Debian packages in both modes. The few whose
-  package ships several modules are translated for `install-php-extensions`,
-  which names one module at a time: `pgsql` also installs pdo_pgsql, `mysql`
-  installs mysqli and pdo_mysql, `sqlite3` installs pdo_sqlite. A FrankenPHP
-  application on Postgres or MySQL therefore gains the PDO driver it was
-  missing.
+* `PhpMode::FrankenPhp` runs one PHP for the whole application: every stage is
+  built on `dunglas/frankenphp`, so the builder and the workers run the binary
+  that serves. `PhpMode::Fpm` stays on the Debian packages.
+* Extensions keep their Debian names; those whose package ships several modules
+  are translated for install-php-extensions — `pgsql` installs pdo_pgsql too,
+  `mysql` mysqli and pdo_mysql, `sqlite3` pdo_sqlite.
 * `withPhpIni(..., PhpIniScope::Cli)` writes to `/usr/local/etc/php/conf.d` in
-  FrankenPHP mode, the conf.d of the image the builder and the workers now run.
-* The application container of a FrankenPHP application starts in `/var/www`
-  with `HOME=/home/app`, like every other container of the plugin: it used to
-  keep the `/app` working directory of the upstream image, so a
-  `docker_compose_exec()` had to name the directory itself.
-* **No shipped Dockerfile carries a `# syntax=` line any more**, so any of them
-  can be extended. A template that extends another one cannot hold text outside
-  its blocks and that directive is text, which made a template carrying it
-  buildable but not extensible: a project writing
-  `{% extends 'Dockerfile.frankenphp' %}` — what the documentation asks for —
-  was rejected by Twig on line 1, and the same trap waited on every other
-  template the day it started extending one. What pins the frontend is the
-  `BUILDKIT_SYNTAX` build argument every generated service already carries, and
-  BuildKit honours it over the directive. Two tests hold the rule: no shipped
-  template pins the frontend itself, and no service builds a template without
-  passing the argument.
-* The `builder` block of the Dockerfiles has two new inner blocks,
-  `builder_php_dev` and `builder_php_configuration`, which is what the FrankenPHP
-  file overrides instead of duplicating the whole stage. The NodeSource
-  repository key is used armoured, so the builder no longer needs gnupg to
-  dearmour it.
+  FrankenPHP mode.
+* A FrankenPHP application container starts in `/var/www` with `HOME=/home/app`,
+  instead of the `/app` of the upstream image.
+* No shipped Dockerfile carries a `# syntax=` line, which kept them from being
+  extended. The frontend is pinned by the `BUILDKIT_SYNTAX` build argument every
+  generated service passes.
+* Two new blocks in the builder stage, `builder_php_dev` and
+  `builder_php_configuration`. The NodeSource key is used armoured, so the
+  builder installs no gnupg.
 
 ## 0.4.1 - 2026-09-01
 
 ### Fixed
 
-* The bake file `docker:push` generates escapes the values it embeds. It is
-  HCL, and service names, contexts, dockerfile paths, image references and
-  build args went into it raw: a `"` or a `\` anywhere in them broke the file's
-  syntax, and `${` and `%{`, which HCL reads as the start of a template
-  interpolation, were evaluated rather than taken literally — so a build arg
-  carrying a shell-style `${VAR}` came out empty at best and failed the parse
-  at worst. Quotes, backslashes, newlines, carriage returns, tabs and both
-  template markers are now escaped.
-* That file no longer writes blocks a service has nothing to put in.
-  `contexts` and `args` were emitted whether or not the service declared any,
-  and `target` was emitted whether or not it had one — leaving `target = ""`,
-  which bake reads as a request for a stage named the empty string rather than
-  as no stage at all. A build arg declared without a value is skipped instead
-  of written as an empty string.
+* The bake file `docker:push` generates escapes what it embeds: quotes,
+  backslashes, newlines, tabs, and the `${` and `%{` HCL template markers, which
+  were evaluated rather than taken literally.
+* That file no longer writes empty `contexts`, `args` or `target` blocks —
+  `target = ""` asked bake for a stage named the empty string.
 
 ## 0.4.0 - 2026-08-28
 
 ### Added
 
-* `PHPService::withPhpIni()`, setting PHP ini directives for an application,
-  scoped to the PHP running its commands (`PhpIniScope::Cli`, the builder and
-  the workers), the one serving its requests (`PhpIniScope::Web`), or both. The
-  file is mounted into the containers rather than built into the image, so
-  changing a directive costs a `docker:up` and not a rebuild, and the containers
-  concerned are recreated so the new value is in effect. It is read last, after
-  the defaults the images ship.
+* `PHPService::withPhpIni()`, PHP ini directives per application, scoped to the
+  PHP running commands (`PhpIniScope::Cli`), the one serving requests (`Web`) or
+  both. Mounted rather than built into the image, so a change costs a
+  `docker:up` and not a rebuild, and is read after the defaults.
 * `docker_compose_exec()`, running a command in the container a service already
-  has up rather than in a throwaway one — to read a cache it has warmed, to look
-  at what it is actually running. It takes the same command forms, `workDir` and
-  `environment` as `docker_compose_run()`, plus `privileged`.
-* `PHPService::withSudo()`, installing the passwordless sudo the Dockerfile has
-  always carried commented out with a note to uncomment it at your own risk —
-  which meant forking the Dockerfile for four lines. It stays off by default and
-  the warning stays with it: it is a script around gosu, so whatever reaches the
-  container is root in it. The binary now follows the architecture being built
-  instead of naming amd64, which left it unbuildable on Apple Silicon.
-* `PHPService::withPackageManager()`, choosing between `PackageManager::Npm`,
-  `Yarn` and `Pnpm`. The image used to pin yarn to its current stable and
-  nothing else, so a project on npm or pnpm carried a yarn it never called, and
-  one wanting pnpm had to prepare it itself. Corepack is enabled whichever one
-  is chosen, so a `packageManager` field in a package.json is still honoured
-  either way; this only decides what a project declaring no such field finds
-  ready to run.
-* `PHPService::withNodeVersion()`, the Node.js the builder container installs.
-  The Dockerfile has always taken a `NODEJS_VERSION` build argument, but nothing
-  ever passed it, so every project was pinned to the Node 20 it defaults to and
-  changing it meant forking the Dockerfile. Only the major is used, since
-  NodeSource publishes one repository per major: `22`, `22.x` and `v22.11.0` all
-  name the same one, and a version naming no major is rejected when the service
-  is declared rather than when the image builds. Only the builder stage installs
-  Node, so only it is given the version — an application sharing the builder of
-  another one gets the version of that one.
+  has up. Same command forms, `workDir` and `environment` as
+  `docker_compose_run()`, plus `privileged`.
+* `PHPService::withSudo()`, installing the passwordless sudo the Dockerfile
+  carried commented out. Off by default, and the gosu binary now follows the
+  architecture being built rather than naming amd64.
+* `PHPService::withPackageManager()`, choosing `Npm`, `Yarn` or `Pnpm`. Corepack
+  stays enabled, so a `packageManager` field in a package.json still wins.
+* `PHPService::withNodeVersion()`, the Node of the builder container. Only the
+  major is kept, and a version naming none is rejected when the service is
+  declared. An application sharing a builder gets that one's version.
 
 ### Changed
 
 * `docker_compose_run()` and `docker_exit_code()` take the command as a list of
-  tokens, which reach docker untouched: an argument holding a space, a quote, a
-  `$` or a `;` arrives whole instead of being split or expanded by a shell in
-  the container. Every task of this plugin passes tokens now — `app:symfony`
-  used to wrap each argument in double quotes, which broke on an argument
-  holding one and expanded `$VAR` inside it, and the other tasks joined their
-  arguments with spaces and quoted nothing at all. A command given as a string
-  still runs through a shell, so a project passing one, or supplying its own
-  build command to `withApp()`, keeps working.
-* The default Node.js is 24, up from 20, which is past its support window. Pass
-  `withNodeVersion('20')` to stay on it.
-* The builder image no longer pins yarn to its current stable unless asked for
-  it: the default is now npm, which comes with node. A project relying on `yarn`
-  meaning yarn 4 without declaring a `packageManager` field in its package.json
-  gets corepack's default, yarn 1, instead — declare the field, which is what
-  corepack reads anyway, or pass `PackageManager::Yarn`.
-* The Node.js version is a Twig variable of the Dockerfile, `node_version`,
-  rather than a `NODEJS_VERSION` build argument. It sits with `php_version` and
-  the rest, so a project extending the Dockerfile can read it, and the default
-  now lives in one place instead of two that could drift.
+  tokens, which reach docker untouched. A command given as a string still runs
+  through a shell.
+* The default Node.js is 24, up from 20. `withNodeVersion('20')` to stay on it.
+* The builder no longer pins yarn: the default is npm. Declare a
+  `packageManager` field, or pass `PackageManager::Yarn`.
+* The Node version is the `node_version` Twig variable of the Dockerfile, not a
+  `NODEJS_VERSION` build argument.
 
 ### Fixed
 
-* An application served by FrankenPHP now gets the same base PHP configuration
-  as one served by FPM. FrankenPHP is built on the official PHP image rather
-  than on the plugin's own base, so none of `app-default.ini` reached it: the
-  same application changed its memory limit, its error reporting, its timezone
-  and its opcache settings depending on how it was served — and FrankenPHP,
-  which is the default, was the one running on the bare PHP defaults.
-* Workers get that base configuration too. The base image carries the file but
-  enables nothing, and only the application and builder stages ever ran
-  `phpenmod`, so a worker ran on the Debian defaults — which is where its
-  `memory_limit = -1` came from, rather than the 512M everything else had.
+* An application served by FrankenPHP reads `app-default.ini`, which it never
+  did: its memory limit, error reporting, timezone and opcache settings were the
+  bare PHP defaults.
+* Workers read it too, which is where their `memory_limit = -1` came from.
 * The builder image builds on Node 25, which dropped corepack from the
-  distribution. `corepack enable` was chained with `&&` behind the node install,
-  so a version without it failed the build outright — the whole image, not the
-  frontend tooling. Corepack is now installed from npm when the version asked
-  for does not ship it, leaving the majors that still bundle it untouched.
+  distribution: it is installed from npm when the version does not ship it.
 
 ### Removed
 
-* An unused `mods-available/app-builder.ini` at the root of the PHP build
-  context, an exact copy of the one under `builder/php-configuration` that the
-  image actually installs. Nothing referenced it, so editing it — the shorter
-  path, and the obvious one to reach for — changed nothing.
+* An unused copy of `mods-available/app-builder.ini` at the root of the PHP
+  build context, which nothing referenced.
 
 ### Documentation
 
-* The quality assurance page still said composer resolves the tools against the
-  PHP version running castor. It has not since 0.3.5, which moved the
-  installation into the container.
+* The quality assurance page no longer says composer resolves the tools against
+  the PHP running castor; it stopped in 0.3.5.
 
 ### Upgrading
 
 Four things change under a project that did nothing:
 
-* **The images rebuild on a newer Node**, 24 rather than 20. Pin the old one
-  with `withNodeVersion('20')` if something in your frontend build needs it.
-* **`yarn` is no longer pinned to its stable release.** Corepack is still
-  enabled, so a `packageManager` field in your package.json gives you the
-  version it names; without one, `yarn` is corepack's default, yarn 1. Declare
-  the field, or ask for `PackageManager::Yarn`.
-* **An application served by FrankenPHP now reads `app-default.ini`**, which it
-  never did. Its memory limit becomes 512M, `display_errors` comes on, the
-  timezone becomes UTC and opcache is sized — the settings an application served
-  by FPM already had. The same goes for workers, whose memory limit stops being
-  unlimited and becomes that 512M. `withPhpIni()` sets whatever you would rather
-  have.
-* **A project subclassing `GoBuilder` or `RustBuilder`** and overriding
-  `getBuildCommand()`, `cargoCommand()` or `formatCommand()` has to widen its
-  return type: they return a list of tokens now, and `getBuildCommand()` is
-  `string|array` so a command a project supplies as a string keeps its shell.
+* The images rebuild on Node 24. Pin the old one with `withNodeVersion('20')`.
+* `yarn` is corepack's default, yarn 1, unless a `packageManager` field or
+  `PackageManager::Yarn` says otherwise.
+* FrankenPHP applications and workers read `app-default.ini`: 512M memory limit,
+  `display_errors` on, UTC, opcache sized. `withPhpIni()` overrides it.
+* A subclass of `GoBuilder` or `RustBuilder` overriding `getBuildCommand()`,
+  `cargoCommand()` or `formatCommand()` has to widen its return type: they
+  return tokens now, and `getBuildCommand()` is `string|array`.
 
 ## 0.3.5 - 2026-08-28
 
 ### Changed
 
-* The QA tools are installed by the composer of the builder image instead of the
-  one castor embeds. Composer resolves against the platform it runs on, and the
-  tools run in the container: installing from the host picked versions for
-  whichever PHP happens to run castor, so an application on an older PHP got a
-  tool it cannot run, and one on a newer PHP got a tool older than it deserves.
-  The extensions differ as much as the version does — a tool dependency
-  requiring `ext-amqp` or `ext-pgsql` could not be installed from a host without
-  them, while one requiring `ext-gd` installed happily and then found no `ext-gd`
-  in the container. Installations still live in `.castor/vendor/.tools/`, mounted
-  at `/castor-tools`, so they outlive the containers and no image is rebuilt to
-  change a tool version. An installation is now also redone when the PHP version
-  of the application changes, which is part of what it was resolved against.
+* The QA tools are installed by the composer of the builder image rather than
+  the one castor embeds, so versions and extensions are resolved against the
+  container the tools run in. Installations stay in `.castor/vendor/.tools/`,
+  and are redone when the PHP version of the application changes.
 
 ### Removed
 
-* The `castor-php/php-qa` dependency. `create_tools()` was the only thing used
-  from it, and installing on the host is what it does. Projects calling its
-  functions — `phpstan()`, `php_cs_fixer()` — had them through this plugin by
-  accident and should now require `castor-php/php-qa` themselves.
+* The `castor-php/php-qa` dependency. Projects calling its functions —
+  `phpstan()`, `php_cs_fixer()` — should require it themselves.
 
 ### Fixed
 
-* A project declaring a mailer with `withMailerService()` generated a compose
-  file docker refuses to load: `services.app.depends_on.mailpit missing
-  property 'condition'`. Dependencies are written with the long compose syntax,
-  the one that carries a condition, because a dependency on a database waits for
-  its health check — and the syntax is chosen per service, not per dependency.
-  The mailer asked for none, so it came out as `mailpit: {}`, and compose
-  validates the file as a whole: every task of the project stopped, not only the
-  mailer. Reported by @HedicGuibert in #4.
-* `ServiceBuilder::dependsOn()` now defaults that condition to
-  `service_started`, so a dependency declared without one no longer writes an
-  entry compose rejects. This is what the short syntax, a plain list of names,
-  means. `#[AsDockerComposeBuilder]` functions and services outside this
-  repository call the same builder, and the mailer was only the caller that hit
-  it first.
+* `withMailerService()` generated a compose file docker refuses to load:
+  `services.app.depends_on.mailpit missing property 'condition'`, which stopped
+  every task of the project. Reported by @HedicGuibert in #4.
+* `ServiceBuilder::dependsOn()` defaults that condition to `service_started`.
 
 ## 0.3.4 - 2026-08-12
 
 ### Added
 
 * `RedirectionioAgentService::withTestMode()` and `withLogging()`, writing the
-  `test_mode` and `logging` keys of the agent instance — a development
-  environment can run the rules it is still testing, and keep its traffic out of
-  the logs. Neither key is written unless asked for, so the agent's own defaults
-  stand otherwise.
-* The global router starts and stops with the projects. `docker:up` starts it
-  when the project routes a domain and it is not already running, and
-  `docker:stop` — `docker:destroy` too — stops it once no routed container is
-  left running on the machine. `docker:router:enable` was a one-time setup
-  nobody remembers on a new machine, and forgetting it is silent: the containers
-  come up, the domains answer "connection refused" on 443, and nothing says why.
-  A project routing no domain neither starts nor stops it, and a project that
-  goes down while another still runs leaves it up.
-* The `router_autostart` context variable and the `CASTOR_DOCKER_ROUTER_AUTOSTART`
-  environment variable, both turning that off — the environment wins, so a CI
-  job or a single shell can leave the router of the machine alone without
-  touching the project. With it off, only `docker:router:enable` and
-  `docker:router:disable` start and stop the router.
+  `test_mode` and `logging` keys of the agent. Neither unless asked for.
+* The global router starts with `docker:up` and stops with `docker:stop` and
+  `docker:destroy`, once no routed container is left running on the machine. A
+  project routing no domain does neither.
+* The `router_autostart` context variable and the
+  `CASTOR_DOCKER_ROUTER_AUTOSTART` environment variable turn that off; the
+  environment wins.
 
 ### Changed
 
 * `docker:router:status` reports whether the autostart is on, and the projects
-  the router currently serves.
+  the router serves.
 
 ## 0.3.3 - 2026-08-11
 
 ### Added
 
-* `castor docker:about` (alias `castor about`), which lists every URL the
-  project answers on. Nothing told you what a project serves: the domains live
-  in the `caddy` labels of the generated compose file, and finding the address
-  of a service meant reading them — or guessing from the root domain. Each URL
-  is listed against the service serving it, and against whether that service
-  runs. They are read from `compose.generated.yaml`, `compose.yaml` and
-  `compose.override.yaml`, so a domain declared by a service, by an
-  `#[AsDockerComposeBuilder]` function or straight in your own compose file is
-  listed the same way, and the task answers with everything stopped — only the
-  running/stopped statuses need a docker daemon.
+* `castor docker:about` (alias `castor about`), listing every URL the project
+  answers on, the service serving it and whether that service runs. Read from
+  the three compose files; only the statuses need a daemon.
 
 ## 0.3.2 - 2026-08-10
 
 ### Fixed
 
-* The router watches the Docker socket of the daemon the projects run on, rather
-  than always `/var/run/docker.sock`. It builds its routes from the `caddy.*`
-  labels it reads there, and a CI job installing a daemon of its own — as the
-  `docker/setup-docker-action` family does — a rootless daemon or Colima all put
-  their socket somewhere else. Watching the wrong one is silent: the router comes
-  up, finds no label, serves nothing, and every routed domain answers "connection
-  refused" on 443 — which then reads as a plain 404 from anything calling a
-  project's own API through it. `DOCKER_SOCKET_PATH` is read first, then a
-  `unix://` `DOCKER_HOST`; `docker:router:enable` also warns when the socket it
+* The router watches the socket of the daemon the projects run on —
+  `DOCKER_SOCKET_PATH` first, then a `unix://` `DOCKER_HOST` — rather than always
+  `/var/run/docker.sock`. Watching the wrong one was silent: no label, no route,
+  "connection refused" on 443. `docker:router:enable` warns when the socket it
   resolved does not exist.
 
 ## 0.3.1 - 2026-08-10
 
 ### Fixed
 
-* The `{app}:qa:phpstan`, `{app}:qa:cs` and `{app}:qa:rector` tasks let the
-  configuration of the application decide what is analysed. They used to pass a
-  path by default — the application directory for PHPStan, its `src/` for the two
-  others — and none of these tools treats a path on the command line as a
-  restriction of its configured paths: it *replaces* them. PHPStan only falls
-  back to `parameters.paths` when the command line names none, PHP CS Fixer
-  ignores the finder of its configuration unless asked for
-  `--path-mode=intersection`, and Rector does the same with `withPaths()`. So an
-  application whose `phpstan.neon` says `paths: [src]` was analysed whole,
-  `vendor/` and `var/` included — while PHPStan still reported that
-  configuration file as used, because everything else in it did apply — and a
-  PHP CS Fixer finder covering `tests/`, `config/` and `migrations/` was cut down
-  to `src/`. The tasks now name no path at all when the working directory of the
-  application holds a configuration file the tool discovers on its own
+* `{app}:qa:phpstan`, `{app}:qa:cs` and `{app}:qa:rector` pass no path when the
+  application holds a configuration file the tool discovers itself
   (`phpstan.neon` & co, `.php-cs-fixer.php`, `.php-cs-fixer.dist.php`,
-  `rector.php`), and keep the previous fallback for an application that
-  configures nothing. Arguments passed to the task still win over both.
+  `rector.php`). A path on the command line *replaces* the configured ones
+  rather than restricting them, so an application was analysed whole, `vendor/`
+  included. Arguments given to the task still win.
 
 ## 0.3.0 - 2026-08-07
 
 ### Added
 
-* The containers of a project now resolve its own public domains. The router is
-  global and joins the project network from the outside, so nothing inside a
-  project used to resolve `https://api.myproject.test` — an application calling
-  its own API, a worker hitting the front end or a reverse proxy going back to
-  the backend all failed, and Docker accepts no wildcard in `extra_hosts` to
-  work around it. The plugin knows every routed domain and writes one
-  `extra_hosts` entry per domain on every service, pointing at the host gateway
-  where the router's ports 80 and 443 answer. The domains are also passed to
-  `docker network connect` as network aliases. Turn it off with the
-  `resolve_domains_via_host` context data.
-* `RustBuilder` and `GoBuilder`: one compiler container for a whole repository,
-  holding the toolchain and declaring the applications it compiles with
-  `withApp()`. Each application gets its own task namespace — `<app>:build`,
-  `<app>:test`, `<app>:cargo` / `<app>:go`, `<app>:qa:clippy`, `<app>:qa:fmt` —
-  all running in that one container. A monorepo no longer declares the toolchain
-  once per binary, and the build and QA commands no longer run inside a running
-  application container.
-* `BinaryRunService`, the runtime half of the same model: it runs one compiled
-  binary and nothing else, whatever produced it. Attaching a builder with
-  `withBuilder()` gives it the image the binary was compiled in, the same mount,
-  and the `build` and `watch` tasks.
-* `withWorkingDirectory()` on every service mounting a directory. What gets
-  mounted, where the commands run and where the binary lives are three different
-  things in a monorepo: `withDirectory()` mounts, `withWorkingDirectory()` names
-  the sub-directory below it, and `withBinaryPath()` locates the binary. For a
-  PHP application the document root of the frontend follows, through the new
-  `app_root` build argument.
+* The containers of a project resolve its own public domains: one `extra_hosts`
+  entry per routed domain, pointing at the host gateway, plus network aliases.
+  Off with the `resolve_domains_via_host` context data.
+* `RustBuilder` and `GoBuilder`, one compiler container per repository declaring
+  the applications it compiles with `withApp()`. Each gets its own tasks —
+  `<app>:build`, `<app>:test`, `<app>:cargo` / `<app>:go`, `<app>:qa:clippy`,
+  `<app>:qa:fmt` — all running in that container.
+* `BinaryRunService`, running one compiled binary and nothing else.
+  `withBuilder()` gives it the image it was compiled in, the same mount, and the
+  `build` and `watch` tasks.
+* `withWorkingDirectory()` on every service mounting a directory:
+  `withDirectory()` mounts, `withWorkingDirectory()` names the sub-directory,
+  `withBinaryPath()` locates the binary. The PHP document root follows, through
+  the new `app_root` build argument.
 * `PHPService::withSharedBuilder()` and `withoutBuilder()`, so several
-  applications of one repository stop generating identical `-builder`
-  containers.
-* `RustService::withTarget()`, which adds `--target <triple>` to the build
-  command *and* moves the default binary path to `target/<triple>/debug/<name>`,
-  plus `withBinaryPath()`, `withBuildCommand()` and `withRunCommand()` on both
-  `RustService` and `GoService`.
+  applications of one repository stop generating identical `-builder` containers.
+* `RustService::withTarget()`, which also moves the default binary path to
+  `target/<triple>/debug/<name>`, plus `withBinaryPath()`, `withBuildCommand()`
+  and `withRunCommand()` on `RustService` and `GoService`.
 * Missing compose keys on `ServiceBuilder`: `restart()`, `ulimits()`, `dns()`,
-  `extraHost()` and `deploy()`. `environment()` now takes a `null` value, which
-  emits `KEY: null` — the compose syntax passing a variable through from the
-  environment castor runs in.
-* `docker_compose_run()` and `docker_exit_code()` take `environment`,
-  `entrypoint` and `ports`. A failing command is now wrapped in a
-  `RuntimeException` naming the service and the command, instead of the bare
-  `docker compose` error.
-* `withName()` on every service that used to hardcode its name — the databases,
-  Redis, RabbitMQ, Elasticsearch, ClickHouse, Mailpit and the redirection.io
-  agent — so the same one can be registered twice. A second instance was
-  impossible before: the two would have collided on the compose service, on the
-  named volumes and on the routed domain. Everything a service generates is now
-  derived from its name, including the companion containers (`redis-insight`,
-  `clickhouse-keeper`), the DSN host and the task namespace. The connect task of
-  a database and the Kibana container keep their historical name for the first
-  instance, so nothing moves for a project registering one of each.
+  `extraHost()` and `deploy()`. `environment()` takes `null`, which emits
+  `KEY: null`.
+* `environment`, `entrypoint` and `ports` on `docker_compose_run()` and
+  `docker_exit_code()`. A failing command raises a `RuntimeException` naming the
+  service and the command.
+* `withName()` on every service that hardcoded its name, so the same one can be
+  registered twice. The compose service, the volumes, the domain, the companion
+  containers, the DSN host and the task namespace all follow it.
 * Server configuration for `MySQLService` and `MariaDBService`, with
   `withSetting()`, `withSettings()`, `withConfiguration()` and
-  `withConfigurationFile()`. The three sources are merged into one file shipped
-  as a compose config in `/etc/mysql/conf.d`, so its content lives in the
-  generated compose file: no host directory for Docker to create as `root`, and
-  no file whose permissions the server might refuse. A configuration file is
-  read when the compose file is generated, and a missing one raises instead of
-  leaving the server silently unconfigured.
+  `withConfigurationFile()`, merged into one compose config in
+  `/etc/mysql/conf.d`. A missing configuration file raises.
 * `RedirectionioAgentService::withApiHost()` and `withApiTimeout()`, writing the
-  `api` section of the generated `agent.yml` so the agent can talk to a
-  self-hosted instance. Absent by default.
-* `ServiceBuilder::config()` takes `recreateOnChange`, stamping a digest of the
-  config content in a label. Compose does not recreate a container when only the
-  content of an inline config changed, so a server reading its configuration at
-  boot kept running with the old one until someone thought of
-  `--force-recreate`. Used by the redirection.io agent and by the MySQL-family
-  configuration, both of which read theirs once. Left off for anything that
-  reloads on its own.
-* `castor {app}:worker:restart` and `castor {app}:worker:stop`, on a PHP
-  application declaring workers. Both take the worker name — the one passed to
-  `addWorker()` — and act on every worker when it is omitted; an unknown name is
-  rejected with the list of those declared, rather than quietly acting on all of
-  them. `worker:restart` starts a stopped worker, so there is no separate start
-  task. The tasks do not exist on an application without workers.
-* `castor docker:logs:clear [service]`, emptying the log files docker keeps for
-  the containers so `docker:logs` starts from a clean slate. Nothing is
-  restarted: the file is truncated in place. Stopped containers and inactive
-  profiles are covered; a container whose logging driver is not `json-file` is
-  reported as skipped. When the file cannot be written directly — it belongs to
-  `root`, and on Docker Desktop it lives inside the VM — a short-lived
-  `--privileged` container reaches it.
-* Shell completion on every argument naming something, each offering the right
-  list: the compose containers on `docker:build`, `docker:up`, `docker:stop`,
-  `docker:logs` and `docker:logs:clear`; the services registered in `castor.php`
-  on `docker:service:remove`; the available installers on
-  `docker:service:install`; and the workers of the application on
-  `{app}:worker:restart` and `{app}:worker:stop`. The container names are read
-  from the three compose files, so the services a project declares itself are
-  offered alongside the generated ones and completion needs no running daemon.
-* `castor {app}:update` on every application of a `GoBuilder`, updating the
-  module dependencies with `go get -u ./...` and putting `go.mod` and `go.sum`
-  back in order with `go mod tidy` — the other half of the operation, which runs
-  by default and is skipped with `--no-tidy`. Takes a module name to update a
-  single one, and `--patch` to stay inside the current minor version. It runs in
-  the builder container, so on the Go version the module is compiled with.
-* A restart policy for the PHP workers, as a third argument of `addWorker()`.
-  Nothing brought a worker back when it exited, so a consumer given the
-  `--time-limit` the documentation recommends ran once and stayed down until the
-  next `docker:up`. Reaching that limit is a *successful* exit, so it wants
-  `unless-stopped` rather than `on-failure`. There is still no policy unless
-  asked for.
-* `BinaryRunService::withRestart()`, setting the compose restart policy —
-  `on-failure` by default. Nothing watches a binary that exits, so without one
-  it stays down until someone notices; `on-failure` brings it back without
-  fighting a deliberate `docker:stop` the way `always` would. Absent unless
-  asked for.
-* `RustBuilder::withNightlyFormatter()`, which installs the nightly toolchain
-  with its rustfmt in the image and points the `fmt` task of every application
-  at it, leaving `build`, `test`, `cargo` and `qa:clippy` on the default
-  toolchain. Most of rustfmt's options are still unstable, so a `rustfmt.toml`
-  using any of them is silently ignored by a stable rustfmt — building on stable
-  and formatting on nightly is the usual answer. A nightly declared with
-  `addRustupToolchain()` is completed with `rustfmt` rather than installed
-  twice.
-* `RedirectionioAgentService::withDebug()`, raising the agent log level and
-  letting it accept a certificate it cannot verify when calling its API — which
-  is what a self-hosted `withApiHost()` served by the local router hands it, the
-  agent image carrying the public CA bundle only.
-* `get_default_profiles()` reads the `docker_profiles` context data instead of
-  always returning `['default']`.
-* The Rust Dockerfile is now a Twig template with `rust_base` and `runtime`
-  blocks, and Go gets one with `go_base` and `runtime`. Both are extensible the
-  way the PHP ones already were — which is how extra Debian packages, rustup
-  components, targets and toolchains are added.
+  `api` section of the generated `agent.yml`.
+* `recreateOnChange` on `ServiceBuilder::config()`, which stamps a digest of the
+  content in a label: compose does not recreate a container when only an inline
+  config changed.
+* `castor {app}:worker:restart` and `{app}:worker:stop`, on a named worker or on
+  all of them; an unknown name is rejected with the list of those declared.
+* `castor docker:logs:clear [service]`, truncating the container log files in
+  place. Stopped containers and inactive profiles are covered; a `--privileged`
+  helper reaches the file when it cannot be written directly.
+* Shell completion on every argument naming a container, a service, an installer
+  or a worker. Read from the compose files, so no daemon is needed.
+* `castor {app}:update` on a `GoBuilder` application: `go get -u ./...`, then
+  `go mod tidy` unless `--no-tidy`. Takes a module name, and `--patch` to stay
+  inside the minor.
+* A restart policy as third argument of `addWorker()`. A consumer reaching its
+  `--time-limit` exits successfully, so it wants `unless-stopped` rather than
+  `on-failure`. None unless asked for.
+* `BinaryRunService::withRestart()`, whose argument defaults to `on-failure`.
+  None unless called.
+* `RustBuilder::withNightlyFormatter()`, installing the nightly toolchain and
+  pointing the `fmt` task at it while everything else stays on stable — most of
+  rustfmt's options being unstable.
+* `RedirectionioAgentService::withDebug()`, raising the log level and letting the
+  agent accept a certificate it cannot verify when calling a self-hosted API.
+* `get_default_profiles()` reads the `docker_profiles` context data.
+* The Rust and Go Dockerfiles are Twig templates, with `rust_base` / `go_base`
+  and `runtime` blocks, extensible like the PHP ones.
 
 ### Fixed
 
-* The applications behind `RedirectionioAgentService` now receive the `Host` of
-  the original request. The agent derives it from the address it forwards to —
-  an IP keeps the original, a host name replaces it with itself — and every
-  target here is a compose service reached by name, so the application was
-  handed `Host: app`. Symfony rejects that as an untrusted host, and every
-  absolute URL generated from it was wrong. `preserve_host` is written on every
-  forward; `withPreserveHost(false)` restores the agent's own behaviour, per
-  agent or per domain.
-* `ClickhouseService` routes its UI to port 8123. The image exposes 8123 (HTTP)
-  and 9000 (native protocol), and without a port Caddy picked whichever it found
-  first — answering 502 about half the time.
-* The content of an inline compose config is escaped against interpolation.
-  Compose interpolates the file it reads, configs included, so an nginx
-  configuration reached the container stripped of every `$host`, `$uri` and
-  `$document_root`, with only a "variable is not set" warning to show for it.
-  `ComposeBuilder::config()` takes `interpolate: true` for a config that really
-  does mean to read `${PROJECT_NAME}` & co.
+* The applications behind `RedirectionioAgentService` receive the `Host` of the
+  original request: the agent replaced it with the compose service name, which
+  Symfony rejects as untrusted. `preserve_host` is written on every forward;
+  `withPreserveHost(false)` restores the agent's behaviour.
+* `ClickhouseService` routes its UI to 8123. Without a port Caddy picked 9000
+  about half the time, answering 502.
+* The content of an inline compose config is escaped against interpolation,
+  which stripped an nginx configuration of every `$host` and `$uri`.
+  `ComposeBuilder::config()` takes `interpolate: true` to opt back in.
 
 ### Changed
 
-* **`ServiceBuilder::withHttpRouting()` requires the port.** Without one it
-  emitted a bare `{{upstreams}}`, which caddy-docker-proxy resolves against
-  whatever the image happens to expose — the first of several, or port 80 when
-  it exposes nothing — routing to the wrong port silently and answering 502.
-  Every call now names it, `RedisService` included: the RedisInsight UI listens
-  on 5540 and was relying on that guess. Pass the port to any
-  `withHttpRouting()` of your own.
-* `{service}:bash`, and the database sessions, no longer fail outright when the
-  environment has no terminal. They asked castor for an interactive context
-  unconditionally, and that throws a `LogicException` on a pipe, in CI or under
-  an agent — so `castor app:bash < script.sh` could not work. The interactive
-  flags are now only requested when they can be honoured; without a terminal the
-  command still runs on whatever is piped into it.
-* **The QA tasks now run inside the builder container.** `{app}:qa:phpstan`,
-  `{app}:qa:cs`, `{app}:qa:rector` and `{app}:qa:twig-cs` used to run on the
-  host, against whichever PHP happens to run castor — a different version, and
-  different extensions, from the one the application runs on. The tools are
-  still installed by castor in `.castor/vendor/.tools/`, but that directory is
-  now mounted at `/castor-tools` in the builder container and the tools are
-  executed there. Each application gets its own installation — `app-phpstan` —
-  so two applications of one repository pinning different versions no longer
-  reinstall over each other on every run. The tasks return the tool's exit code
-  instead of its `Process`.
-* `GoService` builds from a Dockerfile shipped by the plugin instead of running
-  the `golang` image directly, so it can be extended and its build cache pushed
-  like every other service. Its generated `build` section is new; the tasks and
-  the runtime behaviour are unchanged.
+* `ServiceBuilder::withHttpRouting()` requires the port. A bare `{{upstreams}}`
+  routed to whatever the image exposed first, silently, answering 502. Pass it
+  in your own calls.
+* `{service}:bash` and the database sessions no longer fail without a terminal:
+  the interactive flags are only asked for when they can be honoured.
+* The QA tasks run in the builder container, on the PHP and the extensions of
+  the application. Each application gets its own tool installation
+  (`app-phpstan`), and the tasks return the exit code instead of a `Process`.
+* `GoService` builds from a Dockerfile shipped by the plugin, so it can be
+  extended and its cache pushed. Tasks and runtime behaviour are unchanged.
 * `GoService` and `RustService` are no longer `final`, their properties are
-  `protected`, and `getTasks()` is split into one method per task, so a subclass
-  can replace, remove or add a single task without redeclaring the others. The
-  behaviour traits' properties are `protected` too.
-* `docker_exit_code()` now forwards `portMapping` to `docker_compose_run()`,
-  which it silently dropped.
+  `protected`, and `getTasks()` is split into one method per task.
+* `docker_exit_code()` forwards `portMapping`, which it silently dropped.
 * The `project_name` context data is no longer overwritten by the `name:` of
-  `compose.yaml`, which is the precedence `get_project_name()` documents and
-  never applied. The plugin also exports `COMPOSE_PROJECT_NAME`, so docker
-  compose uses the same project name it does — without it compose built in the
-  project named by the file while the plugin looked for containers, networks and
-  `${PROJECT_NAME}-<service>` images in the one named by the context. Together
-  they make a second checkout of a repository — a git worktree — a matter of
-  overriding `project_name` and `root_domain` in its context.
-* `docker_compose_run()` no longer prints the two lines compose emits for the
-  throwaway container it creates — `Container app-builder-run-8c9d8bef
-  Creating`, then `Created` — in front of the output of the command asked for.
-  They come back with `-v`, where knowing which container ran is the point.
-  `docker_compose()` takes a `progress` argument for the same purpose.
-* **The tasks of a named service are now called `{service}:{task}`.** The
-  database sessions moved out of the shared `db:` namespace and are named after
-  what they do rather than after the client they run: `db:psql` is now
-  `postgres:client`, `db:mysql` is `mysql:client`, `db:mariadb` is
-  `mariadb:client` and `db:clickhouse` is `clickhouse:client`. Registering the
-  same service twice therefore gives two full task sets — `postgres:client`
-  next to `analytics:client` — instead of a `db:` namespace where the second
-  instance had to be spelled differently.
+  `compose.yaml`, and `COMPOSE_PROJECT_NAME` is exported so compose uses the
+  same project name as the plugin.
+* `docker_compose_run()` no longer prints the two compose lines about the
+  throwaway container it creates; `-v` brings them back, and `docker_compose()`
+  takes a `progress` argument.
+* The tasks of a named service are `{service}:{task}`: `db:psql` becomes
+  `postgres:client`, `db:mysql` `mysql:client`, `db:mariadb` `mariadb:client`
+  and `db:clickhouse` `clickhouse:client`.
 
 ### Documentation
 
 * [Multiple applications](https://castor-php.github.io/docker/going-further/multiple-applications/)
-  covers the monorepo shape, and the `example/` project is now one: two PHP
-  applications sharing a builder, a Rust and a Go binary each built by their
-  language's builder, and a container calling another through its public domain.
+  covers the monorepo shape, and `example/` is one.
 
 ## 0.2.1 - 2026-07-27
 
 ### Added
 
 * `DockerComposeBuilderEvent`, dispatched with the `ComposeBuilder` once every
-  service has contributed and before the file is serialized: add a container the
-  plugin has no service for, or change one that is already registered.
-* `DockerComposeWriteEvent`, dispatched with the configuration as a plain array
-  right before it is written: the escape hatch for the compose keys the builder
-  does not model — `deploy`, `logging`, `ulimits`, the `x-` extension fields.
-* `#[AsDockerComposeBuilder]`, sugar over the first event: the function receives
-  the `ComposeBuilder`, optionally the `Context`, and takes a `priority`.
-* Documentation for the three of them, in [extending the compose
+  service has contributed and before the file is serialized.
+* `DockerComposeWriteEvent`, dispatched with the configuration as an array right
+  before it is written: the escape hatch for the compose keys the builder does
+  not model.
+* `#[AsDockerComposeBuilder]`, sugar over the first event, with a `priority`.
+* Documentation for the three, in [extending the compose
   file](https://castor-php.github.io/docker/going-further/extending-the-compose-file/),
-  and an example of each in the `example/` project.
+  with an example of each in `example/`.
 
 ### Changed
 
-* The plugin no longer builds its task commands from castor's internal API: the
-  tasks of a service are handed over as `TaskDescriptor` through
-  `FunctionsResolvedEvent`, and castor builds them. `ExpressionLanguage`,
-  `Slugger`, `TaskCommand` and the console `Application` are no longer reached
-  into, which leaves the event dispatcher as the only internal API still in use.
-* `castor list` no longer regenerates `compose.generated.yaml`. Castor boots it
-  on a bare context by design, so the file was rewritten without the project
-  configuration and had to be repaired by the next command.
-* The docker compose project name is read from the `name` of `compose.yaml`
-  rather than from the context data, so it is correct on a project declaring no
-  `#[AsContext]` function — where it used to fall back to the directory name.
+* The plugin no longer builds its task commands from castor's internal API:
+  tasks are handed over as `TaskDescriptor` through `FunctionsResolvedEvent`,
+  leaving the event dispatcher as the only internal API in use.
+* `castor list` no longer regenerates `compose.generated.yaml` from the bare
+  context castor boots it on.
+* The compose project name is read from the `name` of `compose.yaml` rather than
+  from the context data.
 
 ### Documentation
 
@@ -548,78 +301,66 @@ Four things change under a project that did nothing:
 
 ### Changed
 
-* The Caddy router is now **global**: a single instance, living in
-  `~/.castor/docker/router/` and shared by every project on the machine,
-  replaces the `router` service that each project used to declare. Ports 80 and
-  443 are bound once, projects run side by side, and the router survives their
-  restarts.
-* The router joins the network of each project on `docker:up`, and leaves it
-  before `docker:down` removes it. Projects keep their own network and never
-  share one, so two projects exposing a service under the same name no longer
-  collide in the Docker DNS.
-* The router is no longer built from a Dockerfile: it runs the upstream
-  `caddy-docker-proxy` image and receives its base Caddyfile as a compose
-  config, so enabling it no longer depends on a project's `vendor/` directory
-  being present.
-* The mkcert CA now lives in `~/.castor/docker/router/certs/` instead of the
-  project shared home directory, which the global router could not read.
+* The Caddy router is global: one instance in `~/.castor/docker/router/`, shared
+  by every project, instead of a `router` service per project. Ports 80 and 443
+  are bound once and the router survives project restarts.
+* It joins the network of each project on `docker:up` and leaves it before
+  `docker:down`, so projects keep their own network and never collide in the
+  Docker DNS.
+* It runs the upstream `caddy-docker-proxy` image and receives its Caddyfile as
+  a compose config, so enabling it no longer depends on a project's `vendor/`.
+* The mkcert CA lives in `~/.castor/docker/router/certs/`, which the global
+  router can read.
 
 ### Added
 
-* `docker:router:status`, `docker:router:logs` and `docker:router:restart`
-* `docker:router:enable` joins the networks of the projects that are already
-  running, instead of routing nothing until their next `docker:up`
+* `docker:router:status`, `docker:router:logs` and `docker:router:restart`.
+* `docker:router:enable` joins the networks of the projects already running.
 
 ### Removed
 
-* `CaddyRouterService`, and the `router` compose profile with it. The router is
-  no longer registered in `castor.php`
-* `router:enable` and `router:disable`, renamed to `docker:router:enable` and
-  `docker:router:disable`
+* `CaddyRouterService` and the `router` compose profile.
+* `router:enable` and `router:disable`, renamed `docker:router:enable` and
+  `docker:router:disable`.
 
 ### Upgrading
 
 The per-project router of a previous version may still hold ports 80 and 443.
-It is no longer declared in the generated compose file, so `docker:up` removes
-it as an orphan — run it before enabling the global router:
+It is no longer in the generated compose file, so `docker:up` removes it as an
+orphan — run it before enabling the global one:
 
 ```bash
 castor docker:up                # drops the old per-project router container
 castor docker:router:enable     # starts the global one
 ```
 
-Should a container still hold those ports, remove it with
-`docker rm -f <name>`.
+Should a container still hold those ports, remove it with `docker rm -f <name>`.
 
 ## 0.1.3 - 2026-07-27
 
 ### Fixed
 
-* Remove certificates before writing them when router is reenabled : they may be readonly and copy on a existing readonly file will fail
-* Set complete versions for databases, has some dependencies expect a complete version
+* Remove the router certificates before writing them: they may be read-only,
+  which fails the copy when the router is re-enabled.
+* Set complete versions for the databases, some dependencies expecting one.
 
 ## 0.1.2 - 2026-07-25
 
 ### Fixed
 
-* Create the host directories bind-mounted by the services — the shared home
-  directory, the application directories, any other mount inside the project —
-  before docker does. Docker creates a missing bind mount source as `root`,
-  which then leaves the containers unable to write in it. A directory left over
-  from an earlier run and not writable is reported instead.
+* Create the host directories bind-mounted by the services before docker does —
+  it creates a missing one as `root`, leaving the containers unable to write in
+  it. One left from an earlier run and not writable is reported instead.
 
 ## 0.1.1 - 2026-07-25
 
 ### Fixed
 
-* Create `compose.yaml` on a project that declares no `#[AsContext]` function.
-  Castor only dispatches `ContextCreatedEvent` when it instantiates a declared
-  context, so a fresh project never got its compose file and every `docker:*`
-  task failed on the missing file.
+* Create `compose.yaml` on a project declaring no `#[AsContext]` function:
+  castor dispatches `ContextCreatedEvent` only for a declared context, so a
+  fresh project never got its compose file and every `docker:*` task failed.
 * Stop `castor list` from regenerating `compose.generated.yaml` from a bare
-  context, which dropped the project configuration: the services exposing a UI
-  fell back to the default root domain, and the containers to the default user
-  id.
+  context, which dropped the project configuration.
 
 ## 0.1.0 - 2026-07-25
 
@@ -630,8 +371,8 @@ First release.
 * PHP and Symfony applications, served by FrankenPHP or nginx + PHP-FPM, with a
   builder container, background workers, FrankenPHP worker mode and QA tasks
   (PHPStan, PHP CS Fixer, Rector, Twig CS Fixer)
-* Go and Rust applications, built and run from the mounted sources, with a
-  watch task rebuilding on change
+* Go and Rust applications, built and run from the mounted sources, with a watch
+  task rebuilding on change
 * PostgreSQL, MySQL, MariaDB and ClickHouse, linkable to an application with
   `withDatabaseService()`
 * Redis, RabbitMQ, Elasticsearch and Mailpit
