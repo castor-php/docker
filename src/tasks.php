@@ -487,36 +487,48 @@ function push(bool $dryRun = false): void
             targets = [%s]
         }
 
-        EOHCL, implode(', ', array_map(fn($name) => \sprintf('"%s"', $name), array_keys($targets))));
+        EOHCL, implode(', ', array_map(fn($name) => \sprintf('"%s"', escape_hcl_string($name)), array_keys($targets))));
 
     foreach ($targets as $service => $target) {
-        $additionalContexts = "";
-        $args = "";
+        $lines = [];
+        $lines[] = \sprintf('target "%s" {', escape_hcl_string($service));
+        $lines[] = \sprintf('    context    = "%s"', escape_hcl_string($target['context']));
 
-        foreach ($target['contexts'] as $name => $path) {
-            $additionalContexts .= \sprintf("%s = \"%s\"\n", $name, $path);
-        }
+        if ($target['contexts']) {
+            $lines[] = '    contexts   = {';
 
-        foreach ($target['args'] as $key => $value) {
-            $args .= \sprintf("%s = \"%s\"\n", $key, $value);
-        }
-
-        $content .= \sprintf(<<<'EOHCL'
-            target "%s" {
-                context    = "%s"
-                contexts   = {
-                    %s
-                }
-                dockerfile = "%s"
-                cache-from = ["%s"]
-                cache-to   = ["type=%s,ref=%s,mode=max"]
-                target     = "%s"
-                args = {
-                    %s
-                }
+            foreach ($target['contexts'] as $name => $path) {
+                $lines[] = \sprintf('        "%s" = "%s"', escape_hcl_string((string) $name), escape_hcl_string((string) $path));
             }
 
-            EOHCL, $service, $target['context'], $additionalContexts, $target['dockerfile'], $target['reference'], $target['type'], $target['reference'], $target['target'], $args);
+            $lines[] = '    }';
+        }
+
+        $lines[] = \sprintf('    dockerfile = "%s"', escape_hcl_string($target['dockerfile']));
+        $lines[] = \sprintf('    cache-from = ["%s"]', escape_hcl_string((string) $target['reference']));
+        $lines[] = \sprintf('    cache-to   = ["%s"]', escape_hcl_string(\sprintf('type=%s,ref=%s,mode=max', $target['type'], $target['reference'])));
+
+        if (null !== $target['target']) {
+            $lines[] = \sprintf('    target     = "%s"', escape_hcl_string($target['target']));
+        }
+
+        if ($target['args']) {
+            $lines[] = '    args = {';
+
+            foreach ($target['args'] as $key => $value) {
+                if (null === $value) {
+                    continue;
+                }
+
+                $lines[] = \sprintf('        "%s" = "%s"', escape_hcl_string((string) $key), escape_hcl_string((string) $value));
+            }
+
+            $lines[] = '    }';
+        }
+
+        $lines[] = '}';
+
+        $content .= implode("\n", $lines) . "\n\n";
     }
 
     if ($dryRun) {
@@ -536,7 +548,22 @@ function push(bool $dryRun = false): void
 }
 
 /**
- * @return array<string, array{profiles?: list<string>, build: array{context: string, dockerfile?: string, cache_from?: list<string>, target?: string, additional_contexts?: array<string, string>, args?: array<string, string>}}>
+ * Escapes a value so it can be safely embedded in an HCL double-quoted string.
+ *
+ * Beside quotes and backslashes, HCL also interprets `${` and `%{` as template
+ * sequences, so they must be doubled to be taken literally.
+ */
+function escape_hcl_string(string $value): string
+{
+    return str_replace(
+        ['\\', '"', "\n", "\r", "\t", '${', '%{'],
+        ['\\\\', '\\"', '\\n', '\\r', '\\t', '$${', '%%{'],
+        $value,
+    );
+}
+
+/**
+ * @return array<string, array{profiles?: list<string>, build: array{context: string, dockerfile?: string, cache_from?: list<string>, target?: string, additional_contexts?: array<string, string>, args?: array<string, string|null>}}>
  */
 function get_services(): array
 {

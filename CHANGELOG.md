@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* The bake file `docker:push` generates escapes the values it embeds. It is
+  HCL, and service names, contexts, dockerfile paths, image references and
+  build args went into it raw: a `"` or a `\` anywhere in them broke the file's
+  syntax, and `${` and `%{`, which HCL reads as the start of a template
+  interpolation, were evaluated rather than taken literally — so a build arg
+  carrying a shell-style `${VAR}` came out empty at best and failed the parse
+  at worst. Quotes, backslashes, newlines, carriage returns, tabs and both
+  template markers are now escaped.
+* That file no longer writes blocks a service has nothing to put in.
+  `contexts` and `args` were emitted whether or not the service declared any,
+  and `target` was emitted whether or not it had one — leaving `target = ""`,
+  which bake reads as a request for a stage named the empty string rather than
+  as no stage at all. A build arg declared without a value is skipped instead
+  of written as an empty string.
+
 ## 0.4.0 - 2026-08-28
 
 ### Added
