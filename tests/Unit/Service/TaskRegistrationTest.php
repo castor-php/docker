@@ -10,6 +10,8 @@ use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
+use Castor\Docker\Service\NodeService;
+use Castor\Docker\Service\PackageManager;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RustBuilder;
@@ -122,6 +124,26 @@ final class TaskRegistrationTest extends TestCase
         static::assertSame(
             ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
             $this->taskNames(new RustService('api')),
+        );
+    }
+
+    public function testNodeServiceTasks(): void
+    {
+        static::assertSame(
+            ['front:install', 'front:build', 'front:restart', 'front:watch', 'front:npm', 'front:bash'],
+            $this->taskNames(new NodeService('front')),
+        );
+    }
+
+    /**
+     * The passthrough task is named after the manager, the way the PHP one is
+     * named "composer": typing "front:npm" at a pnpm project would be a lie.
+     */
+    public function testTheNodePassthroughTaskFollowsThePackageManager(): void
+    {
+        static::assertContains(
+            'front:pnpm',
+            $this->taskNames((new NodeService('front'))->withPackageManager(PackageManager::Pnpm)),
         );
     }
 

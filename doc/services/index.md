@@ -14,6 +14,7 @@ rest.
 | [`PHPService` / `SymfonyService`](php.md) | PHP application served by FrankenPHP or nginx + PHP-FPM, with a builder container and QA tasks |
 | [`GoService`](go.md) | Go application built and run from the mounted sources |
 | [`RustService`](rust.md) | Cargo application, with clippy and rustfmt tasks |
+| [`NodeService`](node.md) | Node.js application — React, Next.js or a plain server, no PHP |
 | [`GoBuilder`](go.md#gobuilder) / [`RustBuilder`](rust.md#rustbuilder) | One compiler container for a repository, declaring the applications it builds |
 | [`BinaryRunService`](rust.md#binaryrunservice) | Runs one compiled binary, whatever produced it |
 | [`PostgresService`](databases.md#postgresservice) | PostgreSQL, with a `postgres:client` task |

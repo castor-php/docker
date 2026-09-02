@@ -13,6 +13,7 @@ use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MailpitService;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
+use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
@@ -112,6 +113,13 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
     {
         $this->assertMatchesYamlSnapshot($this->build(
             (new RustService('api'))->withVersion('1.90')->withDirectory('/project/api')->withDomain('api.demo.test'),
+        ));
+    }
+
+    public function testNode(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new NodeService('front'))->withVersion('24')->withDirectory('/project/front')->withDomain('front.demo.test'),
         ));
     }
 

@@ -19,6 +19,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -45,6 +46,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -88,6 +90,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -127,6 +130,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -164,6 +168,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -200,6 +205,53 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    app5:
+        build:
+            context: %ROOT%/src/Service/../Resources/node
+            dockerfile: %ROOT%/src/Service/../Resources/node/Dockerfile
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                node_version: '24'
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app5:cache'
+        working_dir: /app
+        user: %UID%
+        init: true
+        environment:
+            HOME: /home/app
+            COREPACK_HOME: /home/app/.cache/node/corepack
+            HOST: 0.0.0.0
+            PORT: '3000'
+        volumes:
+            - '%ROOT%/example/node-app:/app:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=app5.project.test
+            - 'caddy.reverse_proxy={{upstreams 3000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        command:
+            - npm
+            - run
+            - dev
+        extra_hosts:
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -229,6 +281,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -255,6 +308,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -278,6 +332,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -311,6 +366,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -338,6 +394,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -361,6 +418,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -399,6 +457,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -420,6 +479,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -452,6 +512,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -488,6 +549,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -515,6 +577,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -544,6 +607,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'
@@ -565,6 +629,7 @@ services:
         extra_hosts:
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
             - 'rabbitmq.project.test:host-gateway'
             - 'redis.project.test:host-gateway'
             - 'elasticsearch.project.test:host-gateway'

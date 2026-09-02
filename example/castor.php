@@ -16,6 +16,7 @@ use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\MariaDBService;
 use Castor\Docker\Service\MySQLService;
+use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RabbitMQService;
@@ -78,6 +79,17 @@ function register_service(RegisterServiceEvent $event)
         ->addExtension('mysql')
     ;
     $event->addService($app2Service);
+
+    // A Node.js application, and no PHP anywhere in its container. It runs
+    // "npm run dev", which is what serves a Vite/React or Next.js development
+    // server: the process watches the mounted sources and hot-reloads by
+    // itself, so nothing here rebuilds anything.
+    $event->addService(
+        (new NodeService('app5'))
+            ->withVersion('24')
+            ->withDirectory(__DIR__ . '/node-app')
+            ->withDomain('app5.project.test')
+    );
 
     $event->addService(new RabbitMQService());
     $event->addService(new RedisService());

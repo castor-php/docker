@@ -22,6 +22,7 @@ use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\MailpitInstaller;
 use Castor\Docker\Installer\MariaDBInstaller;
 use Castor\Docker\Installer\MySQLInstaller;
+use Castor\Docker\Installer\NodeInstaller;
 use Castor\Docker\Installer\PostgresInstaller;
 use Castor\Docker\Installer\RabbitMQInstaller;
 use Castor\Docker\Installer\RedisInstaller;
@@ -1225,6 +1226,7 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
     $event->addInstaller(new ClickhouseInstaller());
     $event->addInstaller(new MailpitInstaller());
     $event->addInstaller(new SymfonyInstaller());
+    $event->addInstaller(new NodeInstaller());
     $event->addInstaller(new RustInstaller());
 }
 

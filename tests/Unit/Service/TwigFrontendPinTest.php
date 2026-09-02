@@ -9,6 +9,7 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
+use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\RabbitMQService;
@@ -40,6 +41,7 @@ final class TwigFrontendPinTest extends SnapshotTestCase
             (new ClickhouseService())->withVersion('25.8'),
             (new GoService('api'))->withVersion('1.25')->withDirectory('/project/api'),
             (new RustService('agent'))->withVersion('1.90')->withDirectory('/project/agent'),
+            (new NodeService('front'))->withVersion('24')->withDirectory('/project/front'),
             (new GoBuilder('go-builder'))->withVersion('1.25')->withDirectory('/project')->withApp('server/exporter'),
             (new RustBuilder('rust-builder'))->withVersion('1.90')->withDirectory('/project')->withApp('server/injector'),
             // Builds a plain Dockerfile: the argument is none of its business.

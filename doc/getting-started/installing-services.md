@@ -17,6 +17,7 @@ castor docker:service:install
 castor docker:service:install mariadb
 castor docker:service:install symfony
 castor docker:service:install rust
+castor docker:service:install node
 ```
 
 Depending on the service you are asked a few questions (application name,
@@ -31,6 +32,10 @@ Some installers go beyond registering a service:
   `composer create-project symfony/skeleton` inside its own builder container;
 * **rust** — creates the crate with `cargo init` and drops in a dependency-free
   HTTP server so the container serves something right away;
+* **node** — scaffolds the application from the template you pick: a
+  dependency-free HTTP server, `create-vite --template react`, or
+  `create-next-app` — and writes the dev-server configuration each one needs to
+  be served on a domain;
 * any application needing a database offers to link an existing one or to
   install a new one on the spot.
 

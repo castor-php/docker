@@ -28,15 +28,19 @@ $event->addService(
     (new RedirectionioAgentService())
         ->withProjectKey('default-project-key') // Used by the domains registered without an explicit key
         ->withInstanceName('dev')
-        // ->addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80)
+        // ->addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, ?int $port = null)
         ->addReverseProxy('app.project.test', $app)
         ->addReverseProxy('legacy.project.test', $app, 'another-project-key')
-        ->addReverseProxy('api.project.test', $api, port: 8080)
+        ->addReverseProxy('api.project.test', $api)          // forwarded to api:8080, the port of the service
+        ->addReverseProxy('front.project.test', 'front', port: 3000)
 );
 ```
 
 `$target` accepts a service instance or a plain service name. The port is the
-one the target listens on inside the Docker network.
+one the target listens on inside the Docker network: given an **instance** it is
+read from the service, so a Rust binary on 8080 or a Node dev server on 3000
+needs nothing said here. Given a **name** it defaults to 80, since a name
+carries nothing to read — pass `port:` yourself, or hand over the instance.
 
 ## The Host header your application receives
 

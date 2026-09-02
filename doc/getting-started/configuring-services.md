@@ -29,9 +29,9 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasHttpAccess` | `withHttpAccess()`, `isHttpAccessAllowed()` | every routed service |
 | `HasHttpRouting` | the two above + `withPort()`, `getPort()`, `applyHttpRouting()` | every routed service |
 | `HasDirectory` | `withDirectory()`, `getDirectory()`, `withWorkingDirectory()`, `getWorkingDirectory()` | every service mounting sources |
-| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, the builders |
-| `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, the builders |
-| `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService` |
+| `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, `NodeService`, the builders |
+| `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, `NodeService`, the builders |
+| `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService`, `NodeService` |
 | `HasName` | `withName()`, `getName()` | every service naming itself |
 | `HasMysqlConfiguration` | `withSetting()`, `withSettings()`, `withConfiguration()`, `withConfigurationFile()` | `MySQLService`, `MariaDBService` |
 
@@ -84,7 +84,7 @@ defaults leave the generated file exactly as it was.
 `HasVersion` and `HasDockerfile` require the service to declare its own fallback
 with `getDefaultVersion()` / `getDefaultDockerfile()`, and `HasHttpRouting` lets
 a service override `getDefaultPort()` — that is how `RustService` defaults to
-8080 while everything else defaults to 80.
+8080 and `NodeService` to 3000, while everything else defaults to 80.
 
 ## Lazy defaults
 

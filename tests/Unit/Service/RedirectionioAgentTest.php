@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Tests\SnapshotTestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -42,6 +43,34 @@ final class RedirectionioAgentTest extends SnapshotTestCase
         );
 
         static::assertTrue($configuration['reverse_proxy']['virtual_hosts'][0]['forward']['preserve_host']);
+    }
+
+    /**
+     * A service listening somewhere else than on 80 — a Node dev server, a Rust
+     * binary — used to need the port repeated here, and forwarding to 80
+     * answered nothing at all. A service *name* still defaults to 80: it
+     * carries nothing to read.
+     */
+    public function testThePortIsReadFromTheTargetService(): void
+    {
+        $configuration = $this->configuration(
+            (new RedirectionioAgentService())
+                ->addReverseProxy('front.demo.test', (new NodeService('front'))->withPort(5173))
+                ->addReverseProxy('legacy.demo.test', 'legacy')
+        );
+
+        static::assertSame('front:5173', $configuration['reverse_proxy']['virtual_hosts'][0]['forward']['address']);
+        static::assertSame('legacy:80', $configuration['reverse_proxy']['virtual_hosts'][1]['forward']['address']);
+    }
+
+    public function testAnExplicitPortStillWins(): void
+    {
+        $configuration = $this->configuration(
+            (new RedirectionioAgentService())
+                ->addReverseProxy('front.demo.test', (new NodeService('front'))->withPort(5173), port: 8080)
+        );
+
+        static::assertSame('front:8080', $configuration['reverse_proxy']['virtual_hosts'][0]['forward']['address']);
     }
 
     public function testPreserveHostCanBeTurnedOffGlobally(): void

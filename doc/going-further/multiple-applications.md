@@ -38,10 +38,11 @@ function register_service(RegisterServiceEvent $event)
 Each application gets its own set of tasks, prefixed with its name:
 `castor app1:install`, `castor app2:symfony`, and so on.
 
-Languages can be mixed the same way — a PHP front-end, a Go API and a Rust
-worker in the same stack, all routed by the same router:
+Languages can be mixed the same way — a React front-end, a PHP back-end, a Go
+API and a Rust worker in the same stack, all routed by the same router:
 
 ```php
+$event->addService((new NodeService('front'))->withDirectory(__DIR__ . '/front')->withDomain('front.project.test'));
 $event->addService((new GoService('api'))->withDirectory(__DIR__ . '/api')->withDomain('api.project.test'));
 $event->addService((new RustService('crawler'))->withDirectory(__DIR__ . '/crawler'));
 ```

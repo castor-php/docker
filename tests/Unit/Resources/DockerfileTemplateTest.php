@@ -193,6 +193,35 @@ final class DockerfileTemplateTest extends TestCase
      * mounting the repository root serves a /var/www/public that does not
      * exist. Absent, it must keep producing the historical value.
      */
+    public function testNodeDefaults(): void
+    {
+        $dockerfile = $this->render('node/Dockerfile', ['node_version' => '24', 'package_manager' => 'pnpm']);
+
+        static::assertStringContainsString('ARG node_version=24', $dockerfile);
+        static::assertStringContainsString('FROM node:${node_version} AS node-base', $dockerfile);
+        static::assertStringContainsString('corepack enable', $dockerfile);
+        static::assertStringContainsString('WORKDIR /app', $dockerfile);
+        static::assertStringContainsString('FROM node-base AS runtime', $dockerfile);
+    }
+
+    public function testNodeBlocksAreExtensible(): void
+    {
+        $dockerfile = $this
+            ->environment(self::RESOURCES . '/node', ['project' => <<<'TWIG'
+                {% extends 'Dockerfile' %}
+                {% block node_base %}
+                {{ parent() }}
+                RUN apt-get update && apt-get install -y --no-install-recommends imagemagick
+                {% endblock %}
+                TWIG])
+            ->render('project', ['node_version' => '24'])
+        ;
+
+        static::assertStringContainsString('corepack enable', $dockerfile, 'parent() must keep the shipped content.');
+        static::assertStringContainsString('imagemagick', $dockerfile);
+        static::assertStringContainsString('FROM node-base AS runtime', $dockerfile);
+    }
+
     public function testPhpDocumentRootFollowsTheApplicationDirectory(): void
     {
         static::assertStringContainsString('root * /var/www/public', $this->render('php/frontend-frankenphp/Caddyfile.twig', []));
@@ -418,5 +447,6 @@ final class DockerfileTemplateTest extends TestCase
     {
         static::assertStringContainsString('FROM rust:${rust_version}', $this->render('rust/Dockerfile', []));
         static::assertStringContainsString('FROM golang:${go_version}', $this->render('go/Dockerfile', []));
+        static::assertStringContainsString('FROM node:${node_version}', $this->render('node/Dockerfile', []));
     }
 }

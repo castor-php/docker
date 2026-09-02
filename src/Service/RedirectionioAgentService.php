@@ -131,18 +131,38 @@ class RedirectionioAgentService implements ServiceInterface
     /**
      * Serve $domain through the agent and forward the traffic to $target, which
      * is either a service instance or a service name.
+     *
+     * The port is read from the target service when it is left out, so a
+     * service listening somewhere else than on 80 — a Node dev server on 3000,
+     * a Rust binary on 8080 — is forwarded to correctly without repeating it
+     * here. Passing a service *name* keeps the historical default of 80, since
+     * a name carries nothing to read.
      */
-    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, int $port = 80, ?bool $preserveHost = null): static
+    public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, ?int $port = null, ?bool $preserveHost = null): static
     {
         $this->reverseProxies[] = [
             'domain' => $domain,
             'target' => $target instanceof ServiceInterface ? $target->getName() : $target,
-            'port' => $port,
+            'port' => $port ?? $this->resolveTargetPort($target),
             'projectKey' => $projectKey,
             'preserveHost' => $preserveHost,
         ];
 
         return $this->withDomain($domain);
+    }
+
+    /**
+     * The port a target service listens on. Every service routed over HTTP uses
+     * the HasHttpRouting behaviour, which is where getPort() comes from; there
+     * is no interface for it, so anything else falls back to 80.
+     */
+    private function resolveTargetPort(ServiceInterface|string $target): int
+    {
+        if ($target instanceof ServiceInterface && method_exists($target, 'getPort')) {
+            return $target->getPort();
+        }
+
+        return 80;
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder

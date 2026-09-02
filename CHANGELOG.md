@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `NodeService`, a Node.js application with no PHP in the container: the
+  official `node` image, the package manager of your choice through corepack,
+  and a `package.json` script as the container command. It runs `<manager> run
+  dev` by default, so a Vite/React or Next.js dev server serves and hot-reloads
+  from the mounted sources.
+* `NodeService::withPolling()`, for the bind mounts that carry no inotify event
+  — Docker Desktop, a Windows filesystem under WSL — where nothing reloads
+  otherwise.
+* The `node` installer: `castor docker:service:install node` scaffolds a
+  dependency-free HTTP server, a `create-vite --template react` application or a
+  `create-next-app` one, each with the dev-server configuration it needs to be
+  served on a domain.
+
+### Changed
+
+* `RedirectionioAgentService::addReverseProxy()` reads the port from the target
+  when it is given a service instance, instead of forwarding to 80. A service
+  name still defaults to 80.
+
 ## 0.5.0 - 2026-09-01
 
 ### Changed

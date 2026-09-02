@@ -1,0 +1,35 @@
+services:
+    front:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/node'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/node/Dockerfile'
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                node_version: '24'
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/front:cache'
+        working_dir: /app
+        user: '1000:1000'
+        init: true
+        environment:
+            HOME: /home/app
+            COREPACK_HOME: /home/app/.cache/node/corepack
+            HOST: 0.0.0.0
+            PORT: '3000'
+        volumes:
+            - '/project/front:/app:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=front.demo.test
+            - 'caddy.reverse_proxy={{upstreams 3000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        command:
+            - npm
+            - run
+            - dev
+volumes: {}
