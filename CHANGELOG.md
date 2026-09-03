@@ -4,6 +4,12 @@
 
 ### Added
 
+* `castor docker:stats`, which sums up what the project costs the machine it
+  runs on: the CPU, memory and I/O of every container, put in proportion to the
+  cores and memory of the docker host, and the disk its images, containers and
+  volumes take — with what destroying it would actually free, next to what its
+  images weigh including the layers they share. `-v` lists every image and
+  volume, `--no-disk` skips the disk scan.
 * `NodeService`, a Node.js application with no PHP in the container: the
   official `node` image, the package manager of your choice through corepack,
   and a `package.json` script as the container command. It runs `<manager> run

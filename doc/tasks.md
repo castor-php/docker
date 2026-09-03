@@ -119,6 +119,38 @@ active — their logs are still on disk. A container whose logging driver is not
 
 Lists the containers and their status. Alias: `castor ps`.
 
+### `castor docker:stats`
+
+Shows what the project costs the machine it runs on. Alias: `castor stats`.
+
+```bash
+castor docker:stats
+castor docker:stats -v          # also lists every image and volume
+castor docker:stats --no-disk   # skips the disk usage
+```
+
+The first table gives, for every container of the project, its status and what
+it is consuming right now — CPU, memory, network and block I/O, processes — and
+totals the columns. The line below it puts those totals in proportion to the
+cores and the memory the docker host has.
+
+The second table adds up the disk the project takes: its images, the writable
+layer of its containers, and its volumes. Two numbers are given for each:
+
+* **Size** is what docker reports for these images, containers and volumes;
+* **Exclusive** is what destroying the project would actually free. Image layers
+  shared with images belonging to other projects only count in *Size*.
+
+> [!NOTE]
+> The disk usage makes docker measure every image, container and volume of the
+> daemon, which takes a few seconds. Pass `--no-disk` when only the CPU and the
+> memory matter.
+
+Volumes are recognised by the compose labels they carry. Images carry none, so
+they are recognised by name: the `<project>-<service>` images this plugin
+builds, and the images the project containers were started from — which is how
+a pulled image such as `redis:8` is attributed to the project too.
+
 ### `castor docker:destroy`
 
 Removes containers, volumes and networks of the project. **Destroys your data**,

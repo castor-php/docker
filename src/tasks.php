@@ -7,10 +7,12 @@ namespace Castor\Docker;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsOption;
 use Castor\Attribute\AsTask;
+use Castor\Console\Output\VerbosityLevel;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\NeedsDatabase;
 use Castor\Docker\Service\ServiceInterface;
+use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -264,6 +266,150 @@ function about(): void
 function status_label(string $service, array $running): string
 {
     return \in_array($service, $running, true) ? '<fg=green>running</>' : '<fg=yellow>stopped</>';
+}
+
+/**
+ * What the project costs the machine it runs on: CPU and memory of every
+ * container, and the disk its containers, images and volumes take.
+ */
+#[AsTask(description: 'Shows the CPU, memory and disk the project uses', aliases: ['stats'], namespace: 'docker')]
+function stats(
+    #[AsOption(description: 'Skip the disk usage, which makes docker measure every image, container and volume')]
+    bool $noDisk = false,
+): void {
+    $c = context();
+    $detailed = $c->verbosityLevel->value > VerbosityLevel::NORMAL->value;
+
+    io()->title(\sprintf('Stats for "%s"', get_project_name($c)));
+
+    $containers = get_project_containers(withSize: !$noDisk, c: $c);
+    $running = array_values(array_filter($containers, fn(array $container) => 'running' === $container['state']));
+    $samples = get_container_stats(array_column($running, 'id'), $c);
+
+    io()->section(\sprintf('Containers (%d running out of %d)', \count($running), \count($containers)));
+
+    if (!$containers) {
+        io()->text('This project has no container. Start it with <comment>castor docker:up</comment>.');
+    } else {
+        $rows = [];
+        $totals = ['cpu' => 0.0, 'memory' => 0, 'netIn' => 0, 'netOut' => 0, 'blockIn' => 0, 'blockOut' => 0, 'pids' => 0];
+
+        foreach ($containers as $container) {
+            $sample = $samples[$container['id']] ?? null;
+
+            foreach ($totals as $key => $total) {
+                $totals[$key] = $total + ($sample[$key] ?? 0);
+            }
+
+            $rows[] = [
+                $container['service'] . ($container['oneOff'] ? ' <fg=gray>(one-off)</>' : ''),
+                'running' === $container['state']
+                    ? '<fg=green>' . $container['status'] . '</>'
+                    : '<fg=yellow>' . $container['status'] . '</>',
+                null === ($sample['cpu'] ?? null) ? '-' : \sprintf('%.2f%%', $sample['cpu']),
+                null === ($sample['memory'] ?? null) ? '-' : format_bytes($sample['memory']),
+                null === ($sample['memoryPercent'] ?? null) ? '-' : \sprintf('%.2f%%', $sample['memoryPercent']),
+                null === ($sample['netIn'] ?? null) ? '-' : format_bytes($sample['netIn']) . ' / ' . format_bytes($sample['netOut'] ?? 0),
+                null === ($sample['blockIn'] ?? null) ? '-' : format_bytes($sample['blockIn']) . ' / ' . format_bytes($sample['blockOut'] ?? 0),
+                $sample['pids'] ?? '-',
+            ];
+        }
+
+        $rows[] = new TableSeparator();
+        $rows[] = [
+            '<info>Total</>',
+            '',
+            \sprintf('<info>%.2f%%</>', $totals['cpu']),
+            '<info>' . format_bytes($totals['memory']) . '</>',
+            '',
+            format_bytes($totals['netIn']) . ' / ' . format_bytes($totals['netOut']),
+            format_bytes($totals['blockIn']) . ' / ' . format_bytes($totals['blockOut']),
+            (string) $totals['pids'],
+        ];
+
+        io()->table(['Service', 'Status', 'CPU', 'Memory', 'Mem %', 'Net I/O', 'Block I/O', 'PIDs'], $rows);
+
+        $host = get_docker_host_resources($c);
+        $proportions = [];
+
+        if (null !== $host['cpus']) {
+            $proportions[] = \sprintf('%.2f of its %d cores', $totals['cpu'] / 100, $host['cpus']);
+        }
+
+        if (null !== $host['memory']) {
+            $proportions[] = \sprintf(
+                '%s of its %s of memory (%.2f%%)',
+                format_bytes($totals['memory']),
+                format_bytes($host['memory']),
+                $host['memory'] > 0 ? $totals['memory'] / $host['memory'] * 100 : 0,
+            );
+        }
+
+        if ($proportions) {
+            io()->text('Right now this project takes ' . implode(' and ', $proportions) . ' from this machine.');
+        }
+    }
+
+    if ($noDisk) {
+        return;
+    }
+
+    io()->section('Disk usage');
+
+    $usage = get_project_disk_usage($c);
+
+    $imageSize = array_sum(array_column($usage['images'], 'size'));
+    $imageExclusive = array_sum(array_column($usage['images'], 'exclusive'));
+    $containerSize = array_sum(array_column($containers, 'size'));
+    $volumeSize = array_sum(array_column($usage['volumes'], 'size'));
+
+    io()->table(
+        ['What', 'Count', 'Size', 'Exclusive'],
+        [
+            ['Images', \count($usage['images']), format_bytes($imageSize), format_bytes($imageExclusive)],
+            ['Containers', \count($containers), format_bytes($containerSize), format_bytes($containerSize)],
+            ['Volumes', \count($usage['volumes']), format_bytes($volumeSize), format_bytes($volumeSize)],
+            new TableSeparator(),
+            [
+                '<info>Total</>',
+                '',
+                '<info>' . format_bytes($imageSize + $containerSize + $volumeSize) . '</>',
+                '<info>' . format_bytes($imageExclusive + $containerSize + $volumeSize) . '</>',
+            ],
+        ],
+    );
+
+    io()->text('"Exclusive" is what destroying the project would actually free: layers its images share with images of other projects only count in "Size".');
+
+    if (!$detailed) {
+        io()->comment('Run with <comment>-v</comment> to list every image and volume.');
+
+        return;
+    }
+
+    if ($usage['images']) {
+        io()->table(
+            ['Image', 'Size', 'Exclusive', 'Containers'],
+            array_map(
+                fn(array $image) => [$image['name'], format_bytes($image['size'] ?? 0), format_bytes($image['exclusive'] ?? 0), $image['containers']],
+                $usage['images'],
+            ),
+        );
+    }
+
+    if ($usage['volumes']) {
+        io()->table(
+            ['Volume', 'Size', 'Used by'],
+            array_map(
+                fn(array $volume) => [
+                    $volume['name'],
+                    format_bytes($volume['size'] ?? 0),
+                    0 === $volume['links'] ? '<fg=yellow>nothing</>' : \sprintf('%d container(s)', $volume['links']),
+                ],
+                $usage['volumes'],
+            ),
+        );
+    }
 }
 
 #[AsTask(description: 'Install a service, register it in castor.php, then build and start it', namespace: 'docker:service', name: 'install')]

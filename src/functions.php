@@ -471,6 +471,348 @@ function get_running_service_names(?Context $c = null): array
 }
 
 /**
+ * Parse a size the way the docker CLI writes it — "1.26GB", "254.1MiB", "0B".
+ *
+ * Docker prints disk sizes in SI units and memory in binary ones, so both
+ * scales are read here. Anything else — "N/A" for a volume nobody measured,
+ * an empty field for a container listed without --size — is no size at all.
+ */
+function parse_docker_size(string $size): ?int
+{
+    if (!preg_match('/^\s*(-?\d+(?:\.\d+)?)\s*([a-zA-Z]*)\s*$/', $size, $matches)) {
+        return null;
+    }
+
+    $units = [
+        '' => 1,
+        'b' => 1,
+        'kb' => 1000,
+        'mb' => 1000 ** 2,
+        'gb' => 1000 ** 3,
+        'tb' => 1000 ** 4,
+        'pb' => 1000 ** 5,
+        'kib' => 1024,
+        'mib' => 1024 ** 2,
+        'gib' => 1024 ** 3,
+        'tib' => 1024 ** 4,
+        'pib' => 1024 ** 5,
+    ];
+
+    $unit = strtolower($matches[2]);
+
+    if (!isset($units[$unit])) {
+        return null;
+    }
+
+    return (int) round((float) $matches[1] * $units[$unit]);
+}
+
+/**
+ * Parse a percentage as the docker CLI writes it — "99.27%", or "--" for a
+ * container it could not measure.
+ */
+function parse_docker_percent(string $percent): ?float
+{
+    if (!preg_match('/^\s*(\d+(?:\.\d+)?)\s*%\s*$/', $percent, $matches)) {
+        return null;
+    }
+
+    return (float) $matches[1];
+}
+
+/**
+ * Render a byte count the way docker renders one, so the totals this plugin
+ * computes read like the sizes docker itself prints.
+ */
+function format_bytes(int|float $bytes): string
+{
+    $units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
+    $value = (float) $bytes;
+    $unit = 0;
+
+    while (abs($value) >= 1000 && $unit < \count($units) - 1) {
+        $value /= 1000;
+        ++$unit;
+    }
+
+    return \sprintf('%.4g%s', $value, $units[$unit]);
+}
+
+/**
+ * Parse the "key=value,key=value" label list the docker CLI prints.
+ *
+ * @return array<string, string>
+ */
+function parse_docker_labels(string $labels): array
+{
+    $parsed = [];
+
+    foreach (explode(',', $labels) as $label) {
+        $pair = explode('=', $label, 2);
+
+        if (2 === \count($pair) && '' !== $pair[0]) {
+            $parsed[$pair[0]] = $pair[1];
+        }
+    }
+
+    return $parsed;
+}
+
+/**
+ * Every container compose created for this project, running or not.
+ *
+ * Asking for the size makes docker measure the writable layer of each
+ * container, which costs a walk of its filesystem: only the task reporting disk
+ * usage asks for it.
+ *
+ * @return list<array{id: string, service: string, oneOff: bool, state: string, status: string, size: ?int, image: string}>
+ */
+function get_project_containers(bool $withSize = false, ?Context $c = null): array
+{
+    $c ??= context();
+
+    // Read field by field rather than as JSON: the "Labels" of the JSON output
+    // is a flat "key=value,key=value" string, which a label holding a comma —
+    // com.docker.compose.project.config_files does, for a project with several
+    // compose files — would make ambiguous.
+    $format = implode("\t", [
+        '{{.ID}}',
+        '{{.Label "com.docker.compose.service"}}',
+        '{{.Label "com.docker.compose.oneoff"}}',
+        '{{.State}}',
+        '{{.Status}}',
+        '{{.Size}}',
+        '{{.Image}}',
+    ]);
+
+    $command = [
+        'docker', 'ps',
+        '--all',
+        '--filter', 'label=com.docker.compose.project=' . get_project_name($c),
+        '--format', $format,
+    ];
+
+    if ($withSize) {
+        $command[] = '--size';
+    }
+
+    try {
+        $output = trim(capture($command, context: $c->withQuiet()->withAllowFailure()->withTimeout(null)));
+    } catch (\Throwable) {
+        // No docker on this machine, or none this user may talk to: the project
+        // has no container, which is all the caller asked.
+        return [];
+    }
+
+    $containers = [];
+
+    foreach (explode("\n", $output) as $line) {
+        $fields = explode("\t", trim($line));
+
+        if (7 !== \count($fields) || '' === $fields[0]) {
+            continue;
+        }
+
+        [$id, $service, $oneOff, $state, $status, $size, $image] = $fields;
+
+        $containers[] = [
+            'id' => $id,
+            'service' => '' !== $service ? $service : $image,
+            'oneOff' => 'True' === $oneOff,
+            'state' => $state,
+            'status' => $status,
+            // "49.2kB (virtual 1.36GB)": only the first number belongs to the
+            // container, the rest is the image it shares with its siblings.
+            'size' => parse_docker_size(explode(' ', $size)[0]),
+            'image' => $image,
+        ];
+    }
+
+    usort($containers, fn(array $a, array $b) => [$a['service'], $a['id']] <=> [$b['service'], $b['id']]);
+
+    return $containers;
+}
+
+/**
+ * What the given containers are consuming right now, keyed by container id.
+ *
+ * @param list<string> $ids only running containers: docker has nothing to
+ *                          sample on a stopped one
+ *
+ * @return array<string, array{cpu: ?float, memory: ?int, memoryLimit: ?int, memoryPercent: ?float, netIn: ?int, netOut: ?int, blockIn: ?int, blockOut: ?int, pids: ?int}>
+ */
+function get_container_stats(array $ids, ?Context $c = null): array
+{
+    // "docker stats" with no container samples every container of the daemon,
+    // which is precisely not what an empty list means here.
+    if (!$ids) {
+        return [];
+    }
+
+    $c ??= context();
+
+    try {
+        $output = trim(capture(
+            array_merge(['docker', 'stats', '--no-stream', '--format', '{{json .}}'], $ids),
+            context: $c->withQuiet()->withAllowFailure()->withTimeout(null),
+        ));
+    } catch (\Throwable) {
+        return [];
+    }
+
+    $stats = [];
+
+    foreach (explode("\n", $output) as $line) {
+        $sample = json_decode(trim($line), true);
+
+        if (!\is_array($sample) || !\is_string($sample['ID'] ?? null)) {
+            continue;
+        }
+
+        $memory = array_map(trim(...), explode('/', $sample['MemUsage'] ?? ''));
+        $network = array_map(trim(...), explode('/', $sample['NetIO'] ?? ''));
+        $block = array_map(trim(...), explode('/', $sample['BlockIO'] ?? ''));
+
+        $stats[$sample['ID']] = [
+            'cpu' => parse_docker_percent($sample['CPUPerc'] ?? ''),
+            'memory' => parse_docker_size($memory[0]),
+            'memoryLimit' => parse_docker_size($memory[1] ?? ''),
+            'memoryPercent' => parse_docker_percent($sample['MemPerc'] ?? ''),
+            'netIn' => parse_docker_size($network[0]),
+            'netOut' => parse_docker_size($network[1] ?? ''),
+            'blockIn' => parse_docker_size($block[0]),
+            'blockOut' => parse_docker_size($block[1] ?? ''),
+            'pids' => is_numeric($sample['PIDs'] ?? null) ? (int) $sample['PIDs'] : null,
+        ];
+    }
+
+    return $stats;
+}
+
+/**
+ * The images and volumes of this project, and the disk they take.
+ *
+ * "docker system df" is the only place docker reports the size of a volume, or
+ * the layers an image shares with the other ones, and it reports them for the
+ * whole daemon: the share belonging to this project is picked out of it here.
+ *
+ * Images carry no compose label, so they are recognised by name: the one this
+ * plugin builds them under — "<project>-<service>" — and the one every project
+ * container was started from, which is how the third-party images the project
+ * pulls are attributed to it.
+ *
+ * @return array{images: list<array{name: string, size: ?int, exclusive: ?int, containers: int}>, volumes: list<array{name: string, size: ?int, links: int}>}
+ */
+function get_project_disk_usage(?Context $c = null): array
+{
+    $c ??= context();
+    $empty = ['images' => [], 'volumes' => []];
+
+    try {
+        // Measuring every volume of the daemon takes a while, so no timeout.
+        $output = capture(
+            ['docker', 'system', 'df', '--verbose', '--format', '{{json .}}'],
+            context: $c->withQuiet()->withAllowFailure()->withTimeout(null),
+        );
+    } catch (\Throwable) {
+        return $empty;
+    }
+
+    $usage = json_decode(trim($output), true);
+
+    if (!\is_array($usage)) {
+        return $empty;
+    }
+
+    $project = get_project_name($c);
+
+    // Matched on the name rather than on the id: "docker system df" reports the
+    // digest of the image index, where a container reports the digest of the
+    // image configuration, and the two do not compare.
+    $imageNames = [$project => true];
+
+    foreach (get_compose_service_names($c) as $service) {
+        $imageNames[$project . '-' . $service] = true;
+    }
+
+    foreach (get_project_containers(c: $c) as $container) {
+        // A container whose image lost its tag names it by id, which nothing
+        // here can match: it is left out rather than attributed at random.
+        if ('' !== $container['image'] && !preg_match('/^[0-9a-f]{12,64}$/', $container['image'])) {
+            $imageNames[$container['image']] = true;
+        }
+    }
+
+    $images = [];
+
+    foreach ($usage['Images'] ?? [] as $image) {
+        $repository = $image['Repository'] ?? '';
+        $tag = $image['Tag'] ?? '';
+
+        // The plugin builds untagged images, docker tags what it pulls, and a
+        // container names its image either way, so both forms are looked up.
+        if (!isset($imageNames[$repository]) && !isset($imageNames[$repository . ':' . $tag])) {
+            continue;
+        }
+
+        $images[] = [
+            'name' => '' === $tag || '<none>' === $tag ? $repository : $repository . ':' . $tag,
+            'size' => parse_docker_size($image['Size'] ?? ''),
+            'exclusive' => parse_docker_size($image['UniqueSize'] ?? ''),
+            'containers' => (int) ($image['Containers'] ?? 0),
+        ];
+    }
+
+    $volumes = [];
+
+    foreach ($usage['Volumes'] ?? [] as $volume) {
+        $labels = parse_docker_labels($volume['Labels'] ?? '');
+
+        if (($labels['com.docker.compose.project'] ?? null) !== $project) {
+            continue;
+        }
+
+        $volumes[] = [
+            'name' => $volume['Name'] ?? '',
+            'size' => parse_docker_size($volume['Size'] ?? ''),
+            'links' => (int) ($volume['Links'] ?? 0),
+        ];
+    }
+
+    usort($images, fn(array $a, array $b) => $a['name'] <=> $b['name']);
+    usort($volumes, fn(array $a, array $b) => $a['name'] <=> $b['name']);
+
+    return ['images' => $images, 'volumes' => $volumes];
+}
+
+/**
+ * What the docker host has to give, to put the numbers of "docker:stats" in
+ * proportion.
+ *
+ * @return array{cpus: ?int, memory: ?int}
+ */
+function get_docker_host_resources(?Context $c = null): array
+{
+    $c ??= context();
+
+    try {
+        $output = trim(capture(
+            ['docker', 'info', '--format', "{{.NCPU}}\t{{.MemTotal}}"],
+            context: $c->withQuiet()->withAllowFailure(),
+        ));
+    } catch (\Throwable) {
+        return ['cpus' => null, 'memory' => null];
+    }
+
+    $fields = explode("\t", $output);
+
+    return [
+        'cpus' => is_numeric($fields[0]) ? (int) $fields[0] : null,
+        'memory' => is_numeric($fields[1] ?? null) ? (int) $fields[1] : null,
+    ];
+}
+
+/**
  * A context for a command that wants a terminal — a shell, a database session.
  *
  * castor's toInteractive() throws when the surrounding environment is not
