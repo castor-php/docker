@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `addExtension()` takes an installer, so an extension neither catalogue carries
+  can be built from its sources with [PIE](https://github.com/php/pie):
+  `->addExtension('xdebug/xdebug:^3.5', installer: ExtensionInstaller::Pie)`. It
+  is compiled in the stage every container of the application is built on, like
+  the others, so the module is in the application, in the builder and in the
+  workers alike — with the toolchain that compiled it staying there, which makes
+  those images larger.
+* `addExtension()` takes the system packages an extension needs on top of what
+  its installer pulls by itself, whichever installer that is:
+  `->addExtension('php/kafka', ['librdkafka-dev'], ExtensionInstaller::Pie)`.
+* `withPieVersion()`, pinning the PIE release the images install — the one that
+  builds those extensions, and the `pie` of the builder container.
+
 ## 0.5.1 - 2026-09-03
 
 ### Added

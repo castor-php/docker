@@ -38,8 +38,55 @@ RUN apt-get update \
 {% for extension in php_extensions %}
         "php{{ php_version }}-{{ extension }}" \
 {% endfor %}
+{% for package in php_extension_dependencies|default([]) %}
+        "{{ package }}" \
+{% endfor %}
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+{% block php_pie_extensions %}
+{% if pie_extensions|default([]) %}
+
+# PIE builds an extension from its sources, so this stage needs a toolchain:
+# "php{version}-dev" carries phpize and the headers, build-essential the
+# compiler. Both stay here — every container of the application is built on
+# php-base, so a module compiled in a stage of its own would leave with it.
+# What follows is one layer per extension, and one for the libraries it binds
+# to: adding an extension rebuilds that extension, not all of them. PIE knows
+# the Debian layout and writes its ini file to mods-available, enabling it in
+# every SAPI installed by then, which is why nothing calls phpenmod here.
+#
+# "by then" is why php{version}-fpm comes in here rather than in the frontend
+# stage, where it belongs: unlike a sury package, PIE leaves no dpkg trigger
+# behind to catch up with a SAPI installed afterwards, so the extension would
+# be in the CLI of the builder and missing from the server — the one bug an
+# extension installed once, for the whole application, is meant not to have.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        unzip \
+        "php{{ php_version }}-dev" \
+        "php{{ php_version }}-fpm" \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+RUN curl -fsSLo /usr/local/bin/pie https://github.com/php/pie/releases/download/{{ pie_version }}/pie.phar \
+    && chmod +x /usr/local/bin/pie
+{% for extension in pie_extensions %}
+
+{% if extension.dependencies %}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+{% for package in extension.dependencies %}
+        "{{ package }}" \
+{% endfor %}
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+{% endif %}
+RUN pie install --no-interaction "{{ extension.name }}"
+{% endfor %}
+{% endif %}
+{% endblock %}
 
 # Configuration
 COPY base/php-configuration /etc/php/{{ php_version }}
@@ -152,7 +199,7 @@ RUN phpenmod app-default \
 COPY --from=composer/composer:2.9.2 /usr/bin/composer /usr/bin/composer
 
 # Pie
-RUN curl -L --output /usr/local/bin/pie https://github.com/php/pie/releases/download/1.0.0/pie.phar \
+RUN curl -L --output /usr/local/bin/pie https://github.com/php/pie/releases/download/{{ pie_version }}/pie.phar \
     && chmod +x /usr/local/bin/pie
 
 # Autocompletion

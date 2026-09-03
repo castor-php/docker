@@ -7,8 +7,10 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","redis","amqp"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","snmp"]'
                 pie_version: 1.0.0
+                pie_extensions: '[{"name":"xdebug\/xdebug:^3.5","dependencies":[]},{"name":"php\/kafka","dependencies":["librdkafka-dev"]}]'
+                php_extension_dependencies: '["libsnmp-dev"]'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
@@ -25,8 +27,10 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 php_version: '8.5'
-                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","redis","amqp"]'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","snmp"]'
                 pie_version: 1.0.0
+                pie_extensions: '[{"name":"xdebug\/xdebug:^3.5","dependencies":[]},{"name":"php\/kafka","dependencies":["librdkafka-dev"]}]'
+                php_extension_dependencies: '["libsnmp-dev"]'
                 node_version: 24.x
                 package_manager: npm
             cache_from:

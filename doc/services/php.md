@@ -22,6 +22,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withDomain('app.example.test', 'example.test')
     ->withHttpAccess()               // Also serve plain HTTP, without redirecting to HTTPS
     ->addExtension('redis')          // An extension, in every container of the application
+    ->withPieVersion('1.0.0')        // The PIE release the images install (default: 1.0.0)
     ->addWorker('messenger', 'php bin/console messenger:consume async', 'unless-stopped')
     ->withFrankenPhpWorkerMode('public/index.php', num: 4)
 ```
@@ -106,6 +107,47 @@ So an extension whose Debian package ships several modules is several names in
 installer does not know fails the build with the name you gave it, which is
 where you find out.
 
+A version is part of the name too, in whatever syntax that installer reads —
+`redis-6.0.2` in `PhpMode::FrankenPhp`, `redis=6.0.2-1+0~2` in `PhpMode::Fpm`.
+Nothing here parses it.
+
+### Extensions built with PIE
+
+For a module neither catalogue carries, or a version neither offers yet, pass
+`ExtensionInstaller::Pie` and a [PIE](https://github.com/php/pie) package
+instead of a module name:
+
+```php
+->addExtension('xdebug/xdebug', installer: ExtensionInstaller::Pie)
+->addExtension('xdebug/xdebug:^3.5@alpha', installer: ExtensionInstaller::Pie)  // a constraint, as PIE reads it
+```
+
+PIE compiles the extension while the image is built, and it goes in the same
+stage as the others, so the module is in the application, in the builder and in
+the workers alike. Two things follow from compiling:
+
+* the toolchain that does it — `build-essential` and `php{version}-dev` in
+  `PhpMode::Fpm`, already in the image in `PhpMode::FrankenPhp` — stays there,
+  so images asking for a PIE extension are larger;
+* an extension binding to a system library needs that library's headers, which
+  is what the second argument is for.
+
+```php
+->addExtension('php/kafka', ['librdkafka-dev'], ExtensionInstaller::Pie)
+```
+
+That second argument is not specific to PIE: an extension installed by the
+mode can name the packages it needs on top of what its own installer pulls, and
+they are installed with it.
+
+```php
+->addExtension('snmp', ['libsnmp-dev'])
+```
+
+Each PIE extension gets a layer of its own, and so do its packages, so adding
+one rebuilds that one rather than all of them. `withPieVersion()` pins the PIE
+release used — the same one the builder container runs as `pie`.
+
 ## FrankenPHP worker mode
 
 ```php
@@ -151,13 +193,18 @@ reaches the whole application. The `builder` block has two inner blocks for what
 depends on the PHP installation, already overridden in FrankenPHP mode:
 `builder_php_dev` (the `-dev` package, which the FrankenPHP image carries
 already) and `builder_php_configuration` (where the builder ini file goes).
+`php_base` has one, `php_pie_extensions`, holding the whole PIE section and
+rendered empty when nothing asked for it.
 
 ### Variables
 
 | Variable | Type | Comes from |
 |----------|------|------------|
 | `php_version` | string | `withVersion()` (default `8.5`) |
-| `php_extensions` | list of strings | the default list plus `addExtension()` |
+| `php_extensions` | list of strings | the default list plus `addExtension()`, minus the PIE ones |
+| `php_extension_dependencies` | list of strings | the packages those extensions named, absent when there are none |
+| `pie_extensions` | list of `{name, dependencies}` | the `ExtensionInstaller::Pie` ones, absent when there are none |
+| `pie_version` | string | `withPieVersion()` (default `1.0.0`) |
 | `node_version` | string | `withNodeVersion()` (default `24.x`), only in the builder stage |
 | `package_manager` | string | `withPackageManager()` (default `npm`), only in the builder stage |
 | `sudo` | string | `withSudo()`, only in the builder stage and only when it is on |

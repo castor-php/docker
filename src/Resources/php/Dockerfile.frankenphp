@@ -31,10 +31,54 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
+{% if php_extension_dependencies|default([]) %}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+{% for package in php_extension_dependencies %}
+        "{{ package }}" \
+{% endfor %}
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+{% endif %}
 {% if php_extensions %}
 RUN install-php-extensions {% for extension in php_extensions %}{{ extension }} {% endfor %}
 
 {% endif %}
+{% block php_pie_extensions %}
+{% if pie_extensions|default([]) %}
+
+# The compiler, phpize and the headers come with the image, so PIE only needs
+# a way to fetch the sources. What follows is one layer per extension, and one
+# for the libraries it binds to: adding an extension rebuilds that extension,
+# not all of them. PIE writes its ini file to conf.d, which every SAPI of this
+# image reads, and it is the one that knows whether the module wants
+# "extension" or "zend_extension".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+RUN curl -fsSLo /usr/local/bin/pie https://github.com/php/pie/releases/download/{{ pie_version }}/pie.phar \
+    && chmod +x /usr/local/bin/pie
+{% for extension in pie_extensions %}
+
+{% if extension.dependencies %}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+{% for package in extension.dependencies %}
+        "{{ package }}" \
+{% endfor %}
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+{% endif %}
+RUN pie install --no-interaction "{{ extension.name }}"
+{% endfor %}
+
+{% endif %}
+{% endblock %}
 # conf.d is to this image what mods-available plus phpenmod is to the Debian
 # one, and every SAPI of it reads that directory: this file configures the CLI
 # and the server at once.

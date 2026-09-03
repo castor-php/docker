@@ -44,7 +44,12 @@ class PHPService implements ServiceInterface
      */
     private array $workers = [];
 
-    /** @var string[] the extensions asked for, on top of the defaults of the mode */
+    /**
+     * The extensions asked for, on top of the defaults of the mode, keyed by
+     * name so asking twice installs once.
+     *
+     * @var array<string, array{installer: ExtensionInstaller, dependencies: list<string>}>
+     */
     private array $extensions = [];
 
     private ?string $frankenPhpWorkerScript = null;
@@ -60,6 +65,9 @@ class PHPService implements ServiceInterface
     protected string $nodeVersion = '24.x';
 
     protected PackageManager $packageManager = PackageManager::Npm;
+
+    /** The PIE release the images install, both to build extensions and to run in the builder. */
+    protected string $pieVersion = '1.0.0';
 
     protected bool $sudo = false;
 
@@ -396,22 +404,98 @@ class PHPService implements ServiceInterface
         return $this;
     }
 
-    public function addExtension(string $extension): static
+    /**
+     * Adds an extension to every container of the application: it is installed
+     * once, in the stage the application, the builder and the workers are all
+     * built on.
+     *
+     * The name reaches the installer as written — a version constraint the
+     * installer understands is part of the name, so "xdebug/xdebug:^3.5" with
+     * ExtensionInstaller::Pie or "redis-6.0.2" in PhpMode::FrankenPhp pin one.
+     *
+     * $dependencies are the Debian packages the extension needs on top of what
+     * the installer pulls by itself, usually the "-dev" ones of the libraries
+     * PIE compiles against — librdkafka-dev for a Kafka binding. They stay in
+     * the image.
+     *
+     * @param string             $extension    named after the installer, see getExtensions()
+     * @param list<string>       $dependencies Debian packages to install alongside
+     * @param ExtensionInstaller $installer    ExtensionInstaller::Pie to build it from its sources instead
+     */
+    public function addExtension(string $extension, array $dependencies = [], ExtensionInstaller $installer = ExtensionInstaller::Mode): static
     {
-        $this->extensions[] = $extension;
+        if (ExtensionInstaller::Pie === $installer && !preg_match('{^[^/\s:]+/[^/\s:]+(:\S+)?$}', $extension)) {
+            throw new \InvalidArgumentException(\sprintf('"%s" is not a PIE package: PIE installs a Composer package, named "vendor/name", optionally followed by ":" and a version constraint.', $extension));
+        }
+
+        $this->extensions[$extension] = [
+            'installer' => $installer,
+            'dependencies' => $dependencies,
+        ];
+
         return $this;
     }
 
     /**
-     * The extensions the image installs, named the way the mode installs them:
-     * the Debian packages of sury for PhpMode::Fpm, the install-php-extensions
-     * catalogue for PhpMode::FrankenPhp.
+     * The extensions the installer of the mode puts in the image, named the way
+     * it names them: the Debian packages of sury for PhpMode::Fpm, the
+     * install-php-extensions catalogue for PhpMode::FrankenPhp. The ones
+     * addExtension() was given ExtensionInstaller::Pie for are not in here,
+     * they are in getPieExtensions().
      *
      * @return list<string>
      */
     public function getExtensions(): array
     {
-        return array_values(array_unique([...$this->getDefaultExtensions(), ...$this->extensions]));
+        $extensions = $this->getDefaultExtensions();
+
+        foreach ($this->extensions as $extension => $options) {
+            if (ExtensionInstaller::Mode === $options['installer']) {
+                $extensions[] = $extension;
+            }
+        }
+
+        return array_values(array_unique($extensions));
+    }
+
+    /**
+     * The ones PIE builds from their sources, each with the packages its
+     * sources need: one layer of the image per entry, so adding an extension
+     * does not rebuild the others.
+     *
+     * @return list<array{name: string, dependencies: list<string>}>
+     */
+    public function getPieExtensions(): array
+    {
+        $extensions = [];
+
+        foreach ($this->extensions as $extension => $options) {
+            if (ExtensionInstaller::Pie === $options['installer']) {
+                $extensions[] = ['name' => $extension, 'dependencies' => $options['dependencies']];
+            }
+        }
+
+        return $extensions;
+    }
+
+    /**
+     * The packages the extensions of the mode's own installer asked for. The
+     * PIE ones keep theirs in getPieExtensions(), next to the extension that
+     * needs them.
+     *
+     * @return list<string>
+     */
+    public function getExtensionDependencies(): array
+    {
+        $dependencies = [];
+
+        foreach ($this->extensions as $options) {
+            if (ExtensionInstaller::Mode === $options['installer']) {
+                $dependencies = [...$dependencies, ...$options['dependencies']];
+            }
+        }
+
+        return array_values(array_unique($dependencies));
     }
 
     /**
@@ -430,6 +514,22 @@ class PHPService implements ServiceInterface
             PhpMode::FrankenPhp => ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pdo_pgsql', 'pgsql', 'uuid', 'xml', 'zip'],
             PhpMode::Fpm => ['apcu', 'bcmath', 'curl', 'iconv', 'intl', 'mbstring', 'pgsql', 'uuid', 'xml', 'zip'],
         };
+    }
+
+    /**
+     * The PIE release the images install: the one that builds the extensions
+     * of getPieExtensions(), and the "pie" of the builder container.
+     */
+    public function withPieVersion(string $version): static
+    {
+        $this->pieVersion = $version;
+
+        return $this;
+    }
+
+    public function getPieVersion(): string
+    {
+        return $this->pieVersion;
     }
 
     /**
@@ -460,6 +560,7 @@ class PHPService implements ServiceInterface
                     ->withRegistryCache($this->name)
                     ->arg('php_version', $this->getVersion())
                     ->arg('php_extensions', json_encode($this->getExtensions(), \JSON_THROW_ON_ERROR))
+                    ->arg('pie_version', $this->getPieVersion())
                 ->end()
                 ->user("{$userId}:{$userId}")
                 ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
@@ -479,6 +580,16 @@ class PHPService implements ServiceInterface
                 $this->getPhpIniPath(PhpIniScope::Web),
                 recreateOnChange: true,
             );
+        }
+
+        // Sent only when there are any: the templates default both to an
+        // empty list, and everything a PIE build needs hangs off that test.
+        if ($this->getPieExtensions()) {
+            $appService->build()->arg('pie_extensions', json_encode($this->getPieExtensions(), \JSON_THROW_ON_ERROR));
+        }
+
+        if ($this->getExtensionDependencies()) {
+            $appService->build()->arg('php_extension_dependencies', json_encode($this->getExtensionDependencies(), \JSON_THROW_ON_ERROR));
         }
 
         $appRoot = $this->getContainerWorkingDirectory(static::MOUNT_POINT);

@@ -6,6 +6,7 @@ namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Docker\Service\BinaryRunService;
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\ExtensionInstaller;
 use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoBuilder;
@@ -294,6 +295,17 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
                 ->withDirectory('/project/app')
                 ->addExtension('redis')
                 ->addExtension('amqp'),
+        ));
+    }
+
+    public function testPhpWithPieExtensions(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build(
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
+                ->addExtension('snmp', ['libsnmp-dev'])
+                ->addExtension('xdebug/xdebug:^3.5', installer: ExtensionInstaller::Pie)
+                ->addExtension('php/kafka', ['librdkafka-dev'], ExtensionInstaller::Pie),
         ));
     }
 
