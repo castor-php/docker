@@ -41,7 +41,7 @@ class PostgresService implements DatabaseServiceInterface
                 ->image('postgres:' . $this->getVersion())
                 ->environment('POSTGRES_USER', 'app')
                 ->environment('POSTGRES_PASSWORD', 'app')
-                ->volume($name . '_data', '/var/lib/postgresql/data')
+                ->volume($name . '_data', sprintf('/var/lib/postgresql%s', (float) $this->getVersion() >= 18.0 ? '' : '/data'))
                 ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
                 ->profile('default')
             ->end()
