@@ -164,7 +164,11 @@ castor docker:destroy --force
 ### `castor docker:push`
 
 Pushes the build cache images to the registry configured in the `registry`
-context variable.
+context variable. Only the services declaring a `cache_from` are built, and
+`docker buildx bake` reads the compose file itself, so what it builds is exactly
+what `castor docker:build` builds.
+
+`--dry-run` prints the build plan bake resolved, without running it.
 
 ```bash
 castor docker:push

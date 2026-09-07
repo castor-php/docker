@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* `castor docker:push` lets `docker buildx bake` read the compose file instead
+  of hand-writing an HCL bake file from `docker compose config`. It builds the
+  same targets with the same contexts, args and caches, but the build plan now
+  comes from the same parser that runs `castor docker:build`, so the two can no
+  longer disagree. `--dry-run` prints bake's own plan.
+
 ## 0.5.2 - 2026-09-03
 
 ### Added
