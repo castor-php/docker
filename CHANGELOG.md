@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+
+* `PostgresService` mounts its named volume where the image actually keeps its
+  data: PostgreSQL 18 moved `PGDATA` under a version directory and declares
+  `/var/lib/postgresql` as its volume, so the previous `/var/lib/postgresql/data`
+  persisted nothing on the default version and the database was lost the next
+  time the container was recreated. Up to 17 the old path is still used. A
+  project moving from 17 to 18 starts on an empty database: dump it before the
+  upgrade and restore it after.
+* The `serverVersion` of the Doctrine DSN follows the version the service runs
+  instead of always claiming 16.
+
 ### Changed
 
 * `castor docker:push` lets `docker buildx bake` read the compose file instead

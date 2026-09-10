@@ -1,11 +1,11 @@
 services:
     postgres:
-        image: 'postgres:18.4'
+        image: 'postgres:17'
         environment:
             POSTGRES_USER: app
             POSTGRES_PASSWORD: app
         volumes:
-            - 'postgres_data:/var/lib/postgresql'
+            - 'postgres_data:/var/lib/postgresql/data'
         healthcheck:
             test:
                 - CMD-SHELL

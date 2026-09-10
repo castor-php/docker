@@ -26,12 +26,18 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 
 ```php
 (new PostgresService())
-    ->withVersion('16')             // PostgreSQL version (default: 16)
+    ->withVersion('18')             // PostgreSQL version (default: 18.4)
 ```
 
 * **Task:** `castor postgres:client` — a psql session
 * **Containers:** `postgres`, named volume `postgres_data`
-* **Database URL:** `postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8`
+* **Database URL:** `postgresql://app:app@postgres:5432/app?serverVersion=18&charset=utf8`
+  — `serverVersion` follows the version the service runs.
+
+PostgreSQL 18 moved its data directory, so the named volume is mounted on
+`/var/lib/postgresql` from 18 on and on `/var/lib/postgresql/data` up to 17. A
+project moving from 17 to 18 therefore starts on an empty database: dump it
+before the upgrade and restore it after, as `pg_upgrade` would ask for anyway.
 
 ## MySQLService
 

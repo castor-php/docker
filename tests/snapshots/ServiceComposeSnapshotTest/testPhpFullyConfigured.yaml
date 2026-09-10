@@ -5,7 +5,7 @@ services:
             POSTGRES_USER: app
             POSTGRES_PASSWORD: app
         volumes:
-            - 'postgres_data:/var/lib/postgresql/data'
+            - 'postgres_data:/var/lib/postgresql'
         healthcheck:
             test:
                 - CMD-SHELL
@@ -29,7 +29,7 @@ services:
                 - 'type=registry,ref=${REGISTRY:-}/app:cache'
         user: '1000:1000'
         environment:
-            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=18&charset=utf8'
         depends_on:
             postgres:
                 condition: service_healthy
@@ -62,7 +62,7 @@ services:
         user: '1000:1000'
         init: true
         environment:
-            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=18&charset=utf8'
         depends_on:
             postgres:
                 condition: service_healthy
@@ -86,7 +86,7 @@ services:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
         user: '1000:1000'
         environment:
-            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=18&charset=utf8'
         depends_on:
             postgres:
                 condition: service_healthy
@@ -110,7 +110,7 @@ services:
                 - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
         user: '1000:1000'
         environment:
-            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=18&charset=utf8'
         depends_on:
             postgres:
                 condition: service_healthy

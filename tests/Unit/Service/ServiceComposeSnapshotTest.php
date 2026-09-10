@@ -53,6 +53,15 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build(new PostgresService()));
     }
 
+    /**
+     * PostgreSQL 18 moved PGDATA, so the volume of an older major is mounted
+     * somewhere else than the one of the default version.
+     */
+    public function testPostgres17(): void
+    {
+        $this->assertMatchesYamlSnapshot($this->build((new PostgresService())->withVersion('17')));
+    }
+
     public function testMysql(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(new MySQLService()));
@@ -157,6 +166,19 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         static::assertSame(
             'smtp://smtp-catcher:1025',
             (new MailpitService())->withName('smtp-catcher')->getMailerDSN(),
+        );
+    }
+
+    public function testPostgresDsnFollowsTheVersionTheServiceRuns(): void
+    {
+        static::assertStringContainsString(
+            'serverVersion=17',
+            (new PostgresService())->withVersion('17.6')->getDatabaseURL(),
+        );
+        // A tag naming no version falls back to the default one.
+        static::assertStringContainsString(
+            'serverVersion=18',
+            (new PostgresService())->withVersion('latest')->getDatabaseURL(),
         );
     }
 
