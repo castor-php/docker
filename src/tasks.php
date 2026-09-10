@@ -582,134 +582,75 @@ function push(bool $dryRun = false): void
         throw new \RuntimeException('You must define a registry to push images.');
     }
 
-    // Generate bake file
+    // Only a service declaring a cache_from has somewhere to push its build
+    // cache back to.
     $targets = [];
 
     foreach (get_services() as $service => $config) {
         $cacheFrom = $config['build']['cache_from'][0] ?? null;
 
-        if (null === $cacheFrom) {
-            continue;
+        if (null !== $cacheFrom) {
+            $targets[$service] = normalize_cache_entry($cacheFrom);
         }
-
-        $cacheFrom = explode(',', $cacheFrom);
-        $reference = null;
-        $type = null;
-
-        if (1 === \count($cacheFrom)) {
-            $reference = $cacheFrom[0];
-            $type = 'registry';
-        } else {
-            foreach ($cacheFrom as $part) {
-                $from = explode('=', $part);
-
-                if (2 !== \count($from)) {
-                    continue;
-                }
-
-                if ('type' === $from[0]) {
-                    $type = $from[1];
-                }
-
-                if ('ref' === $from[0]) {
-                    $reference = $from[1];
-                }
-            }
-        }
-
-        $targets[$service] = [
-            'reference' => $reference,
-            'type' => $type,
-            'context' => $config['build']['context'],
-            'dockerfile' => $config['build']['dockerfile'] ?? 'Dockerfile',
-            'target' => $config['build']['target'] ?? null,
-            'contexts' => $config['build']['additional_contexts'] ?? [],
-            'args' => $config['build']['args'] ?? [],
-        ];
     }
 
-    $content = \sprintf(<<<'EOHCL'
-        group "default" {
-            targets = [%s]
-        }
+    if (!$targets) {
+        throw new \RuntimeException('No service declares a build cache, there is nothing to push.');
+    }
 
-        EOHCL, implode(', ', array_map(fn($name) => \sprintf('"%s"', escape_hcl_string($name)), array_keys($targets))));
+    $c = context();
 
-    foreach ($targets as $service => $target) {
-        $lines = [];
-        $lines[] = \sprintf('target "%s" {', escape_hcl_string($service));
-        $lines[] = \sprintf('    context    = "%s"', escape_hcl_string($target['context']));
+    // bake reads the compose file itself — "include:" and all — so the build
+    // context, the dockerfile, the target, the args, the additional contexts
+    // and the cache-from all come from there, already interpolated. Only the
+    // cache-to has no compose equivalent, and profiles do not apply: bake sees
+    // every service that has a "build".
+    $command = ['docker', 'buildx', 'bake', '-f', $c->workingDirectory . '/compose.yaml'];
 
-        if ($target['contexts']) {
-            $lines[] = '    contexts   = {';
-
-            foreach ($target['contexts'] as $name => $path) {
-                $lines[] = \sprintf('        "%s" = "%s"', escape_hcl_string((string) $name), escape_hcl_string((string) $path));
-            }
-
-            $lines[] = '    }';
-        }
-
-        $lines[] = \sprintf('    dockerfile = "%s"', escape_hcl_string($target['dockerfile']));
-        $lines[] = \sprintf('    cache-from = ["%s"]', escape_hcl_string((string) $target['reference']));
-        $lines[] = \sprintf('    cache-to   = ["%s"]', escape_hcl_string(\sprintf('type=%s,ref=%s,mode=max', $target['type'], $target['reference'])));
-
-        if (null !== $target['target']) {
-            $lines[] = \sprintf('    target     = "%s"', escape_hcl_string($target['target']));
-        }
-
-        if ($target['args']) {
-            $lines[] = '    args = {';
-
-            foreach ($target['args'] as $key => $value) {
-                if (null === $value) {
-                    continue;
-                }
-
-                $lines[] = \sprintf('        "%s" = "%s"', escape_hcl_string((string) $key), escape_hcl_string((string) $value));
-            }
-
-            $lines[] = '    }';
-        }
-
-        $lines[] = '}';
-
-        $content .= implode("\n", $lines) . "\n\n";
+    foreach ($targets as $service => $cacheTo) {
+        $command[] = '--set';
+        $command[] = \sprintf('%s.cache-to=%s,mode=max', $service, $cacheTo);
     }
 
     if ($dryRun) {
-        io()->write($content);
-
-        return;
+        $command[] = '--print';
     }
 
-    // write bake file in tmp file
-    $bakeFile = tempnam(sys_get_temp_dir(), 'bake');
-    file_put_contents($bakeFile, $content);
-
-    // Run bake
-    run(['docker', 'buildx', 'bake', '-f', $bakeFile], context: context()->withEnvironment([
+    // Naming the targets is what keeps the services that build without a cache
+    // out: bake's default group is every buildable service of the project.
+    run([...$command, ...array_keys($targets)], context: $c->withEnvironment([
+        // bake does not go through docker_compose(), so the variables the
+        // generated compose file interpolates have to be given to it here.
+        'COMPOSE_PROJECT_NAME' => get_project_name($c),
+        'PROJECT_NAME' => get_project_name($c),
+        'REGISTRY' => $registry,
+        // The build contexts live in the plugin, outside of the project
+        // directory, which bake asks to confirm on every run otherwise.
         'BUILDX_BAKE_ENTITLEMENTS_FS' => '0',
     ]));
 }
 
 /**
- * Escapes a value so it can be safely embedded in an HCL double-quoted string.
- *
- * Beside quotes and backslashes, HCL also interprets `${` and `%{` as template
- * sequences, so they must be doubled to be taken literally.
+ * A compose "cache_from" accepts both a bare image reference and a full
+ * "type=...,ref=..." entry, but "--set <target>.cache-to=" only understands the
+ * latter — buildx rejects a bare reference there.
  */
-function escape_hcl_string(string $value): string
+function normalize_cache_entry(string $cacheFrom): string
 {
-    return str_replace(
-        ['\\', '"', "\n", "\r", "\t", '${', '%{'],
-        ['\\\\', '\\"', '\\n', '\\r', '\\t', '$${', '%%{'],
-        $value,
-    );
+    foreach (explode(',', $cacheFrom) as $field) {
+        if (str_starts_with($field, 'type=')) {
+            return $cacheFrom;
+        }
+    }
+
+    return 'type=registry,ref=' . $cacheFrom;
 }
 
 /**
- * @return array<string, array{profiles?: list<string>, build: array{context: string, dockerfile?: string, cache_from?: list<string>, target?: string, additional_contexts?: array<string, string>, args?: array<string, string|null>}}>
+ * The compose services of the project, fully resolved, whatever profile they
+ * belong to.
+ *
+ * @return array<string, array{build?: array{cache_from?: list<string>}}>
  */
 function get_services(): array
 {
