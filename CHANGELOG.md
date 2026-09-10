@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+* Every question of `castor docker:service:install` is also an option, so a
+  service installs without any interaction:
+  `castor docker:service:install symfony --with-name=blog --with-version=8.4
+  --with-mode=fpm --with-database=none`. What is passed is not asked, what is
+  left out is still asked (or takes its default under `--no-interaction`), and
+  an application linking to a database picks it with `--with-database`. The
+  install with no service lists the options each one takes. Installers get this
+  from the inputs they already declare, custom ones included.
+
 ### Changed
 
 * `castor docker:push` lets `docker buildx bake` read the compose file instead
