@@ -1486,15 +1486,50 @@ function format_choice_default(mixed $default): ?string
 }
 
 /**
+ * The service to install, read back from the raw command line: the argument
+ * castor binds is lost as soon as an option it knows nothing about precedes it,
+ * which is exactly what the per-service install options are.
+ *
+ * @param list<string>                    $tokens
+ * @param array<string, ServiceInstaller> $installers
+ */
+function find_installer_name(array $tokens, array $installers): ?string
+{
+    $previous = null;
+
+    foreach ($tokens as $token) {
+        // A value written apart from its option ("--with-name blog") names no
+        // service, whatever it says.
+        $isValue = $previous !== null && str_starts_with($previous, '-') && !str_contains($previous, '=');
+        $previous = $token;
+
+        if (!$isValue && isset($installers[$token])) {
+            return $token;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Ask every question of an installer, honouring defaults (and --no-interaction).
+ * A question already answered on the command line is not asked again.
+ *
+ * @param array<string, mixed> $provided answers coming from the install options, keyed by input name
  *
  * @return array<string, mixed>
  */
-function ask_installer_inputs(ServiceInstaller $installer): array
+function ask_installer_inputs(ServiceInstaller $installer, array $provided = []): array
 {
     $answers = [];
 
     foreach ($installer->getInputs() as $input) {
+        if (\array_key_exists($input->name, $provided)) {
+            $answers[$input->name] = $provided[$input->name];
+
+            continue;
+        }
+
         $default = $input->resolveDefault($answers);
 
         $answers[$input->name] = match ($input->type) {
@@ -1513,11 +1548,15 @@ function ask_installer_inputs(ServiceInstaller $installer): array
  * it to a variable if needed), or install a fresh one, or none.
  *
  * @param array<string, ServiceInstaller> $installers
+ * @param string|null                     $requested  what "--with-database" asked for: "none", a registered
+ *                                                    database, or a database to install — null to ask
  *
  * @return array{variable: ?string, instance: ?DatabaseServiceInterface, services: ServiceInterface[]}
  */
-function resolve_database_link(ListenerEditor $editor, array $installers): array
+function resolve_database_link(ListenerEditor $editor, array $installers, ?string $requested = null): array
 {
+    $none = ['variable' => null, 'instance' => null, 'services' => []];
+
     $existing = [];
 
     foreach (collect_services() as $service) {
@@ -1526,30 +1565,71 @@ function resolve_database_link(ListenerEditor $editor, array $installers): array
         }
     }
 
+    $databaseInstallers = array_filter($installers, static fn(ServiceInstaller $installer): bool => $installer instanceof DatabaseServiceInstaller);
+
+    if ($requested !== null) {
+        if ($requested === 'none') {
+            return $none;
+        }
+
+        if (isset($existing[$requested])) {
+            return link_database($editor, $existing[$requested], $requested);
+        }
+
+        if (isset($databaseInstallers[$requested])) {
+            return install_database($editor, $databaseInstallers[$requested]);
+        }
+
+        throw new \RuntimeException(\sprintf(
+            'Unknown database "%s": expected "none", a registered database (%s) or a database to install (%s).',
+            $requested,
+            $existing === [] ? 'none registered yet' : implode(', ', array_keys($existing)),
+            implode(', ', array_keys($databaseInstallers)),
+        ));
+    }
+
     if ($existing !== []) {
         $choice = io()->choice('Link the application to a database', [...array_keys($existing), '(none)'], (string) array_key_first($existing));
 
         if ($choice === '(none)') {
-            return ['variable' => null, 'instance' => null, 'services' => []];
+            return $none;
         }
 
-        $instance = $existing[$choice];
-
-        return [
-            'variable' => $editor->ensureServiceVariable($instance::class, $choice) ?? $choice,
-            'instance' => $instance,
-            'services' => [],
-        ];
+        return link_database($editor, $existing[$choice], $choice);
     }
 
     if (!io()->confirm('No database is configured. Install one now?', true)) {
-        return ['variable' => null, 'instance' => null, 'services' => []];
+        return $none;
     }
 
-    $databaseInstallers = array_filter($installers, static fn(ServiceInstaller $installer): bool => $installer instanceof DatabaseServiceInstaller);
     $names = array_map(static fn(ServiceInstaller $installer): string => $installer->getName(), $databaseInstallers);
-    $installer = $installers[io()->choice('Which database?', array_values($names), 'postgres')];
 
+    return install_database($editor, $installers[io()->choice('Which database?', array_values($names), 'postgres')]);
+}
+
+/**
+ * Link to a database that is already registered, extracting it to a variable
+ * when the listener holds it inline.
+ *
+ * @return array{variable: ?string, instance: ?DatabaseServiceInterface, services: ServiceInterface[]}
+ */
+function link_database(ListenerEditor $editor, DatabaseServiceInterface $instance, string $name): array
+{
+    return [
+        'variable' => $editor->ensureServiceVariable($instance::class, $name) ?? $name,
+        'instance' => $instance,
+        'services' => [],
+    ];
+}
+
+/**
+ * Register a fresh database in the listener, assigned to a variable the
+ * application being installed can link to.
+ *
+ * @return array{variable: ?string, instance: ?DatabaseServiceInterface, services: ServiceInterface[]}
+ */
+function install_database(ListenerEditor $editor, ServiceInstaller $installer): array
+{
     $answers = ask_installer_inputs($installer);
     $variable = $installer->getName();
 
