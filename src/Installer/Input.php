@@ -20,6 +20,7 @@ final class Input
         public readonly InputType $type = InputType::Text,
         public readonly mixed $default = null,
         public readonly array $choices = [],
+        public readonly bool $multiple = false,
     ) {}
 
     /**

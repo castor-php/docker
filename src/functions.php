@@ -1486,7 +1486,7 @@ function ask_installer_inputs(ServiceInstaller $installer): array
 
         $answers[$input->name] = match ($input->type) {
             InputType::Boolean => io()->confirm($input->label, (bool) $default),
-            InputType::Choice => io()->choice($input->label, $input->choices, \is_string($default) ? $default : null),
+            InputType::Choice => io()->choice($input->label, $input->choices, \is_string($default) ? $default : null, $input->multiple),
             InputType::Integer => (int) io()->ask($input->label, $default === null ? null : (string) $default),
             InputType::Text => (string) io()->ask($input->label, $default === null ? null : (string) $default),
         };
