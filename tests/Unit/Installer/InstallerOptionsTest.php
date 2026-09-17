@@ -205,7 +205,7 @@ final class InstallerOptionsTest extends TestCase
     public function testTheUsageMarksAMultipleChoiceAsRepeatable(): void
     {
         static::assertSame(
-            ['--with-buckets=media|backups...'],
+            ['--with-buckets=media|backups...', '--with-versioned'],
             InstallerOptions::usage(new MultipleChoiceInstaller()),
         );
     }
@@ -221,6 +221,51 @@ final class InstallerOptionsTest extends TestCase
         static::assertSame('mariadb', find_installer_name(['--with-version=11.4', 'mariadb'], $installers));
         static::assertSame('node', find_installer_name(['--with-name', 'mariadb', 'node'], $installers));
         static::assertNull(find_installer_name(['--with-version=11.4'], $installers));
+    }
+
+    /**
+     * A global option of castor holding no value does not swallow the argument
+     * behind it, however it is written — on its own, spelled out, or bundled
+     * with another.
+     */
+    public function testAFlagOfCastorDoesNotSwallowTheService(): void
+    {
+        $installers = ['mariadb' => new MariaDBInstaller()];
+        $application = [
+            new InputOption('no-interaction', 'n', InputOption::VALUE_NONE),
+            new InputOption('verbose', 'v', InputOption::VALUE_NONE),
+        ];
+
+        foreach ([['-n'], ['--no-interaction'], ['-nv']] as $flag) {
+            static::assertSame(
+                'mariadb',
+                find_installer_name(['--with-version=11.4', ...$flag, 'mariadb'], $installers, $application),
+                implode(' ', $flag),
+            );
+        }
+    }
+
+    /**
+     * An install option answering a boolean input is a flag too, which only the
+     * inputs of the installers can tell.
+     */
+    public function testAnInstallFlagDoesNotSwallowTheService(): void
+    {
+        $installers = ['storage' => new MultipleChoiceInstaller()];
+
+        static::assertSame('storage', find_installer_name(['--with-versioned', 'storage'], $installers));
+        static::assertSame('storage', find_installer_name(['--no-with-versioned', 'storage'], $installers));
+    }
+
+    /**
+     * An install option holding a value still does, or the value would be read
+     * as the service it happens to name.
+     */
+    public function testAnInstallOptionStillSwallowsItsValue(): void
+    {
+        $installers = ['storage' => new MultipleChoiceInstaller()];
+
+        static::assertNull(find_installer_name(['--with-buckets', 'storage'], $installers));
     }
 }
 
@@ -244,6 +289,7 @@ final class MultipleChoiceInstaller extends AbstractServiceInstaller
     {
         return [
             new Input('buckets', 'Buckets to create', InputType::Choice, [], ['media', 'backups'], multiple: true),
+            new Input('versioned', 'Keep every version of an object', InputType::Boolean, false),
         ];
     }
 

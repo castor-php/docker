@@ -77,6 +77,39 @@ final class InstallerOptions
     }
 
     /**
+     * Whether the token following an option on the command line is its value,
+     * and so names no service. Castor's own options say it themselves; an
+     * install option says it through the input it answers, which holds no value
+     * when that input is a boolean. Anything else is taken to hold one.
+     *
+     * @param array<string, ServiceInstaller> $installers
+     * @param list<InputOption>               $applicationOptions
+     */
+    public static function expectsValue(string $token, array $installers, array $applicationOptions = []): bool
+    {
+        if (str_contains($token, '=')) {
+            return false;
+        }
+
+        $definition = new InputDefinition($applicationOptions);
+
+        if (!str_starts_with($token, '--')) {
+            // Only the last shortcut of a bundle ("-nv") may take a value.
+            $shortcut = substr($token, -1);
+
+            return !$definition->hasShortcut($shortcut) || $definition->getOptionForShortcut($shortcut)->acceptValue();
+        }
+
+        $name = substr($token, 2);
+
+        if ($definition->hasOption($name)) {
+            return $definition->getOption($name)->acceptValue();
+        }
+
+        return !self::isFlag($name, $installers);
+    }
+
+    /**
      * The option answering an input, e.g. "with-package-manager".
      */
     public static function optionName(Input $input): string
@@ -111,6 +144,33 @@ final class InstallerOptions
         }
 
         return $usage;
+    }
+
+    /**
+     * Whether an install option answers a boolean input — "--with-force" and
+     * the "--no-with-force" negating it, neither of which takes a value. A name
+     * no installer declares is none of their business, and left to the parsing
+     * to reject.
+     *
+     * @param array<string, ServiceInstaller> $installers
+     */
+    private static function isFlag(string $name, array $installers): bool
+    {
+        $name = str_starts_with($name, 'no-') ? substr($name, 3) : $name;
+
+        if (!str_starts_with($name, self::PREFIX)) {
+            return false;
+        }
+
+        foreach ($installers as $installer) {
+            foreach ($installer->getInputs() as $input) {
+                if (self::optionName($input) === $name) {
+                    return $input->type === InputType::Boolean;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

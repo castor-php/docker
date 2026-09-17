@@ -18,6 +18,7 @@ use Castor\Docker\Installer\ClickhouseInstaller;
 use Castor\Docker\Installer\DatabaseServiceInstaller;
 use Castor\Docker\Installer\ElasticsearchInstaller;
 use Castor\Docker\Installer\InputType;
+use Castor\Docker\Installer\InstallerOptions;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\MailpitInstaller;
 use Castor\Docker\Installer\MariaDBInstaller;
@@ -36,6 +37,7 @@ use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\ContextCreatedEvent;
 use Castor\Event\FunctionsResolvedEvent;
 use Symfony\Component\Console\Completion\CompletionInput;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -1492,18 +1494,29 @@ function format_choice_default(mixed $default): ?string
  *
  * @param list<string>                    $tokens
  * @param array<string, ServiceInstaller> $installers
+ * @param list<InputOption>               $applicationOptions the global options that may sit among them ("-n", "-v"…)
  */
-function find_installer_name(array $tokens, array $installers): ?string
+function find_installer_name(array $tokens, array $installers, array $applicationOptions = []): ?string
 {
-    $previous = null;
+    $isValue = false;
 
     foreach ($tokens as $token) {
         // A value written apart from its option ("--with-name blog") names no
-        // service, whatever it says.
-        $isValue = $previous !== null && str_starts_with($previous, '-') && !str_contains($previous, '=');
-        $previous = $token;
+        // service, whatever it says — and is no option either, whatever it
+        // starts with.
+        if ($isValue) {
+            $isValue = false;
 
-        if (!$isValue && isset($installers[$token])) {
+            continue;
+        }
+
+        if (str_starts_with($token, '-')) {
+            $isValue = InstallerOptions::expectsValue($token, $installers, $applicationOptions);
+
+            continue;
+        }
+
+        if (isset($installers[$token])) {
             return $token;
         }
     }

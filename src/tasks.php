@@ -431,7 +431,8 @@ function service_install(
     array $tokens = [],
 ): void {
     $installers = collect_service_installers();
-    $name ??= find_installer_name($tokens, $installers);
+    $applicationOptions = array_values(app()->getDefinition()->getOptions());
+    $name ??= find_installer_name($tokens, $installers, $applicationOptions);
 
     if ($name === null || !isset($installers[$name])) {
         if ($name !== null) {
@@ -457,7 +458,7 @@ function service_install(
 
     // The options of the service answer its questions upfront: what is passed
     // is not asked, and with none left to ask the install runs unattended.
-    $options = InstallerOptions::parse($installer, $tokens, array_values(app()->getDefinition()->getOptions()));
+    $options = InstallerOptions::parse($installer, $tokens, $applicationOptions);
 
     $file ??= $options->file ?? $c->workingDirectory . '/castor.php';
 
