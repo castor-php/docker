@@ -6,9 +6,11 @@ namespace Castor\Docker;
 
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsOption;
+use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Console\Output\VerbosityLevel;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
+use Castor\Docker\Installer\InstallerOptions;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\NeedsDatabase;
 use Castor\Docker\Service\ServiceInterface;
@@ -17,6 +19,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 
+use function Castor\app;
 use function Castor\context;
 use function Castor\io;
 use function Castor\variable;
@@ -412,14 +415,24 @@ function stats(
     }
 }
 
+/**
+ * @param list<string> $tokens
+ */
 #[AsTask(description: 'Install a service, register it in castor.php, then build and start it', namespace: 'docker:service', name: 'install')]
 function service_install(
     #[AsArgument(description: 'The service to install (omit to list the available ones)', autocomplete: 'Castor\Docker\autocomplete_installer_name')]
     ?string $name = null,
     #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
     ?string $file = null,
+    // Every service answers its own questions, so its options are only known
+    // once the service is: they are parsed out of the raw command line rather
+    // than declared here.
+    #[AsRawTokens]
+    array $tokens = [],
 ): void {
     $installers = collect_service_installers();
+    $applicationOptions = array_values(app()->getDefinition()->getOptions());
+    $name ??= find_installer_name($tokens, $installers, $applicationOptions);
 
     if ($name === null || !isset($installers[$name])) {
         if ($name !== null) {
@@ -429,6 +442,12 @@ function service_install(
         io()->section('Available services');
         foreach ($installers as $installer) {
             io()->writeln(\sprintf('  <info>%s</info> — %s', $installer->getName(), $installer->getDescription()));
+
+            $usage = InstallerOptions::usage($installer);
+
+            if ($usage !== []) {
+                io()->writeln('    <comment>' . implode(' ', $usage) . '</comment>');
+            }
         }
 
         return;
@@ -436,11 +455,16 @@ function service_install(
 
     $installer = $installers[$name];
     $c = context();
-    $file ??= $c->workingDirectory . '/castor.php';
+
+    // The options of the service answer its questions upfront: what is passed
+    // is not asked, and with none left to ask the install runs unattended.
+    $options = InstallerOptions::parse($installer, $tokens, $applicationOptions);
+
+    $file ??= $options->file ?? $c->workingDirectory . '/castor.php';
 
     io()->title(\sprintf('Installing "%s"', $installer->getName()));
 
-    $answers = ask_installer_inputs($installer);
+    $answers = ask_installer_inputs($installer, $options->answers);
 
     $source = is_file($file) ? (file_get_contents($file) ?: "<?php\n") : "<?php\n";
     $editor = new ListenerEditor($source);
@@ -449,7 +473,7 @@ function service_install(
     $extraServices = [];
 
     if ($installer instanceof NeedsDatabase) {
-        $database = resolve_database_link($editor, $installers);
+        $database = resolve_database_link($editor, $installers, $options->database);
         $answers['database'] = $database['variable'];
         $answers['database_instance'] = $database['instance'];
         $extraServices = $database['services'];

@@ -6,7 +6,8 @@ namespace Castor\Docker\Installer;
 
 /**
  * One question an installer needs answered. The same schema drives the
- * interactive prompt and (later) the per-installer CLI flags.
+ * interactive prompt and the option answering it on the command line, see
+ * {@see InstallerOptions}.
  */
 final class Input
 {

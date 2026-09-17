@@ -24,6 +24,61 @@ Depending on the service you are asked a few questions (application name,
 directory, version, domain…). Pass `--no-interaction` to accept every default,
 or `--file` to target a listener file other than `castor.php`.
 
+## Installing without questions
+
+Every question is also an option, so an install can run unattended — in a
+script, a Makefile or a CI job:
+
+```bash
+castor docker:service:install mariadb --with-version=11.4
+
+castor docker:service:install symfony \
+    --with-name=blog \
+    --with-directory=blog \
+    --with-version=8.4 \
+    --with-mode=fpm \
+    --with-domain=blog.test \
+    --with-symfony-version='7.3.*' \
+    --with-database=none
+```
+
+What is passed is not asked; what is left out is still asked, or takes its
+default under `--no-interaction`. An empty value is an answer of its own:
+`--with-domain=` installs an application the router does not serve.
+
+The options are named after the inputs of the service, with `_` written `-`
+(`--with-package-manager`). They carry a `with-` prefix because castor answers
+some of these names itself — `--version` prints castor's own version, whatever
+task follows — and because they read like the `withVersion()` they end up
+calling in your listener.
+
+A question a service lets you answer with several of its choices at once — none
+of the shipped ones does, a custom installer may — repeats, or takes them
+comma-separated in one go. The list of its choices ends with `...` in the usage:
+
+```bash
+castor docker:service:install storage --with-buckets=media --with-buckets=backups
+castor docker:service:install storage --with-buckets=media,backups
+```
+
+Run `castor docker:service:install` with no service to list them all, with the
+options each one takes:
+
+```
+  mariadb — MariaDB database server
+    --with-version=VERSION
+  node — Node.js application (React, Next.js, or a plain server)
+    --with-name=NAME --with-directory=DIRECTORY --with-version=VERSION …
+```
+
+An application that links to a database takes `--with-database`, which is either
+the name of a database already registered in your listener, the name of one to
+install on the spot (`postgres`, `mysql`, `mariadb`), or `none`:
+
+```bash
+castor docker:service:install symfony --with-name=blog --with-database=postgres
+```
+
 ## Services that do more on install
 
 Some installers go beyond registering a service:

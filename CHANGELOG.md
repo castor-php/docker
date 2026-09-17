@@ -8,6 +8,16 @@
   question can be answered with several of its choices at once. The answer is
   then a `list<string>`, and a default preselecting some of them is a list as
   well.
+* Every question of `castor docker:service:install` is also an option, so a
+  service installs without any interaction:
+  `castor docker:service:install symfony --with-name=blog --with-version=8.4
+  --with-mode=fpm --with-database=none`. What is passed is not asked, what is
+  left out is still asked (or takes its default under `--no-interaction`), and
+  an application linking to a database picks it with `--with-database`. The
+  install with no service lists the options each one takes. Installers get this
+  from the inputs they already declare, custom ones included — an input taking
+  several choices at once repeats (`--with-buckets=media --with-buckets=backups`)
+  or takes them comma-separated.
 
 ### Changed
 

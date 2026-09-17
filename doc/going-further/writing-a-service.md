@@ -194,3 +194,7 @@ listener — the rewrite preserves the rest of the file. `createInstance()`
 returns the live instance used to regenerate the compose file in the same run.
 Three optional hooks complete the flow: `prepare()` before the build,
 `scaffold()` between build and up, and `postUp()` after the containers start.
+
+Each input is a question and an option of the install command at once, so the
+one above installs with `castor docker:service:install minio --with-version=latest`
+as well as by answering the prompt — nothing to declare for that.
