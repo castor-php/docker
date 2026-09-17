@@ -15,7 +15,9 @@
   left out is still asked (or takes its default under `--no-interaction`), and
   an application linking to a database picks it with `--with-database`. The
   install with no service lists the options each one takes. Installers get this
-  from the inputs they already declare, custom ones included.
+  from the inputs they already declare, custom ones included — an input taking
+  several choices at once repeats (`--with-buckets=media --with-buckets=backups`)
+  or takes them comma-separated.
 
 ### Changed
 

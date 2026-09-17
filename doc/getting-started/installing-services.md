@@ -52,6 +52,15 @@ some of these names itself — `--version` prints castor's own version, whatever
 task follows — and because they read like the `withVersion()` they end up
 calling in your listener.
 
+A question a service lets you answer with several of its choices at once — none
+of the shipped ones does, a custom installer may — repeats, or takes them
+comma-separated in one go. The list of its choices ends with `...` in the usage:
+
+```bash
+castor docker:service:install storage --with-buckets=media --with-buckets=backups
+castor docker:service:install storage --with-buckets=media,backups
+```
+
 Run `castor docker:service:install` with no service to list them all, with the
 options each one takes:
 

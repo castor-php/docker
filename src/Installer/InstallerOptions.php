@@ -59,9 +59,10 @@ final class InstallerOptions
         foreach ($installer->getInputs() as $input) {
             $value = $parsed->getOption(self::optionName($input));
 
-            // Absent options keep their null default, so the question is asked
-            // (or its default taken) as if nothing had been passed.
-            if ($value === null) {
+            // Absent options keep their null default — the empty array for a
+            // multiple choice, which repeats — so the question is asked (or its
+            // default taken) as if nothing had been passed.
+            if ($value === null || $value === []) {
                 continue;
             }
 
@@ -98,8 +99,10 @@ final class InstallerOptions
 
             $usage[] = match ($input->type) {
                 InputType::Boolean => $name,
-                InputType::Choice => $name . '=' . implode('|', $input->choices),
-                InputType::Integer, InputType::Text => $name . '=' . strtoupper($input->name),
+                // A multiple choice repeats, which the trailing "..." says the
+                // way every other command line does.
+                InputType::Choice => $name . '=' . implode('|', $input->choices) . ($input->multiple ? '...' : ''),
+                InputType::Integer, InputType::Text => $name . '=' . strtoupper(str_replace('_', '-', $input->name)),
             };
         }
 
@@ -136,10 +139,13 @@ final class InstallerOptions
     private static function createOption(Input $input): InputOption
     {
         // A boolean is a flag and its negation ("--with-x", "--no-with-x"), so
-        // that not passing it stays distinguishable from passing it false.
-        $mode = $input->type === InputType::Boolean
-            ? InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE
-            : InputOption::VALUE_REQUIRED;
+        // that not passing it stays distinguishable from passing it false. A
+        // multiple choice repeats instead, one occurrence per choice picked.
+        $mode = match (true) {
+            $input->type === InputType::Boolean => InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE,
+            $input->multiple => InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+            default => InputOption::VALUE_REQUIRED,
+        };
 
         return new InputOption(
             self::optionName($input),
@@ -158,6 +164,10 @@ final class InstallerOptions
 
     private static function cast(Input $input, mixed $value): mixed
     {
+        if ($input->type === InputType::Choice && $input->multiple) {
+            return self::castChoices($input, \is_array($value) ? array_values($value) : [$value]);
+        }
+
         $string = self::string($value) ?? '';
 
         return match ($input->type) {
@@ -166,10 +176,43 @@ final class InstallerOptions
             InputType::Integer => preg_match('/^-?\d+$/', $string)
                 ? (int) $string
                 : throw new \RuntimeException(\sprintf('The "--%s" option expects a number, got "%s".', self::optionName($input), $string)),
-            InputType::Choice => \in_array($string, $input->choices, true)
-                ? $string
-                : throw new \RuntimeException(\sprintf('The "--%s" option expects one of "%s", got "%s".', self::optionName($input), implode('", "', $input->choices), $string)),
+            InputType::Choice => self::choice($input, $string),
         };
+    }
+
+    /**
+     * The choices a multiple input was answered with, written as one occurrence
+     * each or comma-separated in one — the prompt reads a comma-separated list
+     * too, so no choice may hold a comma anyway.
+     *
+     * @param list<mixed> $values
+     *
+     * @return list<string>
+     */
+    private static function castChoices(Input $input, array $values): array
+    {
+        $choices = [];
+
+        foreach ($values as $value) {
+            foreach (explode(',', self::string($value) ?? '') as $choice) {
+                // "--with-x=" picks nothing, the way an empty value answers
+                // every other option.
+                if ($choice === '') {
+                    continue;
+                }
+
+                $choices[] = self::choice($input, $choice);
+            }
+        }
+
+        return array_values(array_unique($choices));
+    }
+
+    private static function choice(Input $input, string $value): string
+    {
+        return \in_array($value, $input->choices, true)
+            ? $value
+            : throw new \RuntimeException(\sprintf('The "--%s" option expects one of "%s", got "%s".', self::optionName($input), implode('", "', $input->choices), $value));
     }
 
     private static function describe(ServiceInstaller $installer): string

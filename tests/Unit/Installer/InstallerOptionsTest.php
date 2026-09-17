@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Unit\Installer;
 
+use Castor\Docker\Installer\AbstractServiceInstaller;
+use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
+use Castor\Docker\Installer\Input;
+use Castor\Docker\Installer\InputType;
 use Castor\Docker\Installer\InstallerOptions;
 use Castor\Docker\Installer\MariaDBInstaller;
 use Castor\Docker\Installer\NodeInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
+use Castor\Docker\Service\ServiceInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -134,9 +139,75 @@ final class InstallerOptionsTest extends TestCase
             '--with-version=VERSION',
             '--with-mode=frankenphp|fpm',
             '--with-domain=DOMAIN',
-            '--with-symfony-version=SYMFONY_VERSION',
+            '--with-symfony-version=SYMFONY-VERSION',
             '--with-database=DATABASE',
         ], InstallerOptions::usage(new SymfonyInstaller()));
+    }
+
+    /**
+     * A choice an installer marks as multiple is answered with several of its
+     * choices, so its option repeats where the others are written once.
+     */
+    public function testAMultipleChoiceRepeats(): void
+    {
+        $options = InstallerOptions::parse(new MultipleChoiceInstaller(), [
+            'storage',
+            '--with-buckets=media',
+            '--with-buckets=backups',
+        ]);
+
+        static::assertSame(['buckets' => ['media', 'backups']], $options->answers);
+    }
+
+    /**
+     * The prompt reads a multiple choice back from a comma-separated list, so
+     * no choice may hold a comma — the command line may just as well take one.
+     */
+    public function testAMultipleChoiceTakesACommaSeparatedList(): void
+    {
+        $options = InstallerOptions::parse(new MultipleChoiceInstaller(), ['storage', '--with-buckets=media,backups']);
+
+        static::assertSame(['buckets' => ['media', 'backups']], $options->answers);
+    }
+
+    public function testAMultipleChoiceIsNotAnsweredTwiceByTheSameChoice(): void
+    {
+        $options = InstallerOptions::parse(new MultipleChoiceInstaller(), ['storage', '--with-buckets=media,media']);
+
+        static::assertSame(['buckets' => ['media']], $options->answers);
+    }
+
+    public function testAnEmptyMultipleChoicePicksNothing(): void
+    {
+        $options = InstallerOptions::parse(new MultipleChoiceInstaller(), ['storage', '--with-buckets=']);
+
+        static::assertSame(['buckets' => []], $options->answers);
+    }
+
+    /**
+     * Not passing it at all is not picking nothing: the question is still
+     * asked, where an empty value has already answered it.
+     */
+    public function testAnUnansweredMultipleChoiceIsStillAsked(): void
+    {
+        $options = InstallerOptions::parse(new MultipleChoiceInstaller(), ['storage']);
+
+        static::assertSame([], $options->answers);
+    }
+
+    public function testEveryChoiceOfAMultipleOneIsChecked(): void
+    {
+        $this->expectExceptionMessageMatches('/"--with-buckets" option expects one of "media", "backups"/');
+
+        InstallerOptions::parse(new MultipleChoiceInstaller(), ['storage', '--with-buckets=media,logs']);
+    }
+
+    public function testTheUsageMarksAMultipleChoiceAsRepeatable(): void
+    {
+        static::assertSame(
+            ['--with-buckets=media|backups...'],
+            InstallerOptions::usage(new MultipleChoiceInstaller()),
+        );
     }
 
     /**
@@ -150,5 +221,36 @@ final class InstallerOptionsTest extends TestCase
         static::assertSame('mariadb', find_installer_name(['--with-version=11.4', 'mariadb'], $installers));
         static::assertSame('node', find_installer_name(['--with-name', 'mariadb', 'node'], $installers));
         static::assertNull(find_installer_name(['--with-version=11.4'], $installers));
+    }
+}
+
+/**
+ * No shipped installer asks a multiple choice yet, but a custom one may — the
+ * command line has to answer it all the same.
+ */
+final class MultipleChoiceInstaller extends AbstractServiceInstaller
+{
+    public function getName(): string
+    {
+        return 'storage';
+    }
+
+    public function getDescription(): string
+    {
+        return 'Object storage';
+    }
+
+    public function getInputs(): array
+    {
+        return [
+            new Input('buckets', 'Buckets to create', InputType::Choice, [], ['media', 'backups'], multiple: true),
+        ];
+    }
+
+    public function buildStatements(ServiceStatementBuilder $builder, array $answers): void {}
+
+    public function createInstance(array $answers): ServiceInterface
+    {
+        throw new \LogicException('Not needed to parse a command line.');
     }
 }
