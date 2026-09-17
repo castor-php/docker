@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+* An installer input of type `InputType::Choice` takes `multiple: true`, so a
+  question can be answered with several of its choices at once. The answer is
+  then a `list<string>`, and a default preselecting some of them is a list as
+  well.
+
+### Changed
+
+* `castor docker:push` lets `docker buildx bake` read the compose file instead
+  of hand-writing an HCL bake file from `docker compose config`. It builds the
+  same targets with the same contexts, args and caches, but the build plan now
+  comes from the same parser that runs `castor docker:build`, so the two can no
+  longer disagree. `--dry-run` prints bake's own plan.
+
 ### Fixed
 
 * `PostgresService` mounts its data volume where Postgres 18 keeps the database.
@@ -14,14 +29,6 @@
   An application already running on 18 has nothing in its volume: dump the
   database before pulling this, or `castor docker:destroy` and start from an
   empty one.
-
-### Changed
-
-* `castor docker:push` lets `docker buildx bake` read the compose file instead
-  of hand-writing an HCL bake file from `docker compose config`. It builds the
-  same targets with the same contexts, args and caches, but the build plan now
-  comes from the same parser that runs `castor docker:build`, so the two can no
-  longer disagree. `--dry-run` prints bake's own plan.
 
 ## 0.5.2 - 2026-09-03
 

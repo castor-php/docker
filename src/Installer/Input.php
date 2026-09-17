@@ -11,8 +11,9 @@ namespace Castor\Docker\Installer;
 final class Input
 {
     /**
-     * @param list<string>                                    $choices for InputType::Choice
-     * @param mixed|(\Closure(array<string, mixed>): mixed)   $default a value, or a closure computing it from the answers gathered so far (e.g. directory from name)
+     * @param list<string>                                  $choices  for InputType::Choice
+     * @param mixed|(\Closure(array<string, mixed>): mixed) $default  a value, or a closure computing it from the answers gathered so far (e.g. directory from name); a multiple choice preselects a list<string>
+     * @param bool                                          $multiple for InputType::Choice, whether several choices can be picked at once — the answer is then a list<string> rather than a string
      */
     public function __construct(
         public readonly string $name,
@@ -20,6 +21,7 @@ final class Input
         public readonly InputType $type = InputType::Text,
         public readonly mixed $default = null,
         public readonly array $choices = [],
+        public readonly bool $multiple = false,
     ) {}
 
     /**
