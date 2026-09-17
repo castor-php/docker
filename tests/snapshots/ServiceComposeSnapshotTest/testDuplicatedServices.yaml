@@ -5,7 +5,7 @@ services:
             POSTGRES_USER: app
             POSTGRES_PASSWORD: app
         volumes:
-            - 'postgres_data:/var/lib/postgresql/data'
+            - 'postgres_data:/var/lib/postgresql'
         healthcheck:
             test:
                 - CMD-SHELL
@@ -21,7 +21,7 @@ services:
             POSTGRES_USER: app
             POSTGRES_PASSWORD: app
         volumes:
-            - 'analytics_data:/var/lib/postgresql/data'
+            - 'analytics_data:/var/lib/postgresql'
         healthcheck:
             test:
                 - CMD-SHELL

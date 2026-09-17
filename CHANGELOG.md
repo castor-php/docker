@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+
+* `PostgresService` mounts its data volume where Postgres 18 keeps the database.
+  The image moved `PGDATA` to a versioned subdirectory and declares its volume
+  on `/var/lib/postgresql`, one level above the `/var/lib/postgresql/data` we
+  were mounting — so with the default version, which is 18, the database lived
+  in the container layer and was lost on every recreate. Services pinned to 17
+  or below keep the old path.
+
+  An application already running on 18 has nothing in its volume: dump the
+  database before pulling this, or `castor docker:destroy` and start from an
+  empty one.
+
 ### Changed
 
 * `castor docker:push` lets `docker buildx bake` read the compose file instead
