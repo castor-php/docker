@@ -1473,6 +1473,19 @@ function collect_service_installers(): array
 }
 
 /**
+ * The choice a prompt starts on. A multiple choice preselects several, which
+ * Symfony reads back from one comma-separated string rather than a list.
+ */
+function format_choice_default(mixed $default): ?string
+{
+    if (\is_array($default)) {
+        return $default === [] ? null : implode(',', array_map(static fn(mixed $choice): string => (string) $choice, $default));
+    }
+
+    return \is_string($default) ? $default : null;
+}
+
+/**
  * Ask every question of an installer, honouring defaults (and --no-interaction).
  *
  * @return array<string, mixed>
@@ -1486,7 +1499,7 @@ function ask_installer_inputs(ServiceInstaller $installer): array
 
         $answers[$input->name] = match ($input->type) {
             InputType::Boolean => io()->confirm($input->label, (bool) $default),
-            InputType::Choice => io()->choice($input->label, $input->choices, \is_string($default) ? $default : null, $input->multiple),
+            InputType::Choice => io()->choice($input->label, $input->choices, format_choice_default($default), $input->multiple),
             InputType::Integer => (int) io()->ask($input->label, $default === null ? null : (string) $default),
             InputType::Text => (string) io()->ask($input->label, $default === null ? null : (string) $default),
         };

@@ -181,6 +181,14 @@ final class MinioInstaller extends AbstractServiceInstaller
 }
 ```
 
+An input of type `InputType::Choice` is answered with one of its `choices`.
+Pass `multiple: true` and it is answered with several at once, as a
+`list<string>` — the default preselecting them is a list too:
+
+```php
+new Input('extensions', 'Extensions to enable', InputType::Choice, ['redis'], ['redis', 'amqp', 'intl'], multiple: true);
+```
+
 `buildStatements()` describes, as an AST, the code to write in the user's
 listener — the rewrite preserves the rest of the file. `createInstance()`
 returns the live instance used to regenerate the compose file in the same run.
