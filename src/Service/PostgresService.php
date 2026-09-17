@@ -31,6 +31,18 @@ class PostgresService implements DatabaseServiceInterface
         return 'postgres';
     }
 
+    /**
+     * Postgres 18 moved PGDATA to a versioned subdirectory and declares its
+     * volume one level up; before that the data directory was the mount point
+     * itself. A tag naming no version ("latest", "bookworm") is a recent one.
+     */
+    protected function getDataDirectory(): string
+    {
+        $isBefore18 = preg_match('/^(\d+)/', $this->getVersion(), $matches) && (int) $matches[1] < 18;
+
+        return $isBefore18 ? '/var/lib/postgresql/data' : '/var/lib/postgresql';
+    }
+
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $name = $this->getName();
@@ -41,7 +53,7 @@ class PostgresService implements DatabaseServiceInterface
                 ->image('postgres:' . $this->getVersion())
                 ->environment('POSTGRES_USER', 'app')
                 ->environment('POSTGRES_PASSWORD', 'app')
-                ->volume($name . '_data', sprintf('/var/lib/postgresql%s', (float) $this->getVersion() >= 18.0 ? '' : '/data'))
+                ->volume($name . '_data', $this->getDataDirectory())
                 ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
                 ->profile('default')
             ->end()
