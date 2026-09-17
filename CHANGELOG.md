@@ -1,13 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-09-17
 
 ### Added
 
-* An installer input of type `InputType::Choice` takes `multiple: true`, so a
-  question can be answered with several of its choices at once. The answer is
-  then a `list<string>`, and a default preselecting some of them is a list as
-  well.
 * Every question of `castor docker:service:install` is also an option, so a
   service installs without any interaction:
   `castor docker:service:install symfony --with-name=blog --with-version=8.4
@@ -18,6 +14,10 @@
   from the inputs they already declare, custom ones included — an input taking
   several choices at once repeats (`--with-buckets=media --with-buckets=backups`)
   or takes them comma-separated.
+* An installer input of type `InputType::Choice` takes `multiple: true`, so a
+  question can be answered with several of its choices at once. The answer is
+  then a `list<string>`, and a default preselecting some of them is a list as
+  well.
 
 ### Changed
 
@@ -36,9 +36,14 @@
   in the container layer and was lost on every recreate. Services pinned to 17
   or below keep the old path.
 
-  An application already running on 18 has nothing in its volume: dump the
-  database before pulling this, or `castor docker:destroy` and start from an
-  empty one.
+### Upgrading
+
+* A `PostgresService` left on its default version has been writing to the
+  container layer, not to its volume, so upgrading finds that volume empty.
+  Dump the database before pulling this release
+  (`docker compose exec postgres pg_dump -U app app > dump.sql`), or run
+  `castor docker:destroy` and start from an empty one. A service pinned to 17
+  or below keeps the path it had and needs nothing.
 
 ## 0.5.2 - 2026-09-03
 
