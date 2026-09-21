@@ -25,6 +25,8 @@ use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\RustBuilder;
 use Castor\Docker\Service\SymfonyService;
 
+defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
+
 #[AsContext(default: true)]
 function default_context(): Context
 {
