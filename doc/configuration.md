@@ -33,6 +33,9 @@ function default_context(): Context
 | `resolve_domains_via_host` | Whether the containers resolve the project's own public domains, `true` by default — see [below](#resolving-your-own-domains-from-a-container) |
 | `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
 | `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
+| `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
+| `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
+| `worktree_directory` | Where `worktree:create` checks a worktree out |
 
 ### Resolving your own domains from a container
 
@@ -64,7 +67,12 @@ A git worktree, or a second clone, shares `compose.yaml` with the first — `nam
 included. Overriding the project name in the context is what keeps the two
 apart, and everything else follows from it: the containers, the network, the
 named volumes, the TCP forwarders and the `${PROJECT_NAME}-<service>` images a
-shared builder is referenced by.
+shared builder is referenced by. The root domain is what the domains follow
+from, the ones a service spells out included.
+
+**A git worktree needs none of this**: the plugin detects it and derives both,
+see [git worktrees](going-further/worktrees.md). What follows is for a second
+clone, which is indistinguishable from a first one.
 
 ```php
 #[AsContext(default: true)]

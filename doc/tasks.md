@@ -257,7 +257,28 @@ castor postgres:expose 15432      # on a specific host port
 castor postgres:expose --stop     # stop the forwarder
 ```
 
-Exposed services are remembered across `docker:stop` / `docker:up`.
+Exposed services are remembered across `docker:stop` / `docker:up`, per
+checkout: a [worktree](going-further/worktrees.md) restores its own forwarders
+and not the ones of the main checkout.
+
+A host port belongs to the machine, so two checkouts cannot publish the same one.
+The task says which container holds it, and remembers the request: the forwarder
+comes back on the next `docker:up`, once the port is free again.
+
+## Worktrees
+
+Every checkout of the repository is a stack of its own — see
+[git worktrees](going-further/worktrees.md).
+
+* `castor worktree:list` — every checkout, its branch, its compose project, the
+  state of its stack and its URL
+* `castor worktree:create <name>` — create one, `--start` to build and start its
+  stack, `--branch` and `--from` to pick the branch
+* `castor worktree:delete <name>` — destroy its stack and remove it, keeping the
+  branch
+
+Every task also takes a `--worktree <name>` (`main` for the main checkout) to run
+in another checkout.
 
 ## Router
 

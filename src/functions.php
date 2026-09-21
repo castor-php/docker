@@ -1125,6 +1125,10 @@ function truncate_container_log(string $logPath, ?Context $c = null): void
  *
  * The exposed set is remembered in the cache so "docker:up" can restore it (see
  * restore_exposed_services()) — the user never has to re-expose after a restart.
+ *
+ * A host port belongs to the machine, not to the project: a second checkout
+ * asking for the same one is told who holds it instead of being handed a raw
+ * docker failure.
  */
 function expose_service_port(string $service, int $containerPort, ?int $hostPort = null, bool $stop = false): void
 {
@@ -1143,6 +1147,18 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
         set_exposed_services($exposed);
 
         io()->success("Stopped exposing the \"{$service}\" service.");
+
+        return;
+    }
+
+    if (null !== ($holder = find_published_port_holder($hostPort, $context))) {
+        io()->error(\sprintf('The port %d is already published by "%s".', $hostPort, $holder));
+        io()->note(\sprintf('Expose "%s" on another port instead: castor %s:expose <port>.', $service, $service));
+
+        // Remembered all the same: the forwarder comes back on the next
+        // "docker:up", once whoever holds the port has let go of it.
+        $exposed[$service] = ['container_port' => $containerPort, 'host_port' => $hostPort];
+        set_exposed_services($exposed);
 
         return;
     }
@@ -1171,11 +1187,30 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
 }
 
 /**
+ * The container already publishing a host port, or null when it is free.
+ *
+ * Only containers are looked at: a port taken by a plain process on the host is
+ * docker's own error to report, and a clear one.
+ */
+function find_published_port_holder(int $hostPort, ?Context $c = null): ?string
+{
+    $c ??= context();
+
+    $found = trim(capture(
+        ['docker', 'ps', '--filter', "publish={$hostPort}", '--format', '{{.Names}}'],
+        context: $c->withQuiet()->withAllowFailure(),
+        onFailure: '',
+    ));
+
+    return '' === $found ? null : explode("\n", $found)[0];
+}
+
+/**
  * @return array<string, array{container_port: int, host_port: int}>
  */
-function get_exposed_services(): array
+function get_exposed_services(?Context $c = null): array
 {
-    $item = get_cache()->getItem('infrastructure.exposed');
+    $item = get_cache()->getItem(get_exposed_services_cache_key($c));
     $value = $item->isHit() ? $item->get() : [];
 
     if (!\is_array($value)) {
@@ -1189,12 +1224,32 @@ function get_exposed_services(): array
 /**
  * @param array<string, array{container_port: int, host_port: int}> $exposed
  */
-function set_exposed_services(array $exposed): void
+function set_exposed_services(array $exposed, ?Context $c = null): void
 {
-    $item = get_cache()->getItem('infrastructure.exposed');
+    $item = get_cache()->getItem(get_exposed_services_cache_key($c));
     $item->set($exposed);
 
     get_cache()->save($item);
+}
+
+/**
+ * The cache key the exposed services of *this* checkout are remembered under.
+ *
+ * Castor's cache is a single directory shared by every project of the machine,
+ * so the set has to be scoped: an unscoped key made "docker:up" restore the
+ * forwarders of whatever project exposed a service last — pointing at services
+ * that may not exist here, and fighting over host ports with the checkout that
+ * really asked for them.
+ *
+ * Keyed on the directory rather than on the project name: two checkouts of the
+ * same repository that forgot to tell their stacks apart are at least not told
+ * to expose each other's ports.
+ */
+function get_exposed_services_cache_key(?Context $c = null): string
+{
+    $c ??= context();
+
+    return 'infrastructure.exposed.' . substr(hash('xxh128', Path::canonicalize($c->workingDirectory)), 0, 16);
 }
 
 /**
@@ -1214,6 +1269,14 @@ function restore_exposed_services(): void
         ));
 
         if ($running !== '') {
+            continue;
+        }
+
+        // Another checkout of the project may have taken the port in the
+        // meantime: say so, and leave the entry alone so it comes back later.
+        if (null !== ($holder = find_published_port_holder($ports['host_port'], $context))) {
+            io()->note(\sprintf('Not exposing "%s": the port %d is published by "%s".', $service, $ports['host_port'], $holder));
+
             continue;
         }
 
@@ -1297,14 +1360,54 @@ function initialize_project(Context $context): Context
 
     $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
 
-    return $context->withData([
-        // The context wins over the "name" of compose.yaml, which is the order
-        // get_project_name() documents — and the only way a second checkout of
-        // the same repository can run beside the first: a worktree overrides
-        // "project_name" and everything derived from it follows.
-        'project_name' => $context->data['project_name'] ?? $projectName,
+    // The context wins over the "name" of compose.yaml, which is the order
+    // get_project_name() documents — and the only way a second checkout of the
+    // same repository can run beside the first: everything the plugin names is
+    // derived from the project name and from the root domain.
+    $projectName = $context->data['project_name'] ?? $projectName;
+    $rootDomain = $context->data['root_domain'] ?? null;
+    $worktree = worktree_of($context);
+
+    if (null !== $worktree) {
+        // Only when the project did not already do it itself: this runs on
+        // every boot, and a project deriving its own names from the worktree
+        // must not see them suffixed twice.
+        if (!str_ends_with($projectName, '-' . $worktree)) {
+            $projectName .= '-' . $worktree;
+        }
+
+        $rootDomain ??= DEFAULT_ROOT_DOMAIN;
+
+        if (!str_starts_with($rootDomain, $worktree . '.')) {
+            $rootDomain = $worktree . '.' . $rootDomain;
+        }
+    }
+
+    $data = [
+        'project_name' => $projectName,
+        'worktree' => $worktree,
         'user_id' => $userId,
-    ]);
+    ];
+
+    if (null !== $rootDomain) {
+        $data['root_domain'] = $rootDomain;
+    }
+
+    return $context->withData($data);
+}
+
+/**
+ * The worktree a context runs in, honouring what the project asked for: a name
+ * it pins itself, or "worktree_isolation" turned off to make every checkout
+ * share one stack again.
+ */
+function worktree_of(Context $context): ?string
+{
+    if (false === ($context->data['worktree_isolation'] ?? true)) {
+        return null;
+    }
+
+    return $context->data['worktree'] ?? detect_worktree($context->workingDirectory);
 }
 
 /**
@@ -1451,6 +1554,10 @@ function generate_compose_file(Context $c, array $services): void
     run_compose_builders($c, $composeBuilder);
 
     create_mount_directories($c, $composeBuilder);
+
+    // Before the extra hosts, so a container resolves the domain it will really
+    // be served on.
+    apply_worktree_domains($c, $composeBuilder);
 
     // After the listeners, so a domain routed by one of them is resolvable too.
     add_project_extra_hosts($c, $composeBuilder);

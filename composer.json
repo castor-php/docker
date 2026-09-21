@@ -15,7 +15,8 @@
         "files": [
             "src/functions.php",
             "src/router.php",
-            "src/tasks.php"
+            "src/tasks.php",
+            "src/worktree.php"
         ]
     },
     "autoload-dev": {
