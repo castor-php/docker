@@ -15,6 +15,7 @@ it.
 - 🌐 Caddy-based reverse proxy with automatic routing from Docker labels
 - 📦 Multi-stage Docker builds with registry caching
 - 👥 Multi-application, multi-language support in a single project
+- 🌳 Every git worktree is a stack of its own, with no configuration
 
 <!-- start index -->
 

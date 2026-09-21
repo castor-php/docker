@@ -4,6 +4,27 @@
 
 ### Added
 
+* A git worktree is now a stack of its own, with no configuration at all: the
+  plugin detects the checkout and derives both the compose project name
+  (`myproject-bug-4242`) and the root domain (`bug-4242.myproject.test`) from it,
+  which is what every container, network, volume, image and TCP forwarder of the
+  stack follows from. The domains a service spells out follow too — the worktree's
+  label is inserted right before the root domain, so
+  `withDomain('app.myproject.test')` is served on `app.bug-4242.myproject.test`
+  without the project deriving anything. Set the `worktree_isolation` context
+  variable to `false` to go back to sharing the stack of the main checkout.
+  See [git worktrees](going-further/worktrees.md).
+* `castor worktree:list`, `castor worktree:create` and `castor worktree:delete`
+  manage the checkouts and the stacks that go with them, and every task takes a
+  `--worktree <name>` to run in another checkout. `worktree_directory` says where
+  a worktree is checked out.
+* `castor docker:about` names the worktree the checkout is, and reports what it
+  still shares with every other one: a domain that is not under the root domain,
+  and the host ports a service publishes with `port()`.
+* A git worktree mounts the shared home directory of the main checkout, so the
+  Composer, Cargo and npm caches are filled once for the whole repository and a
+  new worktree does not pay for a cold build. Set `worktree_shared_home` to
+  `false` to give each checkout a `.home` of its own.
 * `castor docker:push` pushes the image of each service next to its build
   cache, labelled with `org.opencontainers.image.source` — a cache carries no
   label, so a push outside of the CI used to leave an orphan package on
@@ -11,6 +32,18 @@
   `repository` context variable, from `GITHUB_REPOSITORY` or from the `origin`
   remote. `--tag` picks the tag the image is published under, `latest`
   otherwise.
+
+### Fixed
+
+* `<service>:expose` remembers the exposed services per checkout. Castor's cache
+  is one directory shared by every project of the machine, so an unscoped key
+  made `docker:up` restore the forwarders of whatever project exposed a service
+  last — pointing at services that may not exist there, and fighting over host
+  ports with the checkout that really asked for them. Anything exposed before
+  this release has to be exposed once more.
+* `<service>:expose` says which container already publishes a host port, instead
+  of letting docker fail, and keeps the request so the forwarder comes back on
+  the next `docker:up` once the port is free.
 
 ## 0.6.0 - 2026-09-17
 

@@ -223,7 +223,7 @@ class RustService implements ServiceInterface
             ->service($this->name)
                 ->user("{$userId}:{$userId}")
                 ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->profile('default')
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->command($this->getContainerCommand())

@@ -362,6 +362,59 @@ final class ServiceBuilder
         return $this->routedDomains;
     }
 
+    /**
+     * Move this service onto other domains, keeping the routing it already
+     * declared.
+     *
+     * A linked worktree serves the whole project under a subdomain of its own,
+     * and a domain spelled out in a service definition knows nothing about the
+     * checkout it was generated in — so the rewrite happens here, on the labels
+     * that were already emitted, instead of asking every service to derive its
+     * domains (see apply_worktree_domains()).
+     *
+     * @param callable(string): string $rewrite
+     */
+    public function rewriteRoutedDomains(callable $rewrite): self
+    {
+        $domains = [];
+
+        foreach ($this->routedDomains as $domain) {
+            $rewritten = $rewrite($domain);
+
+            if (!\in_array($rewritten, $domains, true)) {
+                $domains[] = $rewritten;
+            }
+        }
+
+        if ($domains === $this->routedDomains) {
+            return $this;
+        }
+
+        $this->routedDomains = $domains;
+
+        // In place, so the labels keep the order withHttpRouting() emitted them
+        // in — a "caddy_1" site block is only valid after its "caddy" one.
+        foreach ($this->labels as $index => $label) {
+            if (str_starts_with($label, 'caddy=')) {
+                $this->labels[$index] = 'caddy=' . implode(' ', $domains);
+            } elseif (str_starts_with($label, 'caddy_1=')) {
+                $this->labels[$index] = 'caddy_1=' . implode(' ', array_map(static fn(string $domain): string => "http://{$domain}", $domains));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * The host ports this service publishes, as "<host>:<container>".
+     *
+     * @return list<string>
+     */
+    public function getPorts(): array
+    {
+        return array_values($this->ports);
+    }
+
     public function end(): ComposeBuilder
     {
         return $this->composeBuilder;

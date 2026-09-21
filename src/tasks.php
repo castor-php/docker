@@ -236,6 +236,19 @@ function about(): void
     io()->comment('Run <comment>castor about</comment> to display this project help.');
     io()->comment('Run <comment>castor help [command]</comment> to display Castor help.');
 
+    if (null !== ($worktree = get_worktree_name($c))) {
+        io()->comment(\sprintf(
+            'This checkout is the <comment>%s</comment> worktree: it runs its own stack, under the <comment>%s</comment> compose project. See <comment>castor worktree:list</comment>.',
+            $worktree,
+            get_project_name($c),
+        ));
+
+        if ($conflicts = get_worktree_conflicts($c)) {
+            io()->warning('Its stack is its own, but the following belong to the whole machine and are shared with every other checkout:');
+            io()->listing($conflicts);
+        }
+    }
+
     io()->section('Available URLs for this project:');
 
     $urls = get_project_urls($c);

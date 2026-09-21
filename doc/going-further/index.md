@@ -1,6 +1,6 @@
 ---
 title: Going further
-description: Multiple applications, custom images, background workers and your own services.
+description: Multiple applications, custom images, background workers, git worktrees and your own services.
 ---
 
 # Going further
@@ -9,5 +9,6 @@ description: Multiple applications, custom images, background workers and your o
 * [Custom Dockerfile](custom-dockerfile.md) — extend the images the plugin ships
 * [Dockerfile cookbook](dockerfile-cookbook.md) — recipes for the blocks they expose
 * [Background workers](workers.md) — long-running processes next to your app
+* [Git worktrees](worktrees.md) — every checkout of your repository, a stack of its own
 * [Extending the compose file](extending-the-compose-file.md) — add or change anything in the generated file
 * [Writing your own service](writing-a-service.md) — the extension points

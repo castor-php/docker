@@ -12,7 +12,11 @@ parameters:
                 twig_dockerfile_frontend?: string,
                 docker_profiles?: string[],
                 resolve_domains_via_host?: bool,
-                router_autostart?: bool
+                router_autostart?: bool,
+                worktree?: ?string,
+                worktree_isolation?: bool,
+                worktree_directory?: string,
+                worktree_shared_home?: bool
             }
         '''
     paths:
