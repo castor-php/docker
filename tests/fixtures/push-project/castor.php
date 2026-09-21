@@ -19,6 +19,10 @@
 
 namespace push;
 
+// Castor 1.8 deprecates leaving it undefined, and prints the notice on stdout,
+// where --dry-run prints the bake plan the test reads.
+defined('CASTOR_USE_CHDIR') || \define('CASTOR_USE_CHDIR', false);
+
 use Castor\Attribute\AsContext;
 use Castor\Context;
 use Castor\Docker\Attribute\AsDockerComposeBuilder;

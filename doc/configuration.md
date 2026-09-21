@@ -16,6 +16,7 @@ function default_context(): Context
     return new Context([
         'root_domain' => 'myproject.test',    // Root domain for all services
         'registry' => 'ghcr.io/org/project',  // Docker registry used for build caching
+        'repository' => 'org/project',        // Repository the pushed images belong to
     ]);
 }
 ```
@@ -24,6 +25,7 @@ function default_context(): Context
 |----------|------|
 | `root_domain` | Root domain used by the services exposing a UI (`redis.{root_domain}`, `mailpit.{root_domain}`, …) |
 | `registry` | Registry the build cache is pushed to and pulled from |
+| `repository` | Repository `castor docker:push` labels the images with, so the registry attaches the packages to it — deduced from `GITHUB_REPOSITORY` or the `origin` remote otherwise, see [`docker:push`](tasks.md#publishing-to-ghcr-io) |
 | `project_name` | Compose project name — wins over the `name:` of `compose.yaml`, see [running two checkouts side by side](#running-two-checkouts-side-by-side) |
 | `user_id` | UID the containers run as, defaults to your own |
 | `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
