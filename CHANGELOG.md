@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2026-09-21
 
 ### Added
 
@@ -39,11 +39,16 @@
   is one directory shared by every project of the machine, so an unscoped key
   made `docker:up` restore the forwarders of whatever project exposed a service
   last — pointing at services that may not exist there, and fighting over host
-  ports with the checkout that really asked for them. Anything exposed before
-  this release has to be exposed once more.
+  ports with the checkout that really asked for them.
 * `<service>:expose` says which container already publishes a host port, instead
   of letting docker fail, and keeps the request so the forwarder comes back on
   the next `docker:up` once the port is free.
+
+### Upgrading
+
+* The exposed services are now remembered under a key scoped to the checkout,
+  so the ones exposed before this release are forgotten: run
+  `castor <service>:expose` once more for each of them.
 
 ## 0.6.0 - 2026-09-17
 
