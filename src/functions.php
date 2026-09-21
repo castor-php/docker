@@ -38,6 +38,7 @@ use Castor\Event\ContextCreatedEvent;
 use Castor\Event\FunctionsResolvedEvent;
 use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Terminal;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -855,6 +856,66 @@ function get_compose_progress(?Context $c = null): ?string
 }
 
 /**
+ * The size of the terminal castor runs in, as the COLUMNS and LINES a command
+ * in a container is given.
+ *
+ * castor runs docker behind a pseudo-terminal, and that pty is born 0x0: the
+ * tty compose then allocates in the container inherits those zeroes, so "stty
+ * size" has nothing to say there and everything that sizes its output to the
+ * terminal — Symfony\Component\Console\Terminal, and every console command
+ * through it — falls back to 80 columns whatever the real window is. COLUMNS
+ * and LINES are what those readers look at before asking the tty, so handing
+ * them over is enough to make the width right again.
+ *
+ * Nothing is handed over when castor is not writing to a terminal itself (a
+ * pipe, a CI job): there is no width to speak of then, and 80 columns is the
+ * right answer.
+ *
+ * @param null|array{int, int} $size the width and height to use, defaulting to those of the terminal castor runs in
+ *
+ * @return array<string, string>
+ */
+function get_terminal_size_environment(?Context $c = null, ?array $size = null): array
+{
+    $c ??= context();
+
+    // A real terminal is passed through to the container as it is, and docker
+    // keeps its size in sync — including the resizes that happen mid-command,
+    // which a fixed COLUMNS would hide.
+    if ($c->tty) {
+        return [];
+    }
+
+    $size ??= get_host_terminal_size();
+
+    if (null === $size) {
+        return [];
+    }
+
+    return [
+        'COLUMNS' => (string) $size[0],
+        'LINES' => (string) $size[1],
+    ];
+}
+
+/**
+ * The size of the terminal castor writes to, or null when it writes to
+ * something that has no size.
+ *
+ * @return null|array{int, int}
+ */
+function get_host_terminal_size(): ?array
+{
+    if (!\defined('STDOUT') || !stream_isatty(\STDOUT)) {
+        return null;
+    }
+
+    $terminal = new Terminal();
+
+    return [$terminal->getWidth(), $terminal->getHeight()];
+}
+
+/**
  * Run a one-off command in a service container ("docker compose run --rm").
  *
  * Give the command as a list of tokens rather than as a string: the tokens are
@@ -901,7 +962,7 @@ function docker_compose_run(
         $command[] = $entrypoint;
     }
 
-    foreach ($environment as $key => $value) {
+    foreach ($environment + get_terminal_size_environment($c) as $key => $value) {
         $command[] = '-e';
         $command[] = "{$key}={$value}";
     }
@@ -952,7 +1013,7 @@ function docker_compose_exec(
         $arguments[] = '--privileged';
     }
 
-    foreach ($environment as $key => $value) {
+    foreach ($environment + get_terminal_size_environment($c) as $key => $value) {
         $arguments[] = '-e';
         $arguments[] = "{$key}={$value}";
     }

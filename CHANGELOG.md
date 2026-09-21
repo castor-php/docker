@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* A command run in a container sees the real terminal width. Castor runs docker
+  behind a pseudo-terminal that is born 0x0, and the tty compose allocated in
+  the container inherited those zeroes, so anything sizing its output to the
+  terminal — `Symfony\Component\Console\Terminal`, and every console command
+  through it — wrapped at 80 columns whatever the window was. The size of the
+  terminal castor itself writes to is now handed over as `COLUMNS` and `LINES`.
+
 ## 0.7.0 - 2026-09-21
 
 ### Added
