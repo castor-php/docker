@@ -12,6 +12,8 @@ use Castor\Docker\Event\RegisterServiceEvent;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\PostgresService;
 
+defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
+
 #[AsListener(RegisterServiceEvent::class)]
 function register_service(RegisterServiceEvent $event): void
 {

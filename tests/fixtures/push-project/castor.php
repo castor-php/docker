@@ -24,6 +24,8 @@ use Castor\Context;
 use Castor\Docker\Attribute\AsDockerComposeBuilder;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
+defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
+
 #[AsContext(default: true)]
 function default_context(): Context
 {

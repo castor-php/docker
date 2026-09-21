@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Integration;
 
-use PHPUnit\Framework\TestCase;
+use Castor\Docker\Tests\SnapshotTestCase;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Boots the real castor binary in example/ (which regenerates
@@ -22,10 +23,8 @@ use Symfony\Component\Process\Process;
  *    for "castor list" castor sets up a bare context without dispatching
  *    ContextCreatedEvent, so the generated file would lose the project name.
  */
-final class GeneratedComposeTest extends TestCase
+final class GeneratedComposeTest extends SnapshotTestCase
 {
-    private const SNAPSHOT = __DIR__ . '/../snapshots/example-compose.generated.yaml';
-
     public function testExampleGeneratedComposeIsUpToDate(): void
     {
         $root = \dirname(__DIR__, 2);
@@ -51,24 +50,30 @@ final class GeneratedComposeTest extends TestCase
         // if the plugin did not boot, the docker:build command does not even exist
         static::assertTrue($process->isSuccessful(), "castor docker:build --help failed:\n" . $process->getOutput() . $process->getErrorOutput());
 
-        $fresh = $this->normalize(file_get_contents($exampleDir . '/compose.generated.yaml'), $root);
+        $compose = Yaml::parseFile($exampleDir . '/compose.generated.yaml');
+        static::assertIsArray($compose);
 
-        if (getenv('UPDATE_SNAPSHOTS') || !file_exists(self::SNAPSHOT)) {
-            file_put_contents(self::SNAPSHOT, $fresh);
-        }
-
-        static::assertStringEqualsFile(
-            self::SNAPSHOT,
-            $fresh,
-            'The example project now generates a different compose file. Review the diff, then regenerate the snapshot with "UPDATE_SNAPSHOTS=1 vendor/bin/phpunit --testsuite integration".',
-        );
+        $this->assertMatchesYamlSnapshot(self::maskUserId($compose));
     }
 
-    private function normalize(string $yaml, string $root): string
+    /**
+     * The uid the compose file runs the containers as is the one of whoever
+     * runs the tests.
+     *
+     * @param array<mixed> $data
+     *
+     * @return array<mixed>
+     */
+    private static function maskUserId(array $data): array
     {
-        // absolute package paths and the current uid vary by machine
-        $yaml = str_replace($root, '%ROOT%', $yaml);
+        foreach ($data as $key => $value) {
+            if (\is_array($value)) {
+                $data[$key] = self::maskUserId($value);
+            } elseif ('user' === $key) {
+                $data[$key] = '%UID%';
+            }
+        }
 
-        return preg_replace('/^(\s*user:\s*).+$/m', '$1%UID%', $yaml);
+        return $data;
     }
 }
