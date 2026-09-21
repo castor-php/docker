@@ -36,6 +36,7 @@ function default_context(): Context
 | `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |
+| `worktree_shared_home` | Whether a git worktree mounts the `.home` of the main checkout, `true` by default |
 
 ### Resolving your own domains from a container
 
@@ -146,6 +147,9 @@ services:
 
 The shared home directory, mounted as `/home/app` in the containers that need
 it. It holds the caches shared across services — Composer, Cargo.
+
+A [git worktree](going-further/worktrees.md#the-caches-are-shared) mounts the one
+of the main checkout, so the caches are filled once for the whole repository.
 
 The mkcert CA is not stored there: the router is global, and keeps it in
 `~/.castor/docker/router/certs/`.

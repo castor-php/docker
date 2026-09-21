@@ -129,7 +129,7 @@ class GoService implements ServiceInterface
                 ->profile('default')
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->command($this->getContainerCommand())
-                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->environment('HOME', '/home/app')
         ;
 

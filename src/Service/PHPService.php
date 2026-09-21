@@ -564,7 +564,7 @@ class PHPService implements ServiceInterface
                 ->end()
                 ->user("{$userId}:{$userId}")
                 ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->profile('default')
         ;
 
@@ -643,7 +643,7 @@ class PHPService implements ServiceInterface
                     ->user("{$userId}:{$userId}")
                     ->init(true)
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                    ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                    ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                     ->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached')
                     ->profile('builder')
             ;
@@ -704,7 +704,7 @@ class PHPService implements ServiceInterface
                     ->end()
                     ->user("{$userId}:{$userId}")
                     ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                    ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                    ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                     ->command($worker['command'])
                     ->profile('default')
             ;

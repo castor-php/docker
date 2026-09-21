@@ -21,6 +21,10 @@
 * `castor docker:about` names the worktree the checkout is, and reports what it
   still shares with every other one: a domain that is not under the root domain,
   and the host ports a service publishes with `port()`.
+* A git worktree mounts the shared home directory of the main checkout, so the
+  Composer, Cargo and npm caches are filled once for the whole repository and a
+  new worktree does not pay for a cold build. Set `worktree_shared_home` to
+  `false` to give each checkout a `.home` of its own.
 * `castor docker:push` pushes the image of each service next to its build
   cache, labelled with `org.opencontainers.image.source` — a cache carries no
   label, so a push outside of the CI used to leave an orphan package on

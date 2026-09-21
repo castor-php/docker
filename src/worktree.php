@@ -61,14 +61,16 @@ function find_git_path(string $directory): ?string
 }
 
 /**
- * The name of the linked git worktree a directory is checked out in, or null
- * when it belongs to the main checkout.
+ * The linked git worktree a directory is checked out in: its name, and the main
+ * checkout it hangs from. Null when the directory belongs to the main checkout.
  *
  * A linked worktree has a ".git" file pointing at ".git/worktrees/<id>" of the
  * main checkout, where the main one has a ".git" directory — which is the whole
  * test. A submodule also has a ".git" file, but it points into ".git/modules".
+ *
+ * @return array{name: ?string, main: string}|null
  */
-function detect_worktree(string $directory): ?string
+function read_worktree_link(string $directory): ?array
 {
     $gitPath = find_git_path($directory);
 
@@ -80,7 +82,18 @@ function detect_worktree(string $directory): ?string
         return null;
     }
 
-    return worktree_slug(\dirname($gitPath), \dirname($matches['gitdir'], 3));
+    $main = rtrim(\dirname($matches['gitdir'], 3), '/');
+
+    return ['name' => worktree_slug(\dirname($gitPath), $main), 'main' => $main];
+}
+
+/**
+ * The name of the linked git worktree a directory is checked out in, or null
+ * when it belongs to the main checkout.
+ */
+function detect_worktree(string $directory): ?string
+{
+    return read_worktree_link($directory)['name'] ?? null;
 }
 
 /**
@@ -526,15 +539,45 @@ function find_worktree(string $name): ?array
 /**
  * The directory of the main checkout, the one the linked worktrees hang from.
  */
-function get_main_checkout_directory(): string
+function get_main_checkout_directory(?Context $c = null): string
 {
-    $common = capture(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], context: context()->withAllowFailure(), onFailure: '');
+    $c ??= context();
+
+    // A worktree carries the answer in its ".git" file, which is what keeps this
+    // out of a subprocess on every boot — the shared home directory asks for it.
+    if (null !== ($link = read_worktree_link($c->workingDirectory))) {
+        return $link['main'];
+    }
+
+    $common = capture(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], context: $c->withAllowFailure(), onFailure: '');
 
     if ('' === $common) {
-        return context()->workingDirectory;
+        return $c->workingDirectory;
     }
 
     return rtrim(\dirname($common), '/');
+}
+
+/**
+ * Where a service's shared home directory really lives.
+ *
+ * Bind-mounted from the checkout it is declared in, every worktree would get an
+ * empty Composer, Cargo and npm cache, and pay for a cold build of its own. A
+ * worktree therefore mounts the one of the main checkout, by absolute path, so
+ * the caches are filled once for the whole repository.
+ *
+ * A directory the project already made absolute is left alone, and so is every
+ * checkout when "worktree_shared_home" is turned off.
+ */
+function shared_home_directory(string $directory, ?Context $c = null): string
+{
+    $c ??= context();
+
+    if (null === get_worktree_name($c) || str_starts_with($directory, '/') || false === ($c->data['worktree_shared_home'] ?? true)) {
+        return $directory;
+    }
+
+    return Path::makeAbsolute($directory, get_main_checkout_directory($c));
 }
 
 /**

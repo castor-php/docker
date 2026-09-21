@@ -1438,11 +1438,18 @@ function collect_services(): array
 function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): void
 {
     $root = Path::canonicalize($c->workingDirectory);
+    $roots = [$root];
+
+    // A worktree mounts the shared home directory of the main checkout, which is
+    // outside of its own tree but still ours to create — and the same repository.
+    if (null !== get_worktree_name($c)) {
+        $roots[] = Path::canonicalize(get_main_checkout_directory($c));
+    }
 
     foreach ($composeBuilder->getBindMountSources() as $source) {
         $path = Path::makeAbsolute($source, $root);
 
-        if (!Path::isBasePath($root, $path)) {
+        if (!array_filter($roots, static fn(string $base): bool => Path::isBasePath($base, $path))) {
             continue;
         }
 

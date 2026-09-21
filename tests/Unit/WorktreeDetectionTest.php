@@ -9,8 +9,10 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
 use function Castor\Docker\detect_worktree;
+use function Castor\Docker\get_main_checkout_directory;
 use function Castor\Docker\get_project_name;
 use function Castor\Docker\initialize_project;
+use function Castor\Docker\shared_home_directory;
 use function Castor\Docker\slugify_worktree_name;
 
 /**
@@ -223,5 +225,59 @@ final class WorktreeDetectionTest extends TestCase
         static::assertNull($context->data['worktree']);
         static::assertSame('app', $context->data['project_name']);
         static::assertArrayNotHasKey('root_domain', $context->data);
+    }
+
+    /**
+     * The main checkout is read out of the ".git" file of the worktree, so this
+     * costs no subprocess on a boot that needs it.
+     */
+    public function testTheMainCheckoutOfAWorktreeIsReadFromItsGitFile(): void
+    {
+        $path = $this->linkWorktree($this->root . '/worktrees/bug-4242', 'bug-4242');
+
+        static::assertSame(
+            $this->root . '/app',
+            get_main_checkout_directory(new Context(data: ['worktree' => 'bug-4242'], workingDirectory: $path)),
+        );
+    }
+
+    /**
+     * The shared home directory holds the Composer, Cargo and npm caches, so a
+     * worktree mounts the one of the main checkout instead of filling a cold one
+     * of its own.
+     */
+    public function testAWorktreeSharesTheHomeDirectoryOfTheMainCheckout(): void
+    {
+        $path = $this->linkWorktree($this->root . '/worktrees/bug-4242', 'bug-4242');
+        $this->fs->dumpFile($path . '/compose.yaml', "name: app\n");
+        $context = initialize_project(new Context(workingDirectory: $path));
+
+        static::assertSame($this->root . '/app/.home', shared_home_directory('.home', $context));
+    }
+
+    public function testTheMainCheckoutMountsItsOwnHomeDirectory(): void
+    {
+        $this->fs->dumpFile($this->root . '/app/compose.yaml', "name: app\n");
+        $context = initialize_project(new Context(workingDirectory: $this->root . '/app'));
+
+        static::assertSame('.home', shared_home_directory('.home', $context));
+    }
+
+    public function testADirectoryTheProjectMadeAbsoluteIsLeftAlone(): void
+    {
+        $path = $this->linkWorktree($this->root . '/worktrees/bug-4242', 'bug-4242');
+        $this->fs->dumpFile($path . '/compose.yaml', "name: app\n");
+        $context = initialize_project(new Context(workingDirectory: $path));
+
+        static::assertSame('/var/cache/shared', shared_home_directory('/var/cache/shared', $context));
+    }
+
+    public function testTheSharedHomeDirectoryCanBeKeptPerCheckout(): void
+    {
+        $path = $this->linkWorktree($this->root . '/worktrees/bug-4242', 'bug-4242');
+        $this->fs->dumpFile($path . '/compose.yaml', "name: app\n");
+        $context = initialize_project(new Context(data: ['worktree_shared_home' => false], workingDirectory: $path));
+
+        static::assertSame('.home', shared_home_directory('.home', $context));
     }
 }

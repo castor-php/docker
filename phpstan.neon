@@ -15,7 +15,8 @@ parameters:
                 router_autostart?: bool,
                 worktree?: ?string,
                 worktree_isolation?: bool,
-                worktree_directory?: string
+                worktree_directory?: string,
+                worktree_shared_home?: bool
             }
         '''
     paths:

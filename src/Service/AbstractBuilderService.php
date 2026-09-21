@@ -121,7 +121,7 @@ abstract class AbstractBuilderService implements ServiceInterface
             ->service($this->name)
                 ->user("{$userId}:{$userId}")
                 ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                ->volume($this->getSharedHomeDirectory(), '/home/app', 'cached')
+                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->environment('HOME', '/home/app')
                 // No command: nothing runs here on "docker:up". The container

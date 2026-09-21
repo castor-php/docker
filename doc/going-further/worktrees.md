@@ -42,8 +42,17 @@ what it should become. `castor docker:about` reports it, along with any host por
 a service publishes with `port()`: those belong to the machine, and only one
 checkout at a time can have them.
 
-The shared home directory — the Composer, Cargo and npm caches — lives in the
-checkout, so a worktree fills its own. Its first build is a cold one.
+## The caches are shared
+
+The shared home directory holds what every service of the project caches —
+Composer, Cargo, npm. A worktree mounts the **`.home` of the main checkout**, by
+absolute path, so the caches are filled once for the whole repository instead of
+once per branch: a new worktree does not pay for a cold build.
+
+It is created from the worktree when the main checkout never ran castor, so a
+fresh clone works either way round. Set `worktree_shared_home` to `false` to give
+each checkout a `.home` of its own, and a service pointing
+`withSharedHomeDirectory()` at an absolute path already keeps whatever it names.
 
 ## Managing the checkouts
 
