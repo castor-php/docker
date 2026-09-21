@@ -163,17 +163,52 @@ castor docker:destroy --force
 
 ### `castor docker:push`
 
-Pushes the build cache images to the registry configured in the `registry`
-context variable. Only the services declaring a `cache_from` are built, and
-`docker buildx bake` reads the compose file itself, so what it builds is exactly
-what `castor docker:build` builds.
+Pushes the images and their build cache to the registry configured in the
+`registry` context variable. Only the services declaring a `cache_from` are
+built, and `docker buildx bake` reads the compose file itself, so what it builds
+is exactly what `castor docker:build` builds.
+
+Each service lands in one repository, holding its cache under the `cache` tag
+and its image under `latest` — `--tag` publishes it under another name. The
+image carries `org.opencontainers.image.source`, which is what
+[attaches the package to your repository](#publishing-to-ghcr-io).
 
 `--dry-run` prints the build plan bake resolved, without running it.
 
 ```bash
 castor docker:push
+castor docker:push --tag "$(git rev-parse --short HEAD)"
 castor docker:push --dry-run
 ```
+
+#### Publishing to ghcr.io
+
+GitHub attaches a package to a repository in two cases only: a push from a
+workflow authenticating with `GITHUB_TOKEN`, or a push carrying the
+`org.opencontainers.image.source` label. A build cache carries no label — the
+manifest has nowhere to hold one — so a push from a laptop used to leave an
+orphan package behind, owned by whoever pushed it first and writable by them
+alone. The CI could then no longer feed the cache it was supposed to own: its
+`GITHUB_TOKEN` has no permission on a package attached to nothing.
+
+The image pushed next to the cache is what carries the label, so the package is
+attached no matter who pushes it, and it inherits the permissions of the repository —
+push rights on the repository are push rights on its images.
+
+The repository is looked up in this order, the first one that answers winning:
+
+| Source | Example |
+|---|---|
+| the `repository` context variable | `'repository' => 'mycompany/myproject'` |
+| `GITHUB_REPOSITORY`, which Actions sets | `mycompany/myproject` |
+| the `origin` git remote | `git@github.com:mycompany/myproject.git` |
+
+The task refuses to push to `ghcr.io` when none of them answers, rather than
+create a package nobody can take over afterwards.
+
+Packages pushed before this, or from a registry namespace that does not match
+the repository owner, stay orphans: delete them, or attach them by hand in
+**Package settings › Connect repository**, once.
 
 ## Completing a service name
 

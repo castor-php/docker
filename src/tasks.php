@@ -20,6 +20,7 @@ use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 
 use function Castor\app;
+use function Castor\capture;
 use function Castor\context;
 use function Castor\io;
 use function Castor\variable;
@@ -597,9 +598,12 @@ function destroy(
     docker_compose(['down', '--remove-orphans', '--volumes', '--rmi=local']);
 }
 
-#[AsTask(description: 'Push images cache to the registry', namespace: 'docker', name: 'push', aliases: ['push'])]
-function push(bool $dryRun = false): void
-{
+#[AsTask(description: 'Push the images and their build cache to the registry', namespace: 'docker', name: 'push', aliases: ['push'])]
+function push(
+    bool $dryRun = false,
+    #[AsOption(description: 'The tag the images are published under')]
+    string $tag = 'latest',
+): void {
     $registry = variable('registry');
 
     if (!$registry) {
@@ -622,6 +626,20 @@ function push(bool $dryRun = false): void
         throw new \RuntimeException('No service declares a build cache, there is nothing to push.');
     }
 
+    $source = get_source_url();
+
+    // A cache manifest carries no label, so a registry that reads one to link
+    // a package — ghcr.io — only ever learns where the image comes from from
+    // the image this task pushes next to it. Pushing without that label leaves
+    // an orphan package behind, which nothing but the account that created it
+    // may write to afterwards: the CI would then be locked out of the very
+    // cache it is supposed to feed.
+    if (null === $source && str_starts_with($registry, 'ghcr.io/')) {
+        throw new \RuntimeException('Could not tell which repository these images come from, and ghcr.io needs it to attach the packages to it. Add a "repository" variable to your context, holding either "org/project" or the full URL of the repository.');
+    }
+
+    $revision = get_source_revision();
+
     $c = context();
 
     // bake reads the compose file itself — "include:" and all — so the build
@@ -634,6 +652,39 @@ function push(bool $dryRun = false): void
     foreach ($targets as $service => $cacheTo) {
         $command[] = '--set';
         $command[] = \sprintf('%s.cache-to=%s,mode=max', $service, $cacheTo);
+
+        $cacheRef = get_cache_reference($cacheTo);
+
+        // A cache living anywhere but in a registry — "type=gha", "type=local"
+        // — names no repository to publish an image to, so that service keeps
+        // pushing its cache and nothing else.
+        if (null === $cacheRef) {
+            continue;
+        }
+
+        $image = get_image_reference($cacheRef, $tag);
+
+        if ($image === $cacheRef) {
+            throw new \RuntimeException(\sprintf('Pushing "%s" under the tag "%s" would overwrite the build cache of "%s". Pick another --tag.', $image, $tag, $service));
+        }
+
+        $command[] = '--set';
+        $command[] = \sprintf('%s.tags=%s', $service, $image);
+        // Per target, rather than a global "--push": the services whose cache
+        // is not a registry one must not be pushed anywhere.
+        $command[] = '--set';
+        $command[] = \sprintf('%s.output=type=registry', $service);
+        // Only ghcr.io is refused a push it could not label, other registries
+        // read no such thing and have no reason to turn a push down.
+        if (null !== $source) {
+            $command[] = '--set';
+            $command[] = \sprintf('%s.labels.org.opencontainers.image.source=%s', $service, $source);
+        }
+
+        if (null !== $revision) {
+            $command[] = '--set';
+            $command[] = \sprintf('%s.labels.org.opencontainers.image.revision=%s', $service, $revision);
+        }
     }
 
     if ($dryRun) {
@@ -668,6 +719,128 @@ function normalize_cache_entry(string $cacheFrom): string
     }
 
     return 'type=registry,ref=' . $cacheFrom;
+}
+
+/**
+ * The image a registry cache entry is stored in, null for a cache that lives
+ * outside of a registry.
+ */
+function get_cache_reference(string $cacheEntry): ?string
+{
+    $ref = null;
+
+    foreach (explode(',', $cacheEntry) as $field) {
+        if ('type=registry' === $field) {
+            continue;
+        }
+
+        if (str_starts_with($field, 'type=')) {
+            return null;
+        }
+
+        if (str_starts_with($field, 'ref=')) {
+            $ref = substr($field, 4);
+        }
+    }
+
+    return '' === $ref ? null : $ref;
+}
+
+/**
+ * The same repository as the cache, under another tag: one package holds them
+ * both, and linking that package is what the image is pushed for.
+ */
+function get_image_reference(string $cacheRef, string $tag): string
+{
+    $repository = explode('@', $cacheRef)[0];
+    $colon = strrpos($repository, ':');
+
+    // The colon of a "registry:5000/image" is the port, not a tag.
+    if (false !== $colon && $colon > (strrpos($repository, '/') ?: 0)) {
+        $repository = substr($repository, 0, $colon);
+    }
+
+    return $repository . ':' . $tag;
+}
+
+/**
+ * Where the images come from, as "org.opencontainers.image.source" spells it.
+ *
+ * GitHub attaches a package to the repository this names, and a package
+ * attached to a repository inherits its permissions — which is how everyone
+ * who may push to the repository may push its images, and not only whoever
+ * pushed them first.
+ */
+function get_source_url(): ?string
+{
+    $repository = variable('repository', '');
+
+    if ('' !== $repository) {
+        return normalize_source_url($repository);
+    }
+
+    $repository = getenv('GITHUB_REPOSITORY');
+
+    if (\is_string($repository) && '' !== $repository) {
+        $server = getenv('GITHUB_SERVER_URL') ?: 'https://github.com';
+
+        return rtrim($server, '/') . '/' . $repository;
+    }
+
+    $remote = capture_git(['git', 'remote', 'get-url', 'origin']);
+
+    return null === $remote ? null : normalize_source_url($remote);
+}
+
+function get_source_revision(): ?string
+{
+    $revision = getenv('GITHUB_SHA');
+
+    if (\is_string($revision) && '' !== $revision) {
+        return $revision;
+    }
+
+    return capture_git(['git', 'rev-parse', 'HEAD']);
+}
+
+/**
+ * The forms a git remote takes — scp-like, ssh://, https:// — and the
+ * "org/project" shorthand a context may hold, as the browsable URL GitHub
+ * expects.
+ */
+function normalize_source_url(string $remote): ?string
+{
+    $remote = trim($remote);
+
+    if ('' === $remote) {
+        return null;
+    }
+
+    if (preg_match('#^ssh://(?:[^@/]+@)?(.+)$#', $remote, $matches)) {
+        $remote = 'https://' . $matches[1];
+    } elseif (preg_match('#^(?:[\w.-]+@)?([\w.-]+):(?!//)(.+)$#', $remote, $matches)) {
+        $remote = 'https://' . $matches[1] . '/' . ltrim($matches[2], '/');
+    } elseif (preg_match('#^[\w.-]+/[\w.-]+$#', $remote)) {
+        $remote = 'https://github.com/' . $remote;
+    }
+
+    return preg_replace('#\.git$#', '', $remote);
+}
+
+/**
+ * @param list<string> $command
+ */
+function capture_git(array $command): ?string
+{
+    try {
+        $output = trim(capture($command, context: context()->withQuiet()->withAllowFailure()));
+    } catch (\Throwable) {
+        // No git on this machine, or a directory git does not track: the
+        // images have no repository to name, which is all the caller asked.
+        return null;
+    }
+
+    return '' === $output ? null : $output;
 }
 
 /**

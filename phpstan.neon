@@ -6,6 +6,7 @@ parameters:
                 project_name?: string,
                 root_domain?: string,
                 registry?: string,
+                repository?: string,
                 user_id?: int,
                 build_args?: string[],
                 twig_dockerfile_frontend?: string,

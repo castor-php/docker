@@ -59,6 +59,36 @@ final class DockerPushTest extends TestCase
         );
     }
 
+    /**
+     * The cache alone carries no label, so a registry reading one to attach a
+     * package to a repository — ghcr.io — would file every push under nobody.
+     * The image pushed next to the cache is what holds that label, and it goes
+     * to the repository the cache already uses, under another tag.
+     */
+    public function testTheImagesArePushedWithTheLabelThatLinksThePackage(): void
+    {
+        $castor = $this->castorOrSkip();
+
+        $push = $this->castor($castor, ['docker:push', '--dry-run'], [
+            'CASTOR_DOCKER_TEST_REGISTRY' => 'registry.invalid/ns',
+            'GITHUB_REPOSITORY' => 'acme/app',
+        ]);
+
+        static::assertTrue($push->isSuccessful(), "castor docker:push --dry-run failed:\n" . $push->getOutput() . $push->getErrorOutput());
+
+        $plan = json_decode($push->getOutput(), true);
+
+        static::assertIsArray($plan, "docker:push --dry-run did not print a bake plan:\n" . $push->getOutput());
+
+        foreach (['cached', 'shorthand'] as $service) {
+            $target = $plan['target'][$service];
+
+            static::assertSame(["registry.invalid/ns/{$service}:latest"], $target['tags']);
+            static::assertSame([['type' => 'registry']], $target['output'], "\"{$service}\" builds its image without pushing it.");
+            static::assertSame('https://github.com/acme/app', $target['labels']['org.opencontainers.image.source']);
+        }
+    }
+
     public function testTheBuildCacheLandsInTheRegistry(): void
     {
         $castor = $this->castorOrSkip();
@@ -123,6 +153,7 @@ final class DockerPushTest extends TestCase
                     $tags = json_decode((string) file_get_contents("{$api}{$namespace}/{$service}/tags/list"), true);
 
                     static::assertContains('cache', $tags['tags'] ?? [], "docker:push pushed no cache for \"{$service}\".");
+                    static::assertContains('latest', $tags['tags'] ?? [], "docker:push pushed no image for \"{$service}\", so nothing carries the label a registry links the package by.");
                 }
             } finally {
                 $this->docker(['stop', $registry]);

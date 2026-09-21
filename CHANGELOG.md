@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `castor docker:push` pushes the image of each service next to its build
+  cache, labelled with `org.opencontainers.image.source` — a cache carries no
+  label, so a push outside of the CI used to leave an orphan package on
+  ghcr.io, which the CI was then denied. The repository comes from the new
+  `repository` context variable, from `GITHUB_REPOSITORY` or from the `origin`
+  remote. `--tag` picks the tag the image is published under, `latest`
+  otherwise.
+
 ## 0.6.0 - 2026-09-17
 
 ### Added
