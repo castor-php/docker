@@ -16,6 +16,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -43,6 +47,189 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    meilisearch:
+        image: 'getmeili/meilisearch:v1.54'
+        environment:
+            MEILI_MASTER_KEY: castor-meilisearch-master-key
+            MEILI_ENV: development
+            MEILI_NO_ANALYTICS: 'true'
+            MEILI_UPGRADE_DB: 'true'
+        volumes:
+            - 'meilisearch-data:/meili_data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:7700/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=meilisearch.project.test
+            - 'caddy.reverse_proxy={{upstreams 7700}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    rustfs:
+        image: 'rustfs/rustfs:1.0.0'
+        environment:
+            RUSTFS_ACCESS_KEY: castor
+            RUSTFS_SECRET_KEY: castor-secret-key
+            RUSTFS_CONSOLE_ENABLE: 'true'
+            RUSTFS_CORS_ALLOWED_ORIGINS: '*'
+            RUSTFS_OBS_LOG_DIRECTORY: ''
+        volumes:
+            - 'rustfs-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:9000/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=rustfs.project.test
+            - 'caddy.reverse_proxy={{upstreams 9000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - caddy_2=rustfs-console.project.test
+            - 'caddy_2.reverse_proxy={{upstreams 9001}}'
+            - caddy_2.tls=internal
+            - caddy_2.tls.on_demand=
+        profiles:
+            - default
+        extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    rustfs-buckets:
+        image: 'rustfs/rc:v0.1.36'
+        restart: 'no'
+        environment:
+            RC_HOST_local: 'http://castor:castor-secret-key@rustfs:9000'
+        depends_on:
+            rustfs:
+                condition: service_healthy
+        profiles:
+            - default
+        entrypoint:
+            - /bin/sh
+            - '-ec'
+        command:
+            - |-
+                rc bucket create --ignore-existing local/uploads
+                rc bucket create --ignore-existing local/media
+                rc bucket anonymous set download local/media
+        extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
+            - 'app1.project.test:host-gateway'
+            - 'project.test:host-gateway'
+            - 'app5.project.test:host-gateway'
+            - 'rabbitmq.project.test:host-gateway'
+            - 'redis.project.test:host-gateway'
+            - 'elasticsearch.project.test:host-gateway'
+            - 'kibana.project.test:host-gateway'
+            - 'app2.project.test:host-gateway'
+            - 'clickhouse.project.test:host-gateway'
+            - 'app3.project.test:host-gateway'
+            - 'app4.project.test:host-gateway'
+            - 'adminer.project.test:host-gateway'
+    mercure:
+        image: 'dunglas/mercure:v0.24.2'
+        environment:
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_EXTRA_DIRECTIVES: |-
+                cors_origins https://app2.project.test
+                anonymous
+                subscriptions
+                ui
+            GLOBAL_OPTIONS: |-
+                log default {
+                	exclude admin.api
+                }
+        volumes:
+            - 'mercure-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '-q'
+                - '--spider'
+                - 'http://127.0.0.1:2019/mercure/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=mercure.project.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+        extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -66,15 +253,37 @@ services:
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","amqp","redis"]'
                 pie_version: 1.0.0
                 app_root: /var/www/app1
+                mercure: 'true'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1:cache'
         working_dir: /var/www/app1
         user: '%UID%'
         environment:
+            MERCURE_CORS_ORIGINS: 'https://app1.project.test http://app1.project.test https://project.test http://project.test https://localhost http://localhost'
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            MERCURE_URL: 'http://app1/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app1.project.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+            MEILISEARCH_URL: 'http://meilisearch:7700'
+            MEILISEARCH_API_KEY: castor-meilisearch-master-key
+            MEILISEARCH_HOST: 'http://meilisearch:7700'
+            MEILISEARCH_KEY: castor-meilisearch-master-key
+            MEILISEARCH_PUBLIC_URL: 'https://meilisearch.project.test'
+            AWS_ACCESS_KEY_ID: castor
+            AWS_SECRET_ACCESS_KEY: castor-secret-key
+            AWS_REGION: us-east-1
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_ENDPOINT_URL_S3: 'http://rustfs:9000'
+            AWS_ENDPOINT: 'http://rustfs:9000'
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            S3_PUBLIC_ENDPOINT: 'https://rustfs.project.test'
         depends_on:
             postgres:
                 condition: service_healthy
+            meilisearch:
+                condition: service_started
+            rustfs-buckets:
+                condition: service_completed_successfully
         volumes:
             - '%PACKAGE%/example:/var/www:cached'
             - '.home:/home/app:cached'
@@ -88,6 +297,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -111,6 +324,7 @@ services:
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","amqp","redis"]'
                 pie_version: 1.0.0
                 app_root: /var/www/app1
+                mercure: 'true'
                 node_version: 24.x
                 package_manager: npm
             cache_from:
@@ -119,9 +333,29 @@ services:
         init: true
         environment:
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            MERCURE_URL: 'http://app1/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app1.project.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+            MEILISEARCH_URL: 'http://meilisearch:7700'
+            MEILISEARCH_API_KEY: castor-meilisearch-master-key
+            MEILISEARCH_HOST: 'http://meilisearch:7700'
+            MEILISEARCH_KEY: castor-meilisearch-master-key
+            MEILISEARCH_PUBLIC_URL: 'https://meilisearch.project.test'
+            AWS_ACCESS_KEY_ID: castor
+            AWS_SECRET_ACCESS_KEY: castor-secret-key
+            AWS_REGION: us-east-1
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_ENDPOINT_URL_S3: 'http://rustfs:9000'
+            AWS_ENDPOINT: 'http://rustfs:9000'
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            S3_PUBLIC_ENDPOINT: 'https://rustfs.project.test'
         depends_on:
             postgres:
                 condition: service_healthy
+            meilisearch:
+                condition: service_started
+            rustfs-buckets:
+                condition: service_completed_successfully
         volumes:
             - '%PACKAGE%/example:/var/www:cached'
             - '.home:/home/app:cached'
@@ -129,6 +363,10 @@ services:
         profiles:
             - builder
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -152,15 +390,36 @@ services:
                 php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip","amqp","redis"]'
                 pie_version: 1.0.0
                 app_root: /var/www/app1
+                mercure: 'true'
             cache_from:
                 - 'type=registry,ref=${REGISTRY:-}/app1-worker:cache'
         working_dir: /var/www/app1
         user: '%UID%'
         environment:
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8'
+            MERCURE_URL: 'http://app1/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app1.project.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+            MEILISEARCH_URL: 'http://meilisearch:7700'
+            MEILISEARCH_API_KEY: castor-meilisearch-master-key
+            MEILISEARCH_HOST: 'http://meilisearch:7700'
+            MEILISEARCH_KEY: castor-meilisearch-master-key
+            MEILISEARCH_PUBLIC_URL: 'https://meilisearch.project.test'
+            AWS_ACCESS_KEY_ID: castor
+            AWS_SECRET_ACCESS_KEY: castor-secret-key
+            AWS_REGION: us-east-1
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_ENDPOINT_URL_S3: 'http://rustfs:9000'
+            AWS_ENDPOINT: 'http://rustfs:9000'
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            S3_PUBLIC_ENDPOINT: 'https://rustfs.project.test'
         depends_on:
             postgres:
                 condition: service_healthy
+            meilisearch:
+                condition: service_started
+            rustfs-buckets:
+                condition: service_completed_successfully
         volumes:
             - '%PACKAGE%/example:/var/www:cached'
             - '.home:/home/app:cached'
@@ -168,6 +427,10 @@ services:
             - default
         command: 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M'
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -197,15 +460,24 @@ services:
         user: '%UID%'
         environment:
             DATABASE_URL: 'mysql://root:root@mysql:3306/app'
+            MERCURE_URL: 'http://mercure/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://mercure.project.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
         depends_on:
             mysql:
                 condition: service_healthy
+            mercure:
+                condition: service_started
         volumes:
             - '%PACKAGE%/example:/var/www:cached'
             - '.home:/home/app:cached'
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -252,6 +524,10 @@ services:
             - run
             - dev
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -282,6 +558,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -309,6 +589,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -333,6 +617,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -367,6 +655,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -396,6 +688,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -420,6 +716,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -433,8 +733,9 @@ services:
             - 'app4.project.test:host-gateway'
             - 'adminer.project.test:host-gateway'
         configs:
-            - source: redirectionio-agent
-              target: /etc/redirectionio/agent.yml
+            -
+                source: redirectionio-agent
+                target: /etc/redirectionio/agent.yml
     clickhouse:
         build:
             context: '%PACKAGE%/src/Service/../Resources/clickhouse'
@@ -459,6 +760,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -481,6 +786,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -514,6 +823,10 @@ services:
         profiles:
             - builder
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -551,6 +864,10 @@ services:
         profiles:
             - builder
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -579,6 +896,10 @@ services:
         command:
             - /app/go-app/app3
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -609,6 +930,10 @@ services:
         command:
             - /app/rust-app/target/debug/app4
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -631,6 +956,10 @@ services:
         profiles:
             - default
         extra_hosts:
+            - 'meilisearch.project.test:host-gateway'
+            - 'rustfs.project.test:host-gateway'
+            - 'rustfs-console.project.test:host-gateway'
+            - 'mercure.project.test:host-gateway'
             - 'app1.project.test:host-gateway'
             - 'project.test:host-gateway'
             - 'app5.project.test:host-gateway'
@@ -646,6 +975,9 @@ services:
 volumes:
     postgres_data: {}
     mysql-data: {}
+    meilisearch-data: {}
+    rustfs-data: {}
+    mercure-data: {}
     rabbitmq-data: {}
     redis-data: {}
     redis-insight-data: {}

@@ -15,6 +15,8 @@ use Castor\Docker\Service\ClickhouseService;
 use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\MariaDBService;
+use Castor\Docker\Service\MeilisearchService;
+use Castor\Docker\Service\MercureService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\PhpMode;
@@ -23,6 +25,7 @@ use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\RustBuilder;
+use Castor\Docker\Service\RustFSService;
 use Castor\Docker\Service\SymfonyService;
 
 defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
@@ -45,6 +48,29 @@ function register_service(RegisterServiceEvent $event)
     $mysqlService = new MySQLService();
     $event->addService($mysqlService);
 
+    // Linked to the applications with link(): each one hands its URL, its
+    // credentials and whatever else the libraries expect to the containers of
+    // the application, and makes them wait for it.
+    $meilisearchService = new MeilisearchService();
+    $event->addService($meilisearchService);
+
+    $rustfsService = (new RustFSService())
+        ->withBucket('uploads')
+        ->withBucket('media', public: true)
+    ;
+    $event->addService($rustfsService);
+
+    // Two Mercure hubs, one per application. app1 is its only subscriber and
+    // runs on FrankenPHP, which embeds the hub: no container, it is served on
+    // https://app1.project.test/.well-known/mercure. app2 runs on PHP-FPM, so
+    // its hub is a container of its own; app2 has no domain — the
+    // redirection.io agent holds it — so the hub is told where its pages are.
+    $app1MercureService = (new MercureService())->withName('app1-mercure');
+    $event->addService($app1MercureService);
+
+    $mercureService = (new MercureService())->withCorsOrigin('https://app2.project.test');
+    $event->addService($mercureService);
+
     // This directory is the root of a small monorepo: two PHP applications, a
     // Rust binary and a Go one, all living under one root. Every container
     // therefore mounts __DIR__ rather than its own sub-directory — which is what
@@ -59,6 +85,9 @@ function register_service(RegisterServiceEvent $event)
         ->addExtension('redis')
         ->withDomain('app1.project.test', 'project.test', 'localhost')
         ->withHttpAccess()
+        ->link($app1MercureService)
+        ->link($meilisearchService)
+        ->link($rustfsService)
         ->addWorker('messenger', 'php -d memory_limit=1G bin/console messenger:consume async --time-limit=3600 --memory-limit=128M')
     ;
     $event->addService($app1Service);
@@ -77,6 +106,7 @@ function register_service(RegisterServiceEvent $event)
         ->withVersion('8.2')
         ->withMode(PhpMode::Fpm)
         ->withDatabaseService($mysqlService)
+        ->link($mercureService)
         ->addExtension('amqp')
         ->addExtension('mysql')
     ;

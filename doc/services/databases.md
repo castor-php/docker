@@ -19,6 +19,10 @@ $event->addService(
 );
 ```
 
+`withDatabaseService()` is a [link](index.md#linking-services) that replaces
+the previous database: `->link($postgres)` does the same, and is what a Go,
+Rust or Node.js application uses.
+
 Each of them also exposes a `{name}:expose` task to reach the server from the
 host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tcp).
 

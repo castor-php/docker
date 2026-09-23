@@ -188,6 +188,40 @@ final class ServiceBuilderTest extends TestCase
         static::assertSame(['app.demo.test', 'demo.test'], $service->getRoutedDomains());
     }
 
+    /**
+     * Two listeners of one container — the API and the console of an object
+     * storage — are two sites, kept apart by numbered labels. The first one
+     * keeps the labels it always had.
+     */
+    public function testEachRoutingIsASiteOfItsOwn(): void
+    {
+        $labels = $this->service()
+            ->withHttpRouting('s3.demo.test', 9000, allowHttpAccess: true)
+            ->withHttpRouting('console.demo.test', 9001, allowHttpAccess: true)
+            ->toArray()['labels']
+        ;
+
+        static::assertSame([
+            'caddy=s3.demo.test',
+            'caddy.reverse_proxy={{upstreams 9000}}',
+            'caddy.tls=internal',
+            'caddy.tls.on_demand=',
+            'caddy_1=http://s3.demo.test',
+            'caddy_1.reverse_proxy={{upstreams 9000}}',
+            'caddy_2=console.demo.test',
+            'caddy_2.reverse_proxy={{upstreams 9001}}',
+            'caddy_2.tls=internal',
+            'caddy_2.tls.on_demand=',
+            'caddy_3=http://console.demo.test',
+            'caddy_3.reverse_proxy={{upstreams 9001}}',
+        ], $labels);
+    }
+
+    public function testEntrypoint(): void
+    {
+        static::assertSame(['/bin/sh', '-ec'], $this->service()->entrypoint(['/bin/sh', '-ec'])->toArray()['entrypoint']);
+    }
+
     public function testServiceWithoutRoutingHasNoDomain(): void
     {
         static::assertSame([], $this->service()->getRoutedDomains());

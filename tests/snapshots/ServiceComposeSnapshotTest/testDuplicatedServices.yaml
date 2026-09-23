@@ -177,6 +177,220 @@ services:
                 clickhouse_version: '25.8'
         profiles:
             - default
+    mercure:
+        image: 'dunglas/mercure:v0.24.2'
+        environment:
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_EXTRA_DIRECTIVES: |-
+                anonymous
+                subscriptions
+                ui
+            GLOBAL_OPTIONS: |-
+                log default {
+                	exclude admin.api
+                }
+        volumes:
+            - 'mercure-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '-q'
+                - '--spider'
+                - 'http://127.0.0.1:2019/mercure/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=mercure.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    notifications:
+        image: 'dunglas/mercure:v0.24.2'
+        environment:
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_EXTRA_DIRECTIVES: |-
+                anonymous
+                subscriptions
+                ui
+            GLOBAL_OPTIONS: |-
+                log default {
+                	exclude admin.api
+                }
+        volumes:
+            - 'notifications-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '-q'
+                - '--spider'
+                - 'http://127.0.0.1:2019/mercure/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=notifications.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    meilisearch:
+        image: 'getmeili/meilisearch:v1.54'
+        environment:
+            MEILI_MASTER_KEY: castor-meilisearch-master-key
+            MEILI_ENV: development
+            MEILI_NO_ANALYTICS: 'true'
+            MEILI_UPGRADE_DB: 'true'
+        volumes:
+            - 'meilisearch-data:/meili_data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:7700/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=meilisearch.demo.test
+            - 'caddy.reverse_proxy={{upstreams 7700}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    catalog:
+        image: 'getmeili/meilisearch:v1.54'
+        environment:
+            MEILI_MASTER_KEY: castor-meilisearch-master-key
+            MEILI_ENV: development
+            MEILI_NO_ANALYTICS: 'true'
+            MEILI_UPGRADE_DB: 'true'
+        volumes:
+            - 'catalog-data:/meili_data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:7700/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=catalog.demo.test
+            - 'caddy.reverse_proxy={{upstreams 7700}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    rustfs:
+        image: 'rustfs/rustfs:1.0.0'
+        environment:
+            RUSTFS_ACCESS_KEY: castor
+            RUSTFS_SECRET_KEY: castor-secret-key
+            RUSTFS_CONSOLE_ENABLE: 'true'
+            RUSTFS_CORS_ALLOWED_ORIGINS: '*'
+            RUSTFS_OBS_LOG_DIRECTORY: ''
+        volumes:
+            - 'rustfs-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:9000/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=rustfs.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - caddy_2=rustfs-console.demo.test
+            - 'caddy_2.reverse_proxy={{upstreams 9001}}'
+            - caddy_2.tls=internal
+            - caddy_2.tls.on_demand=
+        profiles:
+            - default
+    rustfs-buckets:
+        image: 'rustfs/rc:v0.1.36'
+        restart: 'no'
+        environment:
+            RC_HOST_local: 'http://castor:castor-secret-key@rustfs:9000'
+        depends_on:
+            rustfs:
+                condition: service_healthy
+        profiles:
+            - default
+        entrypoint:
+            - /bin/sh
+            - '-ec'
+        command:
+            - 'rc bucket create --ignore-existing local/uploads'
+    backups:
+        image: 'rustfs/rustfs:1.0.0'
+        environment:
+            RUSTFS_ACCESS_KEY: castor
+            RUSTFS_SECRET_KEY: castor-secret-key
+            RUSTFS_CONSOLE_ENABLE: 'true'
+            RUSTFS_CORS_ALLOWED_ORIGINS: '*'
+            RUSTFS_OBS_LOG_DIRECTORY: ''
+        volumes:
+            - 'backups-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:9000/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=backups.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - caddy_2=backups-console.demo.test
+            - 'caddy_2.reverse_proxy={{upstreams 9001}}'
+            - caddy_2.tls=internal
+            - caddy_2.tls.on_demand=
+        profiles:
+            - default
+    backups-buckets:
+        image: 'rustfs/rc:v0.1.36'
+        restart: 'no'
+        environment:
+            RC_HOST_local: 'http://castor:castor-secret-key@backups:9000'
+        depends_on:
+            backups:
+                condition: service_healthy
+        profiles:
+            - default
+        entrypoint:
+            - /bin/sh
+            - '-ec'
+        command:
+            - 'rc bucket create --ignore-existing local/archives'
 volumes:
     postgres_data: {}
     analytics_data: {}
@@ -187,3 +401,9 @@ volumes:
     elasticsearch-data: {}
     logs-data: {}
     events-data: {}
+    mercure-data: {}
+    notifications-data: {}
+    meilisearch-data: {}
+    catalog-data: {}
+    rustfs-data: {}
+    backups-data: {}

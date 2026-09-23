@@ -51,6 +51,9 @@ final class ServiceBuilder
     /** @var null|array<string>|string */
     private array|string|null $command = null;
 
+    /** @var null|array<string>|string */
+    private array|string|null $entrypoint = null;
+
     private ?string $restart = null;
 
     /** @var array<string, array<string, int>|int> */
@@ -72,6 +75,14 @@ final class ServiceBuilder
      * @var list<string>
      */
     private array $routedDomains = [];
+
+    /**
+     * The sites withHttpRouting() declared, each with the labels carrying it:
+     * the HTTPS one, and the plain HTTP one withHttpAccess() adds.
+     *
+     * @var list<array{domains: list<string>, https: string, http: ?string}>
+     */
+    private array $sites = [];
 
     public function __construct(
         public readonly string $name,
@@ -190,6 +201,19 @@ final class ServiceBuilder
     }
 
     /**
+     * Replace the entrypoint of the image — a CLI image whose entrypoint is
+     * the tool itself, asked to run a script instead.
+     *
+     * @param array<string>|string|null $entrypoint
+     */
+    public function entrypoint(array|string|null $entrypoint): self
+    {
+        $this->entrypoint = $entrypoint;
+
+        return $this;
+    }
+
+    /**
      * Expose the service over HTTP/HTTPS through the Caddy router
      * (caddy-docker-proxy) by emitting the matching Docker labels.
      *
@@ -198,12 +222,17 @@ final class ServiceBuilder
      * port 80 when it exposes nothing — which routes to the wrong one silently
      * and answers 502. Naming it is the only way to be sure.
      *
+     * Call it again to serve another port of the same container on other
+     * domains — the API and the console of an object storage. Each call is a
+     * site of its own, carried by numbered labels ("caddy_2", "caddy_3"…),
+     * which caddy-docker-proxy keeps apart.
+     *
      * @param string|array<string> $domain
      * @param int                  $port   the port the service listens on inside the container
      */
     public function withHttpRouting(string|array $domain, int $port, bool $allowHttpAccess = false): self
     {
-        $domains = \is_array($domain) ? $domain : [$domain];
+        $domains = array_values(\is_array($domain) ? $domain : [$domain]);
         $upstream = \sprintf('{{upstreams %d}}', $port);
 
         foreach ($domains as $routedDomain) {
@@ -212,23 +241,45 @@ final class ServiceBuilder
             }
         }
 
+        // The first site keeps the labels it always had, "caddy" and
+        // "caddy_1"; the next ones number theirs after them.
+        if (!$this->sites) {
+            $https = 'caddy';
+            $http = $allowHttpAccess ? 'caddy_1' : null;
+        } else {
+            $index = 2 * \count($this->sites);
+            $https = 'caddy_' . $index;
+            $http = $allowHttpAccess ? 'caddy_' . ($index + 1) : null;
+        }
+
+        $this->sites[] = ['domains' => $domains, 'https' => $https, 'http' => $http];
+
         // HTTPS site served with a locally-trusted certificate minted on demand
         // by the Caddy router (see CaddyRouterService). Plain HTTP is redirected
         // to HTTPS automatically by Caddy.
-        $this->label('caddy', implode(' ', $domains));
-        $this->label('caddy.reverse_proxy', $upstream);
-        $this->label('caddy.tls', 'internal');
-        $this->label('caddy.tls.on_demand', '');
+        $this->label($https, implode(' ', $domains));
+        $this->label($https . '.reverse_proxy', $upstream);
+        $this->label($https . '.tls', 'internal');
+        $this->label($https . '.tls.on_demand', '');
 
-        if ($allowHttpAccess) {
+        if (null !== $http) {
             // Additionally serve the same upstream over plain HTTP, without the
             // automatic redirect to HTTPS.
-            $httpDomains = array_map(static fn(string $d): string => "http://{$d}", $domains);
-            $this->label('caddy_1', implode(' ', $httpDomains));
-            $this->label('caddy_1.reverse_proxy', $upstream);
+            $this->label($http, implode(' ', self::httpDomains($domains)));
+            $this->label($http . '.reverse_proxy', $upstream);
         }
 
         return $this;
+    }
+
+    /**
+     * @param list<string> $domains
+     *
+     * @return list<string>
+     */
+    private static function httpDomains(array $domains): array
+    {
+        return array_map(static fn(string $domain): string => "http://{$domain}", $domains);
     }
 
     public function build(string|BuildBuilder|null $build = null): BuildBuilder
@@ -376,31 +427,42 @@ final class ServiceBuilder
      */
     public function rewriteRoutedDomains(callable $rewrite): self
     {
-        $domains = [];
+        $routedDomains = [];
 
-        foreach ($this->routedDomains as $domain) {
-            $rewritten = $rewrite($domain);
+        foreach ($this->sites as $siteIndex => $site) {
+            $domains = [];
 
-            if (!\in_array($rewritten, $domains, true)) {
-                $domains[] = $rewritten;
+            foreach ($site['domains'] as $domain) {
+                $rewritten = $rewrite($domain);
+
+                if (!\in_array($rewritten, $domains, true)) {
+                    $domains[] = $rewritten;
+                }
+
+                if (!\in_array($rewritten, $routedDomains, true)) {
+                    $routedDomains[] = $rewritten;
+                }
+            }
+
+            if ($domains === $site['domains']) {
+                continue;
+            }
+
+            $this->sites[$siteIndex]['domains'] = $domains;
+
+            // In place, so the labels keep the order withHttpRouting() emitted
+            // them in — a "caddy_1" site block is only valid after its "caddy"
+            // one.
+            foreach ($this->labels as $index => $label) {
+                if (str_starts_with($label, $site['https'] . '=')) {
+                    $this->labels[$index] = $site['https'] . '=' . implode(' ', $domains);
+                } elseif (null !== $site['http'] && str_starts_with($label, $site['http'] . '=')) {
+                    $this->labels[$index] = $site['http'] . '=' . implode(' ', self::httpDomains($domains));
+                }
             }
         }
 
-        if ($domains === $this->routedDomains) {
-            return $this;
-        }
-
-        $this->routedDomains = $domains;
-
-        // In place, so the labels keep the order withHttpRouting() emitted them
-        // in — a "caddy_1" site block is only valid after its "caddy" one.
-        foreach ($this->labels as $index => $label) {
-            if (str_starts_with($label, 'caddy=')) {
-                $this->labels[$index] = 'caddy=' . implode(' ', $domains);
-            } elseif (str_starts_with($label, 'caddy_1=')) {
-                $this->labels[$index] = 'caddy_1=' . implode(' ', array_map(static fn(string $domain): string => "http://{$domain}", $domains));
-            }
-        }
+        $this->routedDomains = $routedDomains;
 
         return $this;
     }
@@ -498,6 +560,10 @@ final class ServiceBuilder
 
         if (!empty($this->profiles)) {
             $result['profiles'] = $this->profiles;
+        }
+
+        if ($this->entrypoint !== null) {
+            $result['entrypoint'] = $this->entrypoint;
         }
 
         if ($this->command !== null) {

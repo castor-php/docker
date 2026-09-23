@@ -9,6 +9,7 @@ use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasDirectory;
 use Castor\Docker\Service\Behaviour\HasEnvironment;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\context;
@@ -38,6 +39,7 @@ class BinaryRunService implements ServiceInterface
     use HasDirectory;
     use HasEnvironment;
     use HasHttpRouting;
+    use HasLinks;
 
     /**
      * Sensible only for a statically linked binary (a musl target, or CGO_ENABLED=0):
@@ -170,6 +172,7 @@ class BinaryRunService implements ServiceInterface
             $service->restart($this->restart);
         }
 
+        $this->applyLinks($context, $service);
         $this->applyEnvironment($service);
         $this->applyHttpRouting($service);
 

@@ -108,6 +108,28 @@ final class WorktreeDomainTest extends TestCase
     }
 
     /**
+     * Each site keeps its own domains: the console of an object storage must
+     * not end up answering on the domain of its API.
+     */
+    public function testEachSiteIsRewrittenOnItsOwn(): void
+    {
+        $builder = new ComposeBuilder();
+        $builder->service('rustfs')
+            ->withHttpRouting('rustfs.myproject.test', 9000)
+            ->withHttpRouting('rustfs-console.myproject.test', 9001, allowHttpAccess: true)
+        ->end();
+
+        apply_worktree_domains($this->context('wt2'), $builder);
+
+        $labels = $builder->toArray()['services']['rustfs']['labels'];
+
+        static::assertContains('caddy=rustfs.wt2.myproject.test', $labels);
+        static::assertContains('caddy_2=rustfs-console.wt2.myproject.test', $labels);
+        static::assertContains('caddy_3=http://rustfs-console.wt2.myproject.test', $labels);
+        static::assertSame(['rustfs.wt2.myproject.test', 'rustfs-console.wt2.myproject.test'], $builder->service('rustfs')->getRoutedDomains());
+    }
+
+    /**
      * The "caddy_1" plain-HTTP site is only valid after the "caddy" one it
      * duplicates, so the rewrite must not reorder the labels.
      */

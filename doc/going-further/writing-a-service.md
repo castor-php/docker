@@ -27,6 +27,9 @@ interface ServiceInterface
 
 ## A minimal service
 
+[Gotenberg](https://gotenberg.dev) converts HTML and office documents to PDF
+behind an HTTP API — a service the plugin does not ship:
+
 ```php
 namespace project\Service;
 
@@ -39,34 +42,33 @@ use Castor\Docker\Service\ServiceInterface;
 
 use function Castor\Docker\docker_compose;
 
-final class MinioService implements ServiceInterface
+final class GotenbergService implements ServiceInterface
 {
     use HasHttpRouting;
     use HasVersion;
 
     protected function getDefaultVersion(): string
     {
-        return 'latest';
+        return '8';
     }
 
     protected function getDefaultPort(): int
     {
-        return 9001;
+        return 3000;
     }
 
     public function getName(): string
     {
-        return 'minio';
+        return 'gotenberg';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
         $service = $builder
-            ->volume('minio-data')
             ->service($this->getName())
-                ->image('minio/minio:' . $this->getVersion())
-                ->command('server /data --console-address :9001')
-                ->volume('minio-data', '/data')
+                ->image('gotenberg/gotenberg:' . $this->getVersion())
+                ->command('gotenberg --api-timeout=120s')
+                ->healthcheck(['CMD', 'curl', '-f', 'http://localhost:3000/health'])
                 ->profile('default')
         ;
 
@@ -78,7 +80,7 @@ final class MinioService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield [
-            'task' => new AsTask('restart', $this->getName(), 'Restart MinIO'),
+            'task' => new AsTask('restart', $this->getName(), 'Restart Gotenberg'),
             'function' => fn() => docker_compose(['restart', $this->getName()]),
         ];
     }
@@ -88,7 +90,7 @@ final class MinioService implements ServiceInterface
 Register it like any other service:
 
 ```php
-$event->addService((new MinioService())->withDomain('minio.project.test'));
+$event->addService((new GotenbergService())->withDomain('gotenberg.project.test'));
 ```
 
 ## Reusing the behaviour traits
@@ -99,6 +101,50 @@ services](../getting-started/configuring-services.md) for the full list.
 `HasHttpRouting` is the one that saves the most work: it holds the domains, the
 HTTP access flag and the port, and `applyHttpRouting()` emits the router labels
 for you.
+
+## Making it linkable
+
+An application reaching Gotenberg needs its URL, and nothing else. Implement
+`LinkableServiceInterface` and it can be [linked](../services/index.md#linking-services)
+like the services the plugin ships:
+
+```php
+final class GotenbergService implements LinkableServiceInterface
+{
+    // …
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        // The name the Symfony bundle reads.
+        return ['GOTENBERG_DSN' => 'http://' . $this->getName() . ':3000'];
+    }
+
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_healthy'];
+    }
+}
+```
+
+```php
+$event->addService($gotenberg = new GotenbergService());
+$event->addService((new SymfonyService('app'))->link($gotenberg));
+```
+
+Name the variables after what the libraries read rather than after the service
+— that is what lets an application use them with no configuration. The URL is
+the one of the project network: the containers do not trust the certificates of
+the router. The context is there for a public URL, which depends on the root
+domain, and so on the git worktree.
+
+`getLinkDependencies()` maps a compose service to the condition the linked
+application waits for — `service_started`, `service_healthy`, or
+`service_completed_successfully` for a one-shot container preparing something,
+which is how the applications linked to the [object
+storage](../services/object-storage.md) wait for their buckets. A service
+needing to know who links to it — the Mercure hub, to allow their origins —
+implements `LinkAwareServiceInterface` on top, and `link()` calls its
+`linkedFrom()`.
 
 ## The compose builders
 
@@ -125,9 +171,13 @@ $builder
         ->user('1000:1000')
         ->profile('default')
         ->withHttpRouting(['app.test'], 80)
+        ->withHttpRouting(['console.app.test'], 9001)   // a second site, another port
     ->end()
 ;
 ```
+
+Each `withHttpRouting()` is a site of its own: a container answering on two
+ports — an API and its console — is served on two domains.
 
 Inline configs are handy when a container needs a configuration file computed
 from PHP: the content lands in `compose.generated.yaml` and is mounted at the
@@ -144,39 +194,39 @@ service available to `castor docker:service:install`:
 #[AsListener(RegisterServiceInstallerEvent::class)]
 function register_installers(RegisterServiceInstallerEvent $event): void
 {
-    $event->addInstaller(new MinioInstaller());
+    $event->addInstaller(new GotenbergInstaller());
 }
 ```
 
 ```php
-final class MinioInstaller extends AbstractServiceInstaller
+final class GotenbergInstaller extends AbstractServiceInstaller
 {
     public function getName(): string
     {
-        return 'minio';
+        return 'gotenberg';
     }
 
     public function getDescription(): string
     {
-        return 'MinIO object storage';
+        return 'Gotenberg PDF conversion API';
     }
 
     public function getInputs(): array
     {
         return [
-            new Input('version', 'MinIO version', InputType::Text, 'latest'),
+            new Input('version', 'Gotenberg version', InputType::Text, '8'),
         ];
     }
 
     public function buildStatements(ServiceStatementBuilder $builder, array $answers): void
     {
-        $builder->addNewServiceAst(MinioService::class)
+        $builder->addNewServiceAst(GotenbergService::class)
             ->callMethod('withVersion', [(string) $answers['version']]);
     }
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return (new MinioService())->withVersion((string) $answers['version']);
+        return (new GotenbergService())->withVersion((string) $answers['version']);
     }
 }
 ```
@@ -196,5 +246,5 @@ Three optional hooks complete the flow: `prepare()` before the build,
 `scaffold()` between build and up, and `postUp()` after the containers start.
 
 Each input is a question and an option of the install command at once, so the
-one above installs with `castor docker:service:install minio --with-version=latest`
+one above installs with `castor docker:service:install gotenberg --with-version=8`
 as well as by answering the prompt — nothing to declare for that.

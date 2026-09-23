@@ -11,6 +11,7 @@ use Castor\Docker\Service\Behaviour\HasDirectory;
 use Castor\Docker\Service\Behaviour\HasDockerfile;
 use Castor\Docker\Service\Behaviour\HasEnvironment;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -45,6 +46,7 @@ class NodeService implements ServiceInterface
     use HasDockerfile;
     use HasEnvironment;
     use HasHttpRouting;
+    use HasLinks;
     use HasSharedHomeDirectory;
     use HasVersion;
 
@@ -227,6 +229,8 @@ class NodeService implements ServiceInterface
                 ->environment('WATCHPACK_POLLING', 'true')
             ;
         }
+
+        $this->applyLinks($context, $appService);
 
         // Last, so a project overriding one of the above gets its value.
         $this->applyEnvironment($appService);

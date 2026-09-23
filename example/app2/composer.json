@@ -13,6 +13,7 @@
         "symfony/dotenv": "6.4.*",
         "symfony/flex": "^2",
         "symfony/framework-bundle": "6.4.*",
+        "symfony/mercure-bundle": "^0.5",
         "symfony/runtime": "6.4.*",
         "symfony/yaml": "6.4.*"
     },
@@ -22,7 +23,10 @@
             "symfony/flex": true,
             "symfony/runtime": true
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2"
+        }
     },
     "autoload": {
         "psr-4": {
@@ -61,7 +65,8 @@
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "6.4.*"
+            "require": "6.4.*",
+            "docker": false
         }
     }
 }

@@ -7,6 +7,9 @@ namespace Castor\Docker\Tests\Unit\Installer;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\MariaDBInstaller;
+use Castor\Docker\Installer\MeilisearchInstaller;
+use Castor\Docker\Installer\MercureInstaller;
+use Castor\Docker\Installer\RustFSInstaller;
 use Castor\Docker\Installer\RustInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
 use PHPUnit\Framework\TestCase;
@@ -81,6 +84,30 @@ final class InstallerTest extends TestCase
         static::assertStringContainsString(
             "\$event->addService((new RustService('api'))->withDirectory(__DIR__ . '/api')->withVersion('1.90')->withPort(3000)->withDomain('api.test'));",
             $result,
+        );
+    }
+
+    public function testRustfsInstallerDeclaresTheBuckets(): void
+    {
+        $result = $this->install(new RustFSInstaller(), ['version' => '1.0.0', 'buckets' => 'uploads, media,,uploads']);
+
+        static::assertStringContainsString('use Castor\\Docker\\Service\\RustFSService;', $result);
+        static::assertStringContainsString(
+            "\$event->addService((new RustFSService())->withVersion('1.0.0')->withBucket('uploads')->withBucket('media'));",
+            $result,
+        );
+        static::assertSame(['uploads', 'media'], array_keys((new RustFSInstaller())->createInstance(['version' => '1.0.0', 'buckets' => 'uploads, media'])->getBuckets()));
+    }
+
+    public function testMeilisearchAndMercureInstallers(): void
+    {
+        static::assertStringContainsString(
+            "\$event->addService((new MeilisearchService())->withVersion('v1.54'));",
+            $this->install(new MeilisearchInstaller(), ['version' => 'v1.54']),
+        );
+        static::assertStringContainsString(
+            "\$event->addService(new MercureService());",
+            $this->install(new MercureInstaller(), []),
         );
     }
 
