@@ -45,6 +45,9 @@ Everything comes from the compose files, so the task answers with the
 infrastructure stopped, and without a running Docker daemon — only the
 running/stopped statuses need one.
 
+When [public tunnels](#sharing-the-project-over-a-public-tunnel) are open, a
+second table gives the public URL of each tunnelled domain.
+
 ### `castor docker:build`
 
 Builds the Docker images of the infrastructure.
@@ -72,7 +75,8 @@ re-exposed automatically.
 
 ### `castor docker:stop`
 
-Stops the containers, and the TCP forwarders that went with them.
+Stops the containers, and the TCP forwarders and [public tunnels](#sharing-the-project-over-a-public-tunnel)
+that went with them.
 
 ```bash
 castor docker:stop
@@ -153,8 +157,9 @@ a pulled image such as `redis:8` is attributed to the project too.
 
 ### `castor docker:destroy`
 
-Removes containers, volumes and networks of the project. **Destroys your data**,
-so it asks for confirmation unless `--force` is given.
+Removes containers, volumes and networks of the project, and closes its public
+tunnels. **Destroys your data**, so it asks for confirmation unless `--force` is
+given.
 
 ```bash
 castor docker:destroy
@@ -220,6 +225,7 @@ Every argument naming something completes, and each one offers the right list:
 | `docker:service:remove` | the **services registered** in your `castor.php` |
 | `docker:service:install` | the services the plugin knows how to install |
 | `{app}:worker:restart`, `{app}:worker:stop` | the **workers of that application** |
+| `docker:tunnel:start`, `docker:tunnel:stop` | the **domains** the project routes |
 
 ```bash
 castor docker:logs app<TAB>          # app1  app1-builder  app1-worker-messenger
@@ -300,6 +306,99 @@ machine. These tasks are for the times you want to decide yourself:
 Set the `router_autostart` [context variable](configuration.md#starting-and-stopping-the-router-with-your-projects)
 to `false`, or `CASTOR_DOCKER_ROUTER_AUTOSTART=0` for a single command, to leave
 the router entirely to those tasks.
+
+## Sharing the project over a public tunnel
+
+### `castor docker:tunnel:start`
+
+Gives the domains of the project a public HTTPS URL. Use it to show a colleague
+or a client what you are working on, to open the project on a phone, or to
+receive the webhooks of a third-party service.
+
+```bash
+castor docker:tunnel:start                                    # every domain of the project
+castor docker:tunnel:start app.myproject.test                 # a single one
+castor docker:tunnel:start app.myproject.test myproject.test  # or a few
+castor tunnel                                                 # the same, shorter
+```
+
+```
+ --------- -------------------- --------------------------------------------------- ---------
+  Service   Domain               Public URL                                          Status
+ --------- -------------------- --------------------------------------------------- ---------
+  app       app.myproject.test   https://calm-river-sample-words.trycloudflare.com   running
+            myproject.test       https://other-sample-words.trycloudflare.com        running
+ --------- -------------------- --------------------------------------------------- ---------
+```
+
+The tunnels are [Cloudflare quick tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/),
+opened by a `cloudflared` container: there is nothing to install and no account
+to create. A quick tunnel gets **one** random `*.trycloudflare.com` URL, so each
+domain gets a container and a URL of its own.
+
+The tunnels run in the background. Running the task again prints the URLs of the
+ones already open and opens the missing ones. `docker:about` lists the open ones
+too. A tunnel lasts until:
+
+* `castor docker:tunnel:stop` closes it. `castor docker:tunnel:stop <domain>...`
+  closes only the tunnels of the domains given;
+* `castor docker:stop` or `castor docker:destroy` take the project down;
+* the router stops or restarts, since the tunnels go through it.
+
+A tunnel that was closed never comes back with the same URL. Open it again and
+it gets a new one.
+
+> [!WARNING]
+> Anyone with a URL reaches the service behind it, with no authentication in
+> between. Without an argument the task tunnels **every** domain of the
+> project, including tools such as Adminer or RabbitMQ when they have one. Name
+> the domains to share only those.
+
+#### How the traffic reaches your application
+
+Each `cloudflared` container joins the network of the [global router](services/router.md)
+and forwards the requests to it over HTTPS. It rewrites the `Host` to the local
+domain, so the router serves the request the way it serves your browser, with
+the same service behind it, whether it allows plain HTTP or not. Domains
+declared in `compose.override.yaml` can be tunnelled as well.
+
+The public host name travels in the `X-Forwarded-Host` header, and the router
+passes it through untouched. Your application sees `Host: app.myproject.test`,
+and `X-Forwarded-Host: calm-river-sample-words.trycloudflare.com`. To generate
+its absolute URLs and redirections with the public host, it has to trust the
+router as a proxy. For Symfony:
+
+```yaml
+# config/packages/framework.yaml
+framework:
+    trusted_proxies: 'private_ranges'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+```
+
+Without it, the application keeps seeing its local domain. Relative links work
+either way.
+
+> [!NOTE]
+> A router started by an older version of the plugin overwrites
+> `X-Forwarded-Host` with the local domain. `docker:up` and
+> `docker:tunnel:start` warn about it: run `castor docker:router:restart` once
+> to pick up the new configuration.
+
+Quick tunnels come with limits of their own: no Server-Sent Events, at most 200
+requests in flight, and no uptime guarantee. Cloudflare also rate-limits how
+many can be created. When one could not be, the task prints what `cloudflared`
+said, and running it again retries only the missing tunnels.
+
+### `castor docker:tunnel:stop`
+
+Closes the tunnels of the project, or the tunnels of the domains given.
+
+```bash
+castor docker:tunnel:stop
+castor docker:tunnel:stop app.myproject.test myproject.test
+```
+
+Both tasks complete the domain names, and leave out the ones already given.
 
 ## Profiles
 

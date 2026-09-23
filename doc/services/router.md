@@ -72,6 +72,38 @@ With the autostart off, nothing starts or stops the router but you:
 `castor docker:router:status` shows whether the autostart is on, and which
 projects the router currently serves.
 
+## Keeping it up to date
+
+The router outlives your projects, and each project may be on its own version of
+the plugin. The router therefore records which version of the plugin created it,
+and a checksum of its configuration: its Caddyfile and its image.
+
+* Same configuration: nothing to do, whatever the versions. An upgrade of the
+  plugin that does not touch the router never asks you to restart it.
+* Older configuration: starting the router replaces it. One that is already
+  running is left alone, because restarting it interrupts every project it
+  serves. `castor docker:up` warns about it instead.
+* Newer configuration: it is kept. A project on an older version of the plugin
+  neither warns nor takes the router back, even with `docker:router:enable` or
+  `docker:router:restart`.
+
+A branch of the plugin (`dev-main`, or a path repository) counts as newer than
+every release, the way composer ranks the default branch. Between two branches,
+the project running the task wins. A router created before these labels existed
+is older than anything.
+
+`castor docker:router:status` tells which version the running router comes from,
+and how it compares to the one of the current project:
+
+```bash
+castor docker:router:restart   # apply the configuration of this project
+```
+
+> [!NOTE]
+> Versions of the plugin older than this mechanism know nothing about it: they
+> still rewrite the router with their own configuration. The next
+> `castor docker:up` of a newer project warns about it.
+
 ## How your services are reached
 
 Each project keeps its **own** compose network. The router is not on it — it
@@ -136,6 +168,22 @@ The domains are also passed to `docker network connect` as **network aliases**,
 so they resolve to the router through the Docker DNS as well. `/etc/hosts` wins
 over DNS, so the aliases are what keeps the domains resolvable once
 `resolve_domains_via_host` is off.
+
+## Behind a public tunnel
+
+[`castor docker:tunnel:start`](../tasks.md#sharing-the-project-over-a-public-tunnel)
+puts a `cloudflared` container on the network of the router. It sends the
+router the requests that reach a public `*.trycloudflare.com` URL, with the
+`Host` rewritten to the local domain.
+
+The router passes on the `X-Forwarded-*` headers of the requests that come from
+a private address, and does not replace them with its own. This is the
+`trusted_proxies static private_ranges` of its Caddyfile, and it is how the
+public host name reaches your application in `X-Forwarded-Host`. A request from
+your browser carries no such header, so the router still sets them itself.
+
+The tunnels are attached to the network of the router, so stopping or
+restarting the router closes every tunnel of every project first.
 
 ## Files and containers
 
