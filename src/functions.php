@@ -1502,13 +1502,7 @@ function collect_services(): array
 function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): void
 {
     $root = Path::canonicalize($c->workingDirectory);
-    $roots = [$root];
-
-    // A worktree mounts the shared home directory of the main checkout, which is
-    // outside of its own tree but still ours to create — and the same repository.
-    if (null !== get_worktree_name($c)) {
-        $roots[] = Path::canonicalize(get_main_checkout_directory($c));
-    }
+    $roots = get_project_mount_roots($c);
 
     foreach ($composeBuilder->getBindMountSources() as $source) {
         $path = Path::makeAbsolute($source, $root);
@@ -1529,6 +1523,80 @@ function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): v
             io()->warning(\sprintf('"%s" is not writable, the containers may fail to write in it. Take its ownership back with "sudo chown -R $(id -u):$(id -g) %s".', $path, $path));
         }
     }
+}
+
+/**
+ * The directories whose bind mounts belong to the project: its own tree, and
+ * for a worktree the main checkout too, whose shared home directory it mounts —
+ * outside of its own tree, but the same repository.
+ *
+ * @return list<string>
+ */
+function get_project_mount_roots(Context $c): array
+{
+    $roots = [Path::canonicalize($c->workingDirectory)];
+
+    if (null !== get_worktree_name($c)) {
+        $roots[] = Path::canonicalize(get_main_checkout_directory($c));
+    }
+
+    return $roots;
+}
+
+/**
+ * The host directories the project bind-mounts from its own tree, read back
+ * from the compose files — the shared home directory, the application
+ * directories, and whatever the project mounts itself.
+ *
+ * What lies outside of the project, the docker socket or any other system
+ * path, is left out: it is not the project's to own.
+ *
+ * @return list<string>
+ */
+function get_project_bind_mounts(?Context $c = null): array
+{
+    $c ??= context();
+    $root = Path::canonicalize($c->workingDirectory);
+    $roots = get_project_mount_roots($c);
+    $paths = [];
+
+    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
+        $path = $c->workingDirectory . '/' . $file;
+
+        if (!file_exists($path) || !($content = file_get_contents($path))) {
+            continue;
+        }
+
+        $compose = yaml_parse($content);
+
+        if (!\is_array($compose) || !\is_array($compose['services'] ?? null)) {
+            continue;
+        }
+
+        foreach ($compose['services'] as $service) {
+            foreach (\is_array($service) && \is_array($service['volumes'] ?? null) ? $service['volumes'] : [] as $volume) {
+                $source = match (true) {
+                    \is_string($volume) => explode(':', $volume)[0],
+                    \is_array($volume) && 'bind' === ($volume['type'] ?? null) => (string) ($volume['source'] ?? ''),
+                    default => '',
+                };
+
+                // A named volume is a bare name, a path starts with "/" or ".";
+                // a variable left to compose to interpolate is none of ours.
+                if (!preg_match('{^[/.]}', $source) || str_contains($source, '$')) {
+                    continue;
+                }
+
+                $source = Path::makeAbsolute($source, $root);
+
+                if (array_filter($roots, static fn(string $base): bool => Path::isBasePath($base, $source))) {
+                    $paths[$source] = true;
+                }
+            }
+        }
+    }
+
+    return array_keys($paths);
 }
 
 /**

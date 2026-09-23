@@ -155,6 +155,78 @@ they are recognised by name: the `<project>-<service>` images this plugin
 builds, and the images the project containers were started from — which is how
 a pulled image such as `redis:8` is attributed to the project too.
 
+### `castor docker:doctor`
+
+Looks for what keeps the project from working on this machine, and says how to
+fix each problem it finds. Alias: `castor doctor`.
+
+```bash
+castor docker:doctor
+```
+
+Run it before anything else when something goes wrong: most of the failures
+[troubleshooting](troubleshooting.md) describes are ones it detects — a daemon
+that does not answer, a port held by another program, a router that never joined
+the project network, a domain that does not resolve, a certificate the browser
+does not trust, a directory docker created as `root`. Each section of the report
+is a table, with the fix under what went wrong:
+
+```
+ --- ---------- ------------------------------------------------------
+      Check      Result
+ --- ---------- ------------------------------------------------------
+  ✔   Port 80    Held by the router.
+  ✘   Port 443   Held by nginx (pid 812): the router cannot bind it.
+                 → Stop nginx (pid 812).
+ --- ---------- ------------------------------------------------------
+```
+
+A `✘` is enough on its own to keep the project from working, and makes the task
+exit with a non-zero code. A `⚠` leaves it working, but not as it should: a
+certificate the browser warns about, a router running an older configuration
+than your project's. A `–` is a check that could not run, because what it needs is missing and
+reported elsewhere: without a Docker daemon, the daemon is what the report is
+about, not every check that needed it. So the task answers with nothing running,
+and with no daemon at all.
+
+**Docker.** Compose has to be 2.23.1 or later: 2.20 for the `include:` of your
+`compose.yaml`, 2.23.1 for the compose file of the router, which inlines its
+Caddyfile. Compose 2.40.2 and later build through Buildx and refuse one older
+than 0.17, so a missing Buildx breaks `docker:build` there — and `docker:push`
+everywhere. When the context sets a `registry`, the doctor also makes sure the
+builder can export the build cache `docker:push` pushes. It measures the disk the
+daemon writes to when the daemon runs on this machine; Docker Desktop and Colima
+keep theirs in a VM, out of reach.
+
+**Project.** Compose has to accept your compose files, which catches a mistake in
+`compose.override.yaml` before `docker:up` does. A container that keeps
+restarting, turned unhealthy or crashed is reported with the `docker:logs` to
+read. The containers run as `user_id`, which should own the project and every
+directory it mounts: otherwise they write files you cannot change, or cannot
+write at all.
+
+**Router.** It has to run when the project does, with a configuration at least
+as recent as the one of your project — see
+[keeping it up to date](services/router.md#keeping-it-up-to-date) — and to have
+joined the project network. It also has to watch
+the socket of the daemon your projects run on: the doctor compares it with the
+one docker talks to, since a router watching another daemon serves nothing
+without failing.
+
+**Ports.** 80 and 443, when the project routes a domain, and every host port it
+publishes: each one must be free, or held by the router or by the project itself.
+Otherwise the doctor names the container or the process holding it.
+
+**HTTPS and DNS.** mkcert has to be installed, its CA copied to the router and
+trusted by the system, and every domain [`docker:about`](#castor-dockerabout)
+lists has to resolve to this machine. Under WSL, the browser runs on Windows,
+which keeps a trust store and a hosts file of its own: the doctor asks Windows
+too, through `certutil.exe` and `powershell.exe`.
+
+**Worktree.** In a [worktree](going-further/worktrees.md), it lists what the
+checkout still shares with the other ones — a domain outside of its root domain,
+a host port — as `docker:about` does.
+
 ### `castor docker:destroy`
 
 Removes containers, volumes and networks of the project, and closes its public

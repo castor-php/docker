@@ -263,7 +263,7 @@ function get_worktree_conflicts(?Context $c = null): array
     $conflicts = [];
 
     foreach (get_project_domains($c) as $domain) {
-        if ($domain !== $scoped && !str_ends_with($domain, '.' . $scoped)) {
+        if (!is_worktree_domain($domain, $c)) {
             $conflicts[] = \sprintf('the domain "%s", which is not under "%s": the router hands it to whichever container it sees first', $domain, $scoped);
         }
     }
@@ -273,6 +273,24 @@ function get_worktree_conflicts(?Context $c = null): array
     }
 
     return $conflicts;
+}
+
+/**
+ * Whether a domain is this checkout's own: its root domain, or a subdomain of
+ * it. Every domain is, in the main checkout.
+ */
+function is_worktree_domain(string $domain, ?Context $c = null): bool
+{
+    $c ??= context();
+    $worktree = get_worktree_name($c);
+
+    if (null === $worktree) {
+        return true;
+    }
+
+    $scoped = worktree_root_domain($worktree, get_worktree_base_domain($c));
+
+    return $domain === $scoped || str_ends_with($domain, '.' . $scoped);
 }
 
 /**

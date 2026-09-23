@@ -49,6 +49,10 @@
 * `RabbitMQService::withVersion()`.
 * `healthcheck()` takes a `startPeriod`.
 * Healthchecks for ClickHouse, its keeper, RedisInsight and Kibana.
+* `castor docker:doctor` diagnoses the environment — Docker, project, router,
+  ports, HTTPS, DNS, worktree — and says how to fix each problem. Works without
+  a daemon, exits non-zero on error. See
+  [`docker:doctor`](doc/tasks.md#castor-dockerdoctor).
 
 ### Changed
 

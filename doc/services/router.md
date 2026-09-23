@@ -215,7 +215,9 @@ DOCKER_SOCKET_PATH=/run/user/1000/docker.sock castor docker:router:enable
 Watching the wrong daemon is silent: the router comes up, finds no label to
 build a route from, and serves nothing — every domain then answers "connection
 refused" on 443. `docker:router:enable` warns when the socket does not exist at
-all.
+all, and [`docker:doctor`](../tasks.md#castor-dockerdoctor) goes further: it
+compares the socket with the one docker talks to, and with the one the running
+router was enabled on.
 
 ## Certificates
 
