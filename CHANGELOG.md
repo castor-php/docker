@@ -156,11 +156,6 @@ Pin the old version with `withVersion()` or remove the volume
   of letting docker fail, and keeps the request so the forwarder comes back on
   the next `docker:up` once the port is free.
 
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
-
 ### Upgrading
 
 * The exposed services are now remembered under a key scoped to the checkout,
@@ -202,11 +197,6 @@ Pin the old version with `withVersion()` or remove the volume
   were mounting — so with the default version, which is 18, the database lived
   in the container layer and was lost on every recreate. Services pinned to 17
   or below keep the old path.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 
@@ -286,11 +276,6 @@ Pin the old version with `withVersion()` or remove the volume
   `builder_php_configuration`. The NodeSource key is used armoured, so the
   builder installs no gnupg.
 
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
-
 ### Upgrading
 
 * Every container of a `PhpMode::FrankenPhp` application rebuilds on
@@ -362,11 +347,6 @@ Pin the old version with `withVersion()` or remove the volume
 
 * The quality assurance page no longer says composer resolves the tools against
   the PHP running castor; it stopped in 0.3.5.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 
@@ -609,11 +589,6 @@ Four things change under a project that did nothing:
 * `CaddyRouterService` and the `router` compose profile.
 * `router:enable` and `router:disable`, renamed `docker:router:enable` and
   `docker:router:disable`.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 
