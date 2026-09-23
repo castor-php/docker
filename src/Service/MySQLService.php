@@ -30,7 +30,7 @@ class MySQLService implements DatabaseServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '8.0.46';
+        return '9.7.2';
     }
 
     public function withRootPassword(string $password): static
@@ -63,7 +63,8 @@ class MySQLService implements DatabaseServiceInterface
                 ->environment('MYSQL_ROOT_PASSWORD', $this->rootPassword)
                 ->environment('MYSQL_DATABASE', $this->database)
                 ->volume($name . '-data', '/var/lib/mysql')
-                ->healthcheck('mysqladmin ping -h localhost')
+                // TCP only: ignores the socket-only init server.
+                ->healthcheck('mysqladmin ping -h 127.0.0.1 --silent', startPeriod: '2m')
                 ->profile('default')
         ;
 
@@ -95,7 +96,10 @@ class MySQLService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database;
+        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database . '?' . http_build_query(array_filter([
+            'serverVersion' => $this->getVersionNumber(),
+            'charset' => 'utf8mb4',
+        ]));
     }
 
     public function hasHealthCheck(): bool

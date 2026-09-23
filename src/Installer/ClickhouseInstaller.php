@@ -23,7 +23,7 @@ final class ClickhouseInstaller extends AbstractServiceInstaller
     public function getInputs(): array
     {
         return [
-            new Input('version', 'ClickHouse version', InputType::Text, '25.8'),
+            new Input('version', 'ClickHouse version', InputType::Text, (new ClickhouseService())->getVersion()),
         ];
     }
 

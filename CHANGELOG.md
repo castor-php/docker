@@ -46,6 +46,9 @@
 * `ServiceBuilder::withHttpRouting()` can be called more than once: each call
   serves another port of the container on other domains, as a site of its own.
   `ServiceBuilder::entrypoint()` replaces the entrypoint of the image.
+* `RabbitMQService::withVersion()`.
+* `healthcheck()` takes a `startPeriod`.
+* Healthchecks for ClickHouse, its keeper, RedisInsight and Kibana.
 
 ### Changed
 
@@ -60,6 +63,21 @@
   plugin, since a running router is never restarted behind your back.
   `castor docker:router:status` tells which version it comes from. An upgrade
   of the plugin that leaves the router as it was asks for nothing.
+* Default versions: Redis 8.10, Elasticsearch/Kibana 9.5.3, RabbitMQ 4.3, MySQL
+  9.7.2, ClickHouse 26.8. Installers use the service defaults.
+* Elasticsearch: security off, 512 MB heap, disk watermarks off.
+* MySQL `DATABASE_URL` has `serverVersion` and `charset=utf8mb4`.
+* RedisInsight image is `redis/redisinsight`.
+
+### Fixed
+
+* `DATABASE_URL` `serverVersion` follows `withVersion()` (Postgres said 16), and
+  is omitted for `latest`-like tags or incomplete MariaDB versions.
+* RedisInsight data volume moved from `/db` to `/data`: connections were lost.
+* RabbitMQ node name is fixed: queues were lost on recreate.
+* Kibana of a renamed Elasticsearch connects to it.
+* Postgres, MySQL and MariaDB healthchecks use TCP with a start period: they
+  passed on the init server, and MySQL 9.7 turned unhealthy on first boot.
 
 ### Deprecated
 
@@ -68,6 +86,17 @@
 
 ### Upgrading
 
+Pin the old version with `withVersion()` or remove the volume
+(`castor docker:destroy`, or `docker volume rm <project>_<volume>`).
+
+* Redis 5 → 8.10: nothing to do.
+* Elasticsearch 7 → 9: data unreadable. Pin `7.8.0` or remove the volume.
+* MySQL 8.0 → 9.7: refused. Run once with `withVersion('8.4')`, then drop the
+  pin. Or pin `8.0.46`, or remove the volume.
+* RabbitMQ: starts an empty node (new name). Drain messages first. With your
+  own node name, run `rabbitmqctl enable_feature_flag all` before upgrading.
+* ClickHouse 25.8 → 26.8: nothing to do.
+* RedisInsight: add your databases again.
 * A FrankenPHP application linked to a Mercure hub it serves itself needs a
   `castor docker:build`: the hub is a directive of the Caddyfile baked into its
   image, like the worker mode.
@@ -127,11 +156,6 @@
   of letting docker fail, and keeps the request so the forwarder comes back on
   the next `docker:up` once the port is free.
 
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
-
 ### Upgrading
 
 * The exposed services are now remembered under a key scoped to the checkout,
@@ -173,11 +197,6 @@
   were mounting — so with the default version, which is 18, the database lived
   in the container layer and was lost on every recreate. Services pinned to 17
   or below keep the old path.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 
@@ -257,11 +276,6 @@
   `builder_php_configuration`. The NodeSource key is used armoured, so the
   builder installs no gnupg.
 
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
-
 ### Upgrading
 
 * Every container of a `PhpMode::FrankenPhp` application rebuilds on
@@ -333,11 +347,6 @@
 
 * The quality assurance page no longer says composer resolves the tools against
   the PHP running castor; it stopped in 0.3.5.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 
@@ -580,11 +589,6 @@ Four things change under a project that did nothing:
 * `CaddyRouterService` and the `router` compose profile.
 * `router:enable` and `router:disable`, renamed `docker:router:enable` and
   `docker:router:disable`.
-
-### Deprecated
-
-* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
-  `link()`.
 
 ### Upgrading
 

@@ -20,7 +20,7 @@ class ElasticsearchService implements ServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '7.8.0';
+        return '9.5.3';
     }
 
     protected function getDefaultName(): string
@@ -51,14 +51,23 @@ class ElasticsearchService implements ServiceInterface
                 ->image('elasticsearch:' . $this->getVersion())
                 ->volume($name . '-data', '/usr/share/elasticsearch/data')
                 ->environment('discovery.type', 'single-node')
+                // Plain HTTP, no credentials: dev only.
+                ->environment('xpack.security.enabled', 'false')
+                // Otherwise sized from the host memory.
+                ->environment('ES_JAVA_OPTS', '-Xms512m -Xmx512m')
+                // A nearly full disk would turn indices read-only.
+                ->environment('cluster.routing.allocation.disk.threshold_enabled', 'false')
                 ->withHttpRouting("{$name}.{$rootDomain}", 9200)
-                ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'])
+                ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:9200/_cat/health || exit 1'], startPeriod: '2m')
                 ->profile('default')
             ->end()
             ->service($kibana)
                 ->image('kibana:' . $this->getVersion())
+                // The image defaults to "elasticsearch".
+                ->environment('ELASTICSEARCH_HOSTS', "http://{$name}:9200")
                 ->dependsOn($name, ['condition' => 'service_healthy'])
                 ->withHttpRouting("{$kibana}.{$rootDomain}", 5601)
+                ->healthcheck(['CMD-SHELL', 'curl --fail http://localhost:5601/api/status || exit 1'], startPeriod: '3m')
                 ->profile('default')
             ->end()
         ;

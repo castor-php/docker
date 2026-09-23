@@ -40,9 +40,9 @@ class PostgresService implements DatabaseServiceInterface
      */
     protected function getDataDirectory(): string
     {
-        $isBefore18 = preg_match('/^(\d+)/', $this->getVersion(), $matches) && (int) $matches[1] < 18;
+        $version = $this->getVersionNumber();
 
-        return $isBefore18 ? '/var/lib/postgresql/data' : '/var/lib/postgresql';
+        return null !== $version && (int) $version < 18 ? '/var/lib/postgresql/data' : '/var/lib/postgresql';
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
@@ -56,7 +56,8 @@ class PostgresService implements DatabaseServiceInterface
                 ->environment('POSTGRES_USER', 'app')
                 ->environment('POSTGRES_PASSWORD', 'app')
                 ->volume($name . '_data', $this->getDataDirectory())
-                ->healthcheck(['CMD-SHELL', 'pg_isready -U app'])
+                // TCP only: ignores the socket-only init server.
+                ->healthcheck(['CMD-SHELL', 'pg_isready -U app -h 127.0.0.1'], startPeriod: '2m')
                 ->profile('default')
             ->end()
         ;
@@ -85,7 +86,10 @@ class PostgresService implements DatabaseServiceInterface
 
     public function getDatabaseURL(): string
     {
-        return 'postgresql://app:app@' . $this->getName() . ':5432/app?serverVersion=16&charset=utf8';
+        return 'postgresql://app:app@' . $this->getName() . ':5432/app?' . http_build_query(array_filter([
+            'serverVersion' => $this->getVersionNumber(),
+            'charset' => 'utf8',
+        ]));
     }
 
     public function hasHealthCheck(): bool

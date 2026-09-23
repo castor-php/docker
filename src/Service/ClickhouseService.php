@@ -28,7 +28,7 @@ class ClickhouseService implements ServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '25.8';
+        return '26.8';
     }
 
     public function withBackup(bool $backup = true): static
@@ -92,6 +92,7 @@ class ClickhouseService implements ServiceInterface
                 ->environment('CLICKHOUSE_PASSWORD', $this->password)
                 ->environment('CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT', '1')
                 ->environment('CLICKHOUSE_KEEPER_HOST', $keeper)
+                ->healthcheck(['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1:8123/ping'], startPeriod: '1m')
                 ->profile('default')
             ->end()
             ->service($keeper)
@@ -100,6 +101,8 @@ class ClickhouseService implements ServiceInterface
                     ->dockerfile('Dockerfile.keeper')
                     ->arg('clickhouse_version', $this->getVersion())
                 ->end()
+                // No HTTP client in this image.
+                ->healthcheck(['CMD', 'clickhouse-keeper-client', '--host', '127.0.0.1', '--port', '9181', '--query', 'ruok'], startPeriod: '1m')
                 ->profile('default')
             ->end()
         ;

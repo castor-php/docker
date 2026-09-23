@@ -23,7 +23,7 @@ final class MySQLInstaller extends AbstractServiceInstaller implements DatabaseS
     public function getInputs(): array
     {
         return [
-            new Input('version', 'MySQL version', InputType::Text, '8'),
+            new Input('version', 'MySQL version', InputType::Text, (new MySQLService())->getVersion()),
         ];
     }
 

@@ -158,9 +158,11 @@ final class ServiceBuilder
     }
 
     /**
+     * Failures during the start period do not count.
+     *
      * @param array<string>|string $command
      */
-    public function healthcheck(array|string $command, string $interval = '5s', string $timeout = '5s', int $retries = 5): self
+    public function healthcheck(array|string $command, string $interval = '5s', string $timeout = '5s', int $retries = 5, ?string $startPeriod = null): self
     {
         $this->healthcheck = [
             'test' => $command,
@@ -168,6 +170,10 @@ final class ServiceBuilder
             'timeout' => $timeout,
             'retries' => $retries,
         ];
+
+        if (null !== $startPeriod) {
+            $this->healthcheck['start_period'] = $startPeriod;
+        }
 
         return $this;
     }

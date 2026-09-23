@@ -23,7 +23,7 @@ final class ElasticsearchInstaller extends AbstractServiceInstaller
     public function getInputs(): array
     {
         return [
-            new Input('version', 'Elasticsearch version', InputType::Text, '7.8.0'),
+            new Input('version', 'Elasticsearch version', InputType::Text, (new ElasticsearchService())->getVersion()),
         ];
     }
 

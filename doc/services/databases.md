@@ -22,22 +22,26 @@ $event->addService(
 Each of them also exposes a `{name}:expose` task to reach the server from the
 host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tcp).
 
+`serverVersion` follows `withVersion()` (`16-alpine` gives `16`). It is omitted
+for a tag without a version (`latest`), or an incomplete MariaDB one (`11.8`),
+which Doctrine rejects: Doctrine then asks the server.
+
 ## PostgresService
 
 ```php
 (new PostgresService())
-    ->withVersion('16')             // PostgreSQL version (default: 16)
+    ->withVersion('18.4')           // PostgreSQL version (default: 18.4)
 ```
 
 * **Task:** `castor postgres:client` — a psql session
 * **Containers:** `postgres`, named volume `postgres_data`
-* **Database URL:** `postgresql://app:app@postgres:5432/app?serverVersion=16&charset=utf8`
+* **Database URL:** `postgresql://app:app@postgres:5432/app?serverVersion=18.4&charset=utf8`
 
 ## MySQLService
 
 ```php
 (new MySQLService())
-    ->withVersion('8')              // MySQL version (default: 8)
+    ->withVersion('9.7.2')          // MySQL version (default: 9.7.2)
     ->withRootPassword('root')      // Root password (default: root)
     ->withDatabase('app')           // Database name (default: app)
 ```
@@ -45,13 +49,13 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 * **Configuration:** [`withSetting()` and friends](#configuring-the-mysql-and-mariadb-servers)
 * **Task:** `castor mysql:client` — a mysql session
 * **Containers:** `mysql`, named volume `mysql-data`
-* **Database URL:** `mysql://root:root@mysql:3306/app`
+* **Database URL:** `mysql://root:root@mysql:3306/app?serverVersion=9.7.2&charset=utf8mb4`
 
 ## MariaDBService
 
 ```php
 (new MariaDBService())
-    ->withVersion('12.1')           // MariaDB version (default: 12.1)
+    ->withVersion('12.3.2')         // MariaDB version (default: 12.3.2)
     ->withRootPassword('root')      // Root password (default: root)
     ->withDatabase('app')           // Database name (default: app)
 ```
@@ -59,13 +63,13 @@ host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tc
 * **Configuration:** [`withSetting()` and friends](#configuring-the-mysql-and-mariadb-servers)
 * **Task:** `castor mariadb:client` — a mariadb session
 * **Containers:** `mariadb`, named volume `mariadb-data`
-* **Database URL:** `mysql://root:root@mariadb:3306/app?serverVersion=mariadb-12.1&charset=utf8mb4`
+* **Database URL:** `mysql://root:root@mariadb:3306/app?serverVersion=mariadb-12.3.2&charset=utf8mb4`
 
 ## ClickhouseService
 
 ```php
 (new ClickhouseService())
-    ->withVersion('25.8')           // ClickHouse version (default: 25.8)
+    ->withVersion('26.8')           // ClickHouse version (default: 26.8)
     ->withDatabase('app')           // Database name (default: app)
     ->withCredentials('app', 'app') // User and password (default: app / app)
     ->withBackup()                  // Install Altinity clickhouse-backup in the image

@@ -20,7 +20,7 @@ class RedisService implements ServiceInterface
 
     protected function getDefaultVersion(): string
     {
-        return '5';
+        return '8.10';
     }
 
     protected function getDefaultName(): string
@@ -52,9 +52,10 @@ class RedisService implements ServiceInterface
                 ->profile('default')
             ->end()
             ->service($insight)
-                ->image('redislabs/redisinsight')
-                ->volume($insight . '-data', '/db')
+                ->image('redis/redisinsight')
+                ->volume($insight . '-data', '/data')
                 ->withHttpRouting("{$name}.{$rootDomain}", 5540)
+                ->healthcheck(['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1:5540/api/health'], startPeriod: '1m')
                 ->profile('default')
             ->end()
         ;
