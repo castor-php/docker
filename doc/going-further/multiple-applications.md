@@ -21,7 +21,7 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(
         (new SymfonyService('app1'))
             ->withDirectory(__DIR__ . '/app1')
-            ->withDatabaseService($postgresService)
+            ->link($postgresService)
             ->withDomain('app1.project.test', 'project.test')
     );
 
@@ -29,7 +29,7 @@ function register_service(RegisterServiceEvent $event)
         (new SymfonyService('app2'))
             ->withDirectory(__DIR__ . '/app2')
             ->withVersion('8.2')
-            ->withDatabaseService($mysqlService)
+            ->link($mysqlService)
             ->withDomain('app2.project.test')
     );
 }

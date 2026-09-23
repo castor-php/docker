@@ -83,7 +83,7 @@ function register_service(RegisterServiceEvent $event): void
             ->withWorkingDirectory('application')  // where the application lives
             ->withVersion('8.5')
             ->withMode(PhpMode::Fpm)
-            ->withDatabaseService($postgres)
+            ->link($postgres)
             ->withDomain('app.test', 'www.app.test')
             ->addWorker('messenger', 'php -d memory_limit=1G bin/console messenger:consume async --memory-limit=128M')
     );
@@ -103,7 +103,7 @@ A few things map differently:
 * **The PHP extensions move out of the Dockerfile** and into `addExtension()`.
   `apcu`, `bcmath`, `curl`, `iconv`, `intl`, `mbstring`, `pgsql`, `uuid`, `xml`
   and `zip` are already there.
-* **`DATABASE_URL` is injected** by `withDatabaseService()`, so the `sed` on
+* **`DATABASE_URL` is injected** by `link()`, so the `sed` on
   `.env` docker-starter does at install time has nothing left to do. The URL is
   the same one: `postgresql://app:app@postgres:5432/app`.
 

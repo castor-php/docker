@@ -17,8 +17,7 @@
   `MAILER_DSN`, `MEILISEARCH_URL`… — and reach every container of the
   application, its builder and its workers included. Every application service
   links, not only the PHP ones: a Go, Rust or Node.js application gets its
-  database the same way. `withDatabaseService()` and `withMailerService()` are
-  `link()` under the names they always had. A service of your own becomes
+  database the same way. A service of your own becomes
   linkable by implementing `LinkableServiceInterface`. See [linking
   services](services/index.md#linking-services).
 * `MeilisearchService`, with its search preview dashboard on
@@ -61,6 +60,11 @@
   plugin, since a running router is never restarted behind your back.
   `castor docker:router:status` tells which version it comes from. An upgrade
   of the plugin that leaves the router as it was asks for nothing.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 
@@ -123,6 +127,11 @@
   of letting docker fail, and keeps the request so the forwarder comes back on
   the next `docker:up` once the port is free.
 
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
+
 ### Upgrading
 
 * The exposed services are now remembered under a key scoped to the checkout,
@@ -164,6 +173,11 @@
   were mounting — so with the default version, which is 18, the database lived
   in the container layer and was lost on every recreate. Services pinned to 17
   or below keep the old path.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 
@@ -243,6 +257,11 @@
   `builder_php_configuration`. The NodeSource key is used armoured, so the
   builder installs no gnupg.
 
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
+
 ### Upgrading
 
 * Every container of a `PhpMode::FrankenPhp` application rebuilds on
@@ -314,6 +333,11 @@
 
 * The quality assurance page no longer says composer resolves the tools against
   the PHP running castor; it stopped in 0.3.5.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 
@@ -556,6 +580,11 @@ Four things change under a project that did nothing:
 * `CaddyRouterService` and the `router` compose profile.
 * `router:enable` and `router:disable`, renamed `docker:router:enable` and
   `docker:router:disable`.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 

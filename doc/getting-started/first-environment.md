@@ -39,7 +39,7 @@ function register_service(RegisterServiceEvent $event)
     $event->addService(
         (new SymfonyService('app'))
             ->withDirectory(__DIR__)
-            ->withDatabaseService($postgresService)
+            ->link($postgresService)
             ->withDomain('myproject.test')
             ->withHttpAccess()
     );

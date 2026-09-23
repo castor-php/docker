@@ -31,7 +31,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
 database, a mail catcher, a search engine, an object storage — in the
 application, its builder and its workers alike; see [linking
 services](index.md#linking-services). `withDatabaseService()` and
-`withMailerService()` still work, they are `link()` under another name. A
+`withMailerService()` are deprecated, and removed in 1.0: use `link()`. A
 FrankenPHP application linked to a Mercure hub nobody else links to [serves it
 itself](mercure.md#where-the-hub-runs).
 

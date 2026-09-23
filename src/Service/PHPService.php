@@ -394,11 +394,14 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Link the database of the application: link() under the name it has
-     * always had, which replaces the previous database instead of adding one.
+     * Link the database of the application, replacing the previous one.
+     *
+     * @deprecated since 0.8, removed in 1.0: use link() instead
      */
     public function withDatabaseService(DatabaseServiceInterface $databaseService): static
     {
+        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
+
         if ($this->databaseService) {
             $this->unlink($this->databaseService);
         }
@@ -409,10 +412,14 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Link the mail catcher of the application, see withDatabaseService().
+     * Link the mail catcher of the application, replacing the previous one.
+     *
+     * @deprecated since 0.8, removed in 1.0: use link() instead
      */
     public function withMailerService(MailpitService $mailerService): static
     {
+        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
+
         if ($this->mailerService) {
             $this->unlink($this->mailerService);
         }

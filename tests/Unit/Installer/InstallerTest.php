@@ -65,7 +65,7 @@ final class InstallerTest extends TestCase
         static::assertStringContainsString('use Castor\Docker\Service\PhpMode;', $result);
         static::assertStringContainsString('use Castor\Docker\Service\SymfonyService;', $result);
         static::assertStringContainsString(
-            "\$event->addService((new SymfonyService('blog'))->withDirectory(__DIR__ . '/blog')->withVersion('8.4')->withMode(PhpMode::FrankenPhp)->withDomain('blog.test')->withDatabaseService(\$postgres));",
+            "\$event->addService((new SymfonyService('blog'))->withDirectory(__DIR__ . '/blog')->withVersion('8.4')->withMode(PhpMode::FrankenPhp)->withDomain('blog.test')->link(\$postgres));",
             $result,
         );
     }

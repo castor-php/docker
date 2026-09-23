@@ -6,7 +6,7 @@ description: PostgreSQL, MySQL, MariaDB and ClickHouse services.
 # Databases
 
 Every database service implements `DatabaseServiceInterface`, so it can be
-handed to an application with `->withDatabaseService()`. The application then
+[linked](index.md#linking-services) to an application. The application then
 gets a `DATABASE_URL` environment variable and waits for the database to be
 healthy before starting:
 
@@ -15,13 +15,9 @@ $postgres = new PostgresService();
 $event->addService($postgres);
 
 $event->addService(
-    (new SymfonyService('app'))->withDirectory(__DIR__)->withDatabaseService($postgres)
+    (new SymfonyService('app'))->withDirectory(__DIR__)->link($postgres)
 );
 ```
-
-`withDatabaseService()` is a [link](index.md#linking-services) that replaces
-the previous database: `->link($postgres)` does the same, and is what a Go,
-Rust or Node.js application uses.
 
 Each of them also exposes a `{name}:expose` task to reach the server from the
 host with a native client — see [tasks](../tasks.md#exposing-a-service-over-tcp).
@@ -148,7 +144,7 @@ $analytics = (new PostgresService())->withName('analytics');
 $event->addService($main);
 $event->addService($analytics);
 
-$event->addService((new SymfonyService('app'))->withDatabaseService($analytics));
+$event->addService((new SymfonyService('app'))->link($analytics));
 ```
 
 The container, the named volume (`analytics_data`), the connection string

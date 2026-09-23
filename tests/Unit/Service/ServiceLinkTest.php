@@ -15,6 +15,7 @@ use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RustFSService;
 use Castor\Docker\Service\ServiceInterface;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 
 final class ServiceLinkTest extends TestCase
@@ -49,11 +50,15 @@ final class ServiceLinkTest extends TestCase
     }
 
     /**
-     * The historical methods are link() under another name, and still replace
-     * the previous database instead of adding a second one.
+     * The deprecated methods still replace the previous database instead of
+     * adding a second one, until they are removed in 1.0.
      */
+    #[IgnoreDeprecations]
     public function testWithDatabaseServiceReplacesThePreviousOne(): void
     {
+        $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withDatabaseService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
+        $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withMailerService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
+
         $app = (new PHPService('app'))
             ->withDirectory('/project/app')
             ->withDatabaseService(new PostgresService())

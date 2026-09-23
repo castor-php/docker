@@ -87,7 +87,7 @@ the variables it hands over.
 
 Every application service links: `PHPService`, `SymfonyService`, `GoService`,
 `RustService`, `NodeService` and `BinaryRunService`. `withDatabaseService()` and
-`withMailerService()` are the same thing under the names they always had.
+`withMailerService()` are deprecated, and removed in 1.0: use `link()`.
 
 Compose has nothing of the sort. Its old `links` exported variables like
 `DB_PORT_5432_TCP_ADDR` that no library reads, and its provider services prefix

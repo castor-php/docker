@@ -96,9 +96,8 @@ The dashboard asks for a key, kept in the tab only: paste the master key.
 ## MailpitService
 
 An SMTP server that catches every mail your application sends and shows it in a
-web UI. [Link](index.md#linking-services) it to an application — or call
-`->withMailerService()`, the same thing — and the application gets a
-`MAILER_DSN` pointing at it:
+web UI. [Link](index.md#linking-services) it to an application and the
+application gets a `MAILER_DSN` pointing at it:
 
 ```php
 $mailpit = new MailpitService();

@@ -403,7 +403,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $php = (new PHPService('app'))
             ->withDirectory('/project/app')
             ->withVersion('8.4')
-            ->withDatabaseService($postgres)
+            ->link($postgres)
             ->withDomain('app.demo.test', 'demo.test')
             ->withHttpAccess()
             ->addWorker('messenger', 'php bin/console messenger:consume async')
@@ -421,7 +421,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
             $mailer,
             (new PHPService('app'))
                 ->withDirectory('/project/app')
-                ->withMailerService($mailer)
+                ->link($mailer)
                 ->addWorker('messenger', 'php bin/console messenger:consume async'),
         );
 
@@ -436,7 +436,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
 
         $symfony = (new SymfonyService('app'))
             ->withDirectory('/project/app')
-            ->withDatabaseService($mysql)
+            ->link($mysql)
             ->withDomain('app.demo.test')
         ;
 
