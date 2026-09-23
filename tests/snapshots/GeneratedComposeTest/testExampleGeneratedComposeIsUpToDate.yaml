@@ -261,7 +261,7 @@ services:
         working_dir: /var/www/app1
         user: '%UID%'
         environment:
-            MERCURE_CORS_ORIGINS: 'https://app1.project.test http://app1.project.test https://project.test http://project.test https://localhost http://localhost'
+            MERCURE_CORS_ORIGINS: 'https://app1.project.test http://app1.project.test https://project.test http://project.test'
             DATABASE_URL: 'postgresql://app:app@postgres:5432/app?serverVersion=18.4&charset=utf8'
             MERCURE_URL: 'http://app1/.well-known/mercure'
             MERCURE_PUBLIC_URL: 'https://app1.project.test/.well-known/mercure'
@@ -290,11 +290,11 @@ services:
             - '%PACKAGE%/example:/var/www:cached'
             - '.home:/home/app:cached'
         labels:
-            - 'caddy=app1.project.test project.test localhost'
+            - 'caddy=app1.project.test project.test'
             - 'caddy.reverse_proxy={{upstreams 80}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
-            - 'caddy_1=http://app1.project.test http://project.test http://localhost'
+            - 'caddy_1=http://app1.project.test http://project.test'
             - 'caddy_1.reverse_proxy={{upstreams 80}}'
         profiles:
             - default

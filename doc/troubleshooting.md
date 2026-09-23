@@ -5,6 +5,16 @@ description: Common problems and how to get out of them.
 
 # Troubleshooting
 
+Start with the doctor:
+
+```bash
+castor docker:doctor
+```
+
+It looks for most of the problems below on your machine — and for a few more —
+and says how to fix each one it finds. What it cannot see, the rest of this page
+is for. See [`docker:doctor`](tasks.md#castor-dockerdoctor).
+
 ## Port conflicts
 
 If ports 80 or 443 are already in use, stop the conflicting service. The router

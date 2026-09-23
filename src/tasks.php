@@ -9,13 +9,17 @@ use Castor\Attribute\AsOption;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Console\Output\VerbosityLevel;
+use Castor\Docker\Doctor\Doctor;
+use Castor\Docker\Doctor\HostSystemProbe;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
 use Castor\Docker\Installer\InstallerOptions;
 use Castor\Docker\Installer\ListenerEditor;
 use Castor\Docker\Installer\NeedsDatabase;
 use Castor\Docker\Service\ServiceInterface;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Terminal;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
 
@@ -450,6 +454,73 @@ function stats(
             ),
         );
     }
+}
+
+/**
+ * Diagnose what stands between the project and a working environment, and say
+ * how to fix each problem found.
+ *
+ * Nothing has to run for it to answer: without a Docker daemon, the daemon is
+ * what gets reported, and the checks needing it are skipped.
+ */
+#[AsTask(description: 'Diagnoses the environment and says how to fix what is wrong', aliases: ['doctor'], namespace: 'docker')]
+function doctor(): int
+{
+    $c = context();
+
+    io()->title(\sprintf('Diagnosing "%s"', get_project_name($c)));
+
+    $counts = ['error' => 0, 'warning' => 0];
+    // The result column takes what the icon and the label leave of the
+    // terminal, so a long fix wraps inside its cell instead of across the table.
+    $width = max(40, (new Terminal())->getWidth() - 26);
+
+    foreach ((new Doctor($c, new HostSystemProbe($c)))->run() as $section => $checks) {
+        io()->section($section);
+
+        $rows = [];
+
+        foreach ($checks as $check) {
+            $counts[$check->status->value] = ($counts[$check->status->value] ?? 0) + 1;
+            // Escaped: a fix reading "castor <service>:expose" holds no style.
+            $rows[] = [
+                $check->status->symbol(),
+                $check->label,
+                OutputFormatter::escape($check->result) . (null !== $check->fix ? "\n<fg=cyan>→ " . OutputFormatter::escape($check->fix) . '</>' : ''),
+            ];
+        }
+
+        io()->createTable()
+            ->setHeaders(['', 'Check', 'Result'])
+            ->setRows($rows)
+            ->setColumnMaxWidth(2, $width)
+            ->render();
+        io()->newLine();
+    }
+
+    $summary = \sprintf(
+        '%d error%s, %d warning%s.',
+        $counts['error'],
+        1 === $counts['error'] ? '' : 's',
+        $counts['warning'],
+        1 === $counts['warning'] ? '' : 's',
+    );
+
+    if ($counts['error']) {
+        io()->error($summary . ' Fix the errors first: each of them is enough to keep the project from working.');
+
+        return 1;
+    }
+
+    if ($counts['warning']) {
+        io()->warning($summary . ' The project can work, but not everything will.');
+
+        return 0;
+    }
+
+    io()->success('Nothing to fix.');
+
+    return 0;
 }
 
 /**

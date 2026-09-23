@@ -399,6 +399,33 @@ function is_router_running(): bool
 }
 
 /**
+ * The router container as it runs: the version of the plugin that created it
+ * and the checksum of its configuration (see compare_router_configuration()),
+ * the Docker socket it watches, and the networks it joined. Null when it is not
+ * running.
+ *
+ * @return array{version: ?string, checksum: ?string, socket: ?string, networks: list<string>}|null
+ */
+function get_running_router(): ?array
+{
+    if (!is_router_running()) {
+        return null;
+    }
+
+    $socket = trim(capture(
+        ['docker', 'inspect', '--format', '{{range .Mounts}}{{if eq .Destination "/var/run/docker.sock"}}{{.Source}}{{end}}{{end}}', get_router_name()],
+        context: context()->withQuiet()->withAllowFailure(),
+        onFailure: '',
+    ));
+
+    return [
+        ...get_router_container_labels(),
+        'socket' => '' === $socket ? null : $socket,
+        'networks' => get_router_networks(),
+    ];
+}
+
+/**
  * The projects the router is currently serving: the ones with a running
  * container carrying a "caddy" label.
  *
