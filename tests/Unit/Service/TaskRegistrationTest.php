@@ -92,10 +92,10 @@ final class TaskRegistrationTest extends TestCase
 
     public function testDatabaseServicesTasks(): void
     {
-        static::assertSame(['postgres:client', 'postgres:expose'], $this->taskNames(new PostgresService()));
-        static::assertSame(['mysql:client', 'mysql:expose'], $this->taskNames(new MySQLService()));
-        static::assertSame(['mariadb:client', 'mariadb:expose'], $this->taskNames(new MariaDBService()));
-        static::assertSame(['clickhouse:client', 'clickhouse:expose'], $this->taskNames(new ClickhouseService()));
+        static::assertSame(['postgres:client', 'postgres:expose', 'postgres:dump', 'postgres:restore'], $this->taskNames(new PostgresService()));
+        static::assertSame(['mysql:client', 'mysql:expose', 'mysql:dump', 'mysql:restore'], $this->taskNames(new MySQLService()));
+        static::assertSame(['mariadb:client', 'mariadb:expose', 'mariadb:dump', 'mariadb:restore'], $this->taskNames(new MariaDBService()));
+        static::assertSame(['clickhouse:client', 'clickhouse:expose', 'clickhouse:dump', 'clickhouse:restore'], $this->taskNames(new ClickhouseService()));
     }
 
     /**
@@ -105,11 +105,11 @@ final class TaskRegistrationTest extends TestCase
     public function testRenamedDatabaseServicesTasks(): void
     {
         static::assertSame(
-            ['analytics:client', 'analytics:expose'],
+            ['analytics:client', 'analytics:expose', 'analytics:dump', 'analytics:restore'],
             $this->taskNames((new PostgresService())->withName('analytics')),
         );
         static::assertSame(
-            ['reporting:client', 'reporting:expose'],
+            ['reporting:client', 'reporting:expose', 'reporting:dump', 'reporting:restore'],
             $this->taskNames((new MySQLService())->withName('reporting')),
         );
     }

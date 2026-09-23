@@ -17,7 +17,8 @@
             "src/router.php",
             "src/tasks.php",
             "src/tunnel.php",
-            "src/worktree.php"
+            "src/worktree.php",
+            "src/database.php"
         ]
     },
     "autoload-dev": {

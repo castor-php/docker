@@ -956,7 +956,7 @@ function capture_git(array $command): ?string
  * The compose services of the project, fully resolved, whatever profile they
  * belong to.
  *
- * @return array<string, array{build?: array{cache_from?: list<string>}}>
+ * @return array<string, array{build?: array{cache_from?: list<string>}, depends_on?: array<string, mixed>}>
  */
 function get_services(): array
 {

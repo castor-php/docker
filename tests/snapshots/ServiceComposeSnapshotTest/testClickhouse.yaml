@@ -33,6 +33,10 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        configs:
+            -
+                source: clickhouse-backups
+                target: /etc/clickhouse-server/config.d/castor-backups.xml
     clickhouse-keeper:
         build:
             context: '%PACKAGE%/src/Service/../Resources/clickhouse'
@@ -58,3 +62,11 @@ services:
             - default
 volumes:
     clickhouse-data: {}
+configs:
+    clickhouse-backups:
+        content: |-
+            <clickhouse>
+                <backups>
+                    <allowed_path>/var/lib/clickhouse/backups/</allowed_path>
+                </backups>
+            </clickhouse>

@@ -343,6 +343,19 @@ A host port belongs to the machine, so two checkouts cannot publish the same one
 The task says which container holds it, and remembers the request: the forwarder
 comes back on the next `docker:up`, once the port is free again.
 
+### Dumping and restoring a database
+
+Every database service has a `{service}:dump` and a `{service}:restore` task, to
+write its content to a file and to replace it with the one of a dump — see
+[databases](services/databases.md#dumping-and-restoring).
+
+```bash
+castor postgres:dump prod.sql.zst
+castor postgres:restore prod.sql.zst
+castor mysql:dump > dump.sql
+gunzip -c prod.sql.gz | castor mysql:restore
+```
+
 ## Worktrees
 
 Every checkout of the repository is a stack of its own — see
@@ -351,7 +364,8 @@ Every checkout of the repository is a stack of its own — see
 * `castor worktree:list` — every checkout, its branch, its compose project, the
   state of its stack and its URL
 * `castor worktree:create <name>` — create one, `--start` to build and start its
-  stack, `--branch` and `--from` to pick the branch
+  stack, `--copy-data` to start from the databases of the current checkout,
+  `--branch` and `--from` to pick the branch
 * `castor worktree:delete <name>` — destroy its stack and remove it, keeping the
   branch
 

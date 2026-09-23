@@ -13,13 +13,29 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
+use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
 use function Castor\context;
 
-class ClickhouseService implements ServiceInterface
+class ClickhouseService implements DumpableServiceInterface
 {
     use HasName;
     use HasVersion;
+
+    /**
+     * Where BACKUP may write, which "{name}:dump" and "{name}:restore" go
+     * through: a directory of the data volume, so the throwaway container
+     * running them reaches the archive the server wrote.
+     */
+    private const BACKUPS_DIRECTORY = '/var/lib/clickhouse/backups/';
+
+    private const BACKUPS_CONFIGURATION = <<<'XML'
+        <clickhouse>
+            <backups>
+                <allowed_path>/var/lib/clickhouse/backups/</allowed_path>
+            </backups>
+        </clickhouse>
+        XML;
 
     private bool $backup = false;
     private string $database = 'app';
@@ -75,6 +91,7 @@ class ClickhouseService implements ServiceInterface
 
         return $builder
             ->volume($name . '-data')
+            ->config($name . '-backups', self::BACKUPS_CONFIGURATION)
             ->service($name)
                 ->build(__DIR__ . '/../Resources/clickhouse')
                     ->useTwigFrontend($context)
@@ -83,6 +100,7 @@ class ClickhouseService implements ServiceInterface
                     ->arg('backup', (string) $this->backup)
                 ->end()
                 ->volume($name . '-data', '/var/lib/clickhouse')
+                ->config($name . '-backups', '/etc/clickhouse-server/config.d/castor-backups.xml')
                 // The image exposes 8123 (HTTP) and 9000 (native protocol);
                 // without a port Caddy picks whichever it finds first, and
                 // routing to the native one answers 502.
@@ -127,5 +145,86 @@ class ClickhouseService implements ServiceInterface
                 expose_service_port($this->getName(), 9000, $port, $stop);
             },
         ];
+
+        yield from get_dump_tasks($this);
+    }
+
+    /**
+     * A BACKUP archive, the only format holding both the schema and the data
+     * of a whole database — and a copy of its data parts, so restoring one is
+     * not a replay of inserts.
+     */
+    public function getDumpFormats(): array
+    {
+        return ['zip'];
+    }
+
+    public function getDumpEnvironment(): array
+    {
+        return [
+            'CASTOR_HOST' => $this->getName(),
+            'CASTOR_USER' => $this->username,
+            'CASTOR_PASSWORD' => $this->password,
+            'CASTOR_DATABASE' => $this->database,
+        ];
+    }
+
+    /**
+     * Replicated tables keep their metadata in the keeper, which has to run for
+     * them to be dropped and restored.
+     */
+    public function getDumpServices(): array
+    {
+        return [$this->getName(), $this->getKeeperName()];
+    }
+
+    public function getConnectionScript(): string
+    {
+        return <<<'BASH'
+            castor_query() { clickhouse-client --host "$CASTOR_HOST" --user "$CASTOR_USER" --password "$CASTOR_PASSWORD" --query "$1" >/dev/null; }
+            castor_ready() { castor_query 'SELECT 1'; }
+            BASH;
+    }
+
+    public function getDumpScript(string $format): string
+    {
+        return strtr(<<<'BASH'
+            castor_dump() {
+                local backup="{directory}castor-dump-$$.zip"
+                castor_query "BACKUP DATABASE \`$CASTOR_DATABASE\` TO File('$backup')"
+                cat "$backup"
+                rm -f "$backup"
+            }
+            BASH, ['{directory}' => self::BACKUPS_DIRECTORY]);
+    }
+
+    /**
+     * The archive is copied where the server may read it, next to its data.
+     * The database is dropped synchronously first: the keeper would otherwise
+     * still hold the replicas of its tables when RESTORE creates them again.
+     */
+    public function getRestoreScript(): string
+    {
+        return strtr(<<<'BASH'
+            castor_restore() {
+                local head backup="{directory}castor-restore-$$.zip"
+                head=$(mktemp)
+                dd bs=1 count=4 of="$head" 2>/dev/null
+
+                if [ "$(od -An -tx1 "$head" | tr -d ' \n')" != 504b0304 ]; then
+                    echo 'This is not a ClickHouse BACKUP archive, the .zip written by BACKUP DATABASE ... TO File(...).' >&2
+                    exit 1
+                fi
+
+                mkdir -p {directory}
+                chown clickhouse:clickhouse {directory}
+                cat "$head" - > "$backup"
+                chown clickhouse:clickhouse "$backup"
+                trap 'rm -f "$backup"' EXIT
+
+                castor_query "DROP DATABASE IF EXISTS \`$CASTOR_DATABASE\` SYNC"
+                castor_query "RESTORE DATABASE \`$CASTOR_DATABASE\` FROM File('$backup')"
+            }
+            BASH, ['{directory}' => self::BACKUPS_DIRECTORY]);
     }
 }
