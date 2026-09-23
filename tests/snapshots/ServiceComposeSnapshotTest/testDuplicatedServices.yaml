@@ -9,10 +9,11 @@ services:
         healthcheck:
             test:
                 - CMD-SHELL
-                - 'pg_isready -U app'
+                - 'pg_isready -U app -h 127.0.0.1'
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         profiles:
             - default
     analytics:
@@ -25,14 +26,15 @@ services:
         healthcheck:
             test:
                 - CMD-SHELL
-                - 'pg_isready -U app'
+                - 'pg_isready -U app -h 127.0.0.1'
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         profiles:
             - default
     redis:
-        image: 'redis:5'
+        image: 'redis:8.10'
         volumes:
             - 'redis-data:/data'
         healthcheck:
@@ -46,9 +48,20 @@ services:
         profiles:
             - default
     redis-insight:
-        image: redislabs/redisinsight
+        image: redis/redisinsight
         volumes:
-            - 'redis-insight-data:/db'
+            - 'redis-insight-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '--quiet'
+                - '--spider'
+                - 'http://127.0.0.1:5540/api/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 1m
         labels:
             - caddy=redis.demo.test
             - 'caddy.reverse_proxy={{upstreams 5540}}'
@@ -57,7 +70,7 @@ services:
         profiles:
             - default
     sessions:
-        image: 'redis:5'
+        image: 'redis:8.10'
         volumes:
             - 'sessions-data:/data'
         healthcheck:
@@ -71,9 +84,20 @@ services:
         profiles:
             - default
     sessions-insight:
-        image: redislabs/redisinsight
+        image: redis/redisinsight
         volumes:
-            - 'sessions-insight-data:/db'
+            - 'sessions-insight-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '--quiet'
+                - '--spider'
+                - 'http://127.0.0.1:5540/api/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 1m
         labels:
             - caddy=sessions.demo.test
             - 'caddy.reverse_proxy={{upstreams 5540}}'
@@ -82,9 +106,12 @@ services:
         profiles:
             - default
     elasticsearch:
-        image: 'elasticsearch:7.8.0'
+        image: 'elasticsearch:9.5.3'
         environment:
             discovery.type: single-node
+            xpack.security.enabled: 'false'
+            ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+            cluster.routing.allocation.disk.threshold_enabled: 'false'
         volumes:
             - 'elasticsearch-data:/usr/share/elasticsearch/data'
         healthcheck:
@@ -94,6 +121,7 @@ services:
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         labels:
             - caddy=elasticsearch.demo.test
             - 'caddy.reverse_proxy={{upstreams 9200}}'
@@ -102,10 +130,20 @@ services:
         profiles:
             - default
     kibana:
-        image: 'kibana:7.8.0'
+        image: 'kibana:9.5.3'
+        environment:
+            ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'
         depends_on:
             elasticsearch:
                 condition: service_healthy
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:5601/api/status || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 3m
         labels:
             - caddy=kibana.demo.test
             - 'caddy.reverse_proxy={{upstreams 5601}}'
@@ -114,9 +152,12 @@ services:
         profiles:
             - default
     logs:
-        image: 'elasticsearch:7.8.0'
+        image: 'elasticsearch:9.5.3'
         environment:
             discovery.type: single-node
+            xpack.security.enabled: 'false'
+            ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+            cluster.routing.allocation.disk.threshold_enabled: 'false'
         volumes:
             - 'logs-data:/usr/share/elasticsearch/data'
         healthcheck:
@@ -126,6 +167,7 @@ services:
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         labels:
             - caddy=logs.demo.test
             - 'caddy.reverse_proxy={{upstreams 9200}}'
@@ -134,10 +176,20 @@ services:
         profiles:
             - default
     logs-kibana:
-        image: 'kibana:7.8.0'
+        image: 'kibana:9.5.3'
+        environment:
+            ELASTICSEARCH_HOSTS: 'http://logs:9200'
         depends_on:
             logs:
                 condition: service_healthy
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:5601/api/status || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 3m
         labels:
             - caddy=logs-kibana.demo.test
             - 'caddy.reverse_proxy={{upstreams 5601}}'
@@ -161,6 +213,17 @@ services:
             CLICKHOUSE_KEEPER_HOST: events-keeper
         volumes:
             - 'events-data:/var/lib/clickhouse'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '--quiet'
+                - '--spider'
+                - 'http://127.0.0.1:8123/ping'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 1m
         labels:
             - caddy=events.demo.test
             - 'caddy.reverse_proxy={{upstreams 8123}}'
@@ -175,6 +238,20 @@ services:
             args:
                 BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
                 clickhouse_version: '25.8'
+        healthcheck:
+            test:
+                - CMD
+                - clickhouse-keeper-client
+                - '--host'
+                - 127.0.0.1
+                - '--port'
+                - '9181'
+                - '--query'
+                - ruok
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 1m
         profiles:
             - default
     mercure:

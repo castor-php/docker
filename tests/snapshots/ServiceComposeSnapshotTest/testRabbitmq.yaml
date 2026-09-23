@@ -2,6 +2,10 @@ services:
     rabbitmq:
         build:
             context: '%PACKAGE%/src/Service/../Resources/rabbitmq'
+            args:
+                rabbitmq_version: '4.3'
+        environment:
+            RABBITMQ_NODENAME: rabbit@localhost
         volumes:
             - 'rabbitmq-data:/var/lib/rabbitmq'
         healthcheck:

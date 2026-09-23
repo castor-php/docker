@@ -36,6 +36,12 @@ final class ServiceBuilderTest extends TestCase
         static::assertSame('www-data', $this->service()->user('www-data')->toArray()['user']);
     }
 
+    public function testHealthcheckStartPeriodIsOnlyWrittenWhenGiven(): void
+    {
+        static::assertArrayNotHasKey('start_period', $this->service()->healthcheck('true')->toArray()['healthcheck']);
+        static::assertSame('2m', $this->service()->healthcheck('true', startPeriod: '2m')->toArray()['healthcheck']['start_period']);
+    }
+
     public function testBuildIsReused(): void
     {
         $service = $this->service();

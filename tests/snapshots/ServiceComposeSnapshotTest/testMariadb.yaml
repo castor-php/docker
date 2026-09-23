@@ -7,10 +7,11 @@ services:
         volumes:
             - 'mariadb-data:/var/lib/mysql'
         healthcheck:
-            test: 'mariadb-admin ping -h localhost'
+            test: 'healthcheck.sh --connect'
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         profiles:
             - default
 volumes:

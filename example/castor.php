@@ -130,7 +130,7 @@ function register_service(RegisterServiceEvent $event)
         (new RedirectionioAgentService())
             ->addReverseProxy('app2.project.test', $app2Service, 'b02088e2-ef87-4622-8e5e-35d7f553ca9f:707268c4-1e23-4df2-a3d9-1c088e944652')
     );
-    $event->addService((new ClickhouseService())->withVersion('25.8'));
+    $event->addService((new ClickhouseService())->withVersion('26.8'));
 
     // One compiler container per language, each declaring the applications it
     // builds. The tasks are named after the applications, not after the
@@ -199,16 +199,16 @@ function add_adminer(ComposeBuilder $builder, Context $context): void
 }
 
 /**
- * Change a service registered by someone else. Elasticsearch sizes its heap
- * from the host memory by default, which is generous for a development
- * machine running a dozen other containers.
+ * Change a service registered by someone else. The plugin gives Elasticsearch
+ * a 512 MB heap, which a development index fits in; a project indexing more
+ * raises it.
  */
 #[AsListener(DockerComposeBuilderEvent::class)]
-function cap_elasticsearch_heap(DockerComposeBuilderEvent $event): void
+function raise_elasticsearch_heap(DockerComposeBuilderEvent $event): void
 {
     $event->builder
         ->service('elasticsearch')
-            ->environment('ES_JAVA_OPTS', '-Xms512m -Xmx512m')
+            ->environment('ES_JAVA_OPTS', '-Xms1g -Xmx1g')
         ->end()
     ;
 }
@@ -220,5 +220,5 @@ function cap_elasticsearch_heap(DockerComposeBuilderEvent $event): void
 #[AsListener(DockerComposeWriteEvent::class)]
 function limit_elasticsearch_memory(DockerComposeWriteEvent $event): void
 {
-    $event->compose['services']['elasticsearch']['deploy']['resources']['limits']['memory'] = '1g';
+    $event->compose['services']['elasticsearch']['deploy']['resources']['limits']['memory'] = '2g';
 }

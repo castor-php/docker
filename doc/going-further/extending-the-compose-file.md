@@ -75,11 +75,11 @@ use Castor\Attribute\AsListener;
 use Castor\Docker\Event\DockerComposeBuilderEvent;
 
 #[AsListener(DockerComposeBuilderEvent::class)]
-function cap_elasticsearch_heap(DockerComposeBuilderEvent $event): void
+function raise_elasticsearch_heap(DockerComposeBuilderEvent $event): void
 {
     $event->builder
         ->service('elasticsearch')
-            ->environment('ES_JAVA_OPTS', '-Xms512m -Xmx512m')
+            ->environment('ES_JAVA_OPTS', '-Xms1g -Xmx1g')
         ->end()
     ;
 }
@@ -105,7 +105,7 @@ use Castor\Docker\Event\DockerComposeWriteEvent;
 #[AsListener(DockerComposeWriteEvent::class)]
 function limit_elasticsearch_memory(DockerComposeWriteEvent $event): void
 {
-    $event->compose['services']['elasticsearch']['deploy']['resources']['limits']['memory'] = '1g';
+    $event->compose['services']['elasticsearch']['deploy']['resources']['limits']['memory'] = '2g';
 }
 ```
 
@@ -208,6 +208,6 @@ Priorities order listeners within a step, not across steps: an
 ## A worked example
 
 The [example project](https://github.com/castor-php/docker/blob/main/example/castor.php)
-uses all three: the attribute adds Adminer, the builder event caps the
+uses all three: the attribute adds Adminer, the builder event raises the
 Elasticsearch heap, and the write event puts a memory limit on it through
 `deploy`.

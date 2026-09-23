@@ -1,8 +1,11 @@
 services:
     elasticsearch:
-        image: 'elasticsearch:7.8.0'
+        image: 'elasticsearch:9.5.3'
         environment:
             discovery.type: single-node
+            xpack.security.enabled: 'false'
+            ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+            cluster.routing.allocation.disk.threshold_enabled: 'false'
         volumes:
             - 'elasticsearch-data:/usr/share/elasticsearch/data'
         healthcheck:
@@ -12,6 +15,7 @@ services:
             interval: 5s
             timeout: 5s
             retries: 5
+            start_period: 2m
         labels:
             - caddy=elasticsearch.demo.test
             - 'caddy.reverse_proxy={{upstreams 9200}}'
@@ -20,10 +24,20 @@ services:
         profiles:
             - default
     kibana:
-        image: 'kibana:7.8.0'
+        image: 'kibana:9.5.3'
+        environment:
+            ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'
         depends_on:
             elasticsearch:
                 condition: service_healthy
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'curl --fail http://localhost:5601/api/status || exit 1'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 3m
         labels:
             - caddy=kibana.demo.test
             - 'caddy.reverse_proxy={{upstreams 5601}}'

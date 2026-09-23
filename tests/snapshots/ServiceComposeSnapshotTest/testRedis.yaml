@@ -1,6 +1,6 @@
 services:
     redis:
-        image: 'redis:5'
+        image: 'redis:8.10'
         volumes:
             - 'redis-data:/data'
         healthcheck:
@@ -14,9 +14,20 @@ services:
         profiles:
             - default
     redis-insight:
-        image: redislabs/redisinsight
+        image: redis/redisinsight
         volumes:
-            - 'redis-insight-data:/db'
+            - 'redis-insight-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '--quiet'
+                - '--spider'
+                - 'http://127.0.0.1:5540/api/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 1m
         labels:
             - caddy=redis.demo.test
             - 'caddy.reverse_proxy={{upstreams 5540}}'

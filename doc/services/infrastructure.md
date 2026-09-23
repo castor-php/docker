@@ -11,7 +11,7 @@ Redis with the RedisInsight web UI.
 
 ```php
 (new RedisService())
-    ->withVersion('5')              // Redis version (default: 5)
+    ->withVersion('8.10')           // Redis version (default: 8.10)
 ```
 
 * **Containers:** `redis`, `redis-insight`, named volumes `redis-data` and
@@ -19,17 +19,24 @@ Redis with the RedisInsight web UI.
 * **UI:** `https://redis.{root_domain}` when the router is enabled
 * **Task:** `castor redis:expose` — reach Redis from the host
 
+In RedisInsight, add the database `redis:6379`; it is kept in its volume.
+
 ## RabbitMQService
 
 RabbitMQ with the management plugin.
 
 ```php
-new RabbitMQService()
+(new RabbitMQService())
+    ->withVersion('4.3')            // RabbitMQ version (default: 4.3)
 ```
 
 * **Containers:** `rabbitmq`, named volume `rabbitmq-data`
-* **UI:** `https://rabbitmq.{root_domain}` when the router is enabled
+* **UI:** `https://rabbitmq.{root_domain}` when the router is enabled, as
+  `guest` / `guest`
 * **Task:** `castor rabbitmq:expose` — reach AMQP (5672) from the host
+
+The image is `rabbitmq:{version}-management-alpine`. The node is always
+`rabbit@localhost`, so its data survives a recreate.
 
 ## ElasticsearchService
 
@@ -37,13 +44,19 @@ Elasticsearch with Kibana.
 
 ```php
 (new ElasticsearchService())
-    ->withVersion('7.8.0')          // Elasticsearch version (default: 7.8.0)
+    ->withVersion('9.5.3')          // Elasticsearch and Kibana version (default: 9.5.3)
 ```
 
 * **Containers:** `elasticsearch`, `kibana`, named volume `elasticsearch-data`
 * **UI:** `https://elasticsearch.{root_domain}` and `https://kibana.{root_domain}`
   when the router is enabled
+* **URL:** `http://elasticsearch:9200` from the other containers
 * **Task:** `castor elasticsearch:expose` — reach the HTTP API from the host
+
+Development settings: security off (plain HTTP, no credentials), 512 MB heap
+(raise it through
+[`ES_JAVA_OPTS`](../going-further/extending-the-compose-file.md#dockercomposebuilderevent)),
+disk watermarks off.
 
 ## MeilisearchService
 

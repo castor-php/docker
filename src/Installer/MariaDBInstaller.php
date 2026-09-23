@@ -23,7 +23,7 @@ final class MariaDBInstaller extends AbstractServiceInstaller implements Databas
     public function getInputs(): array
     {
         return [
-            new Input('version', 'MariaDB version', InputType::Text, '12.1'),
+            new Input('version', 'MariaDB version', InputType::Text, (new MariaDBService())->getVersion()),
         ];
     }
 

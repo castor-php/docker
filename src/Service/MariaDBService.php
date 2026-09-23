@@ -63,7 +63,8 @@ class MariaDBService implements DatabaseServiceInterface
                 ->environment('MARIADB_ROOT_PASSWORD', $this->rootPassword)
                 ->environment('MARIADB_DATABASE', $this->database)
                 ->volume($name . '-data', '/var/lib/mysql')
-                ->healthcheck('mariadb-admin ping -h localhost')
+                // TCP only: ignores the socket-only init server.
+                ->healthcheck('healthcheck.sh --connect', startPeriod: '2m')
                 ->profile('default')
         ;
 
@@ -93,9 +94,18 @@ class MariaDBService implements DatabaseServiceInterface
         ];
     }
 
+    /**
+     * Doctrine rejects an incomplete MariaDB version: omit it rather.
+     */
     public function getDatabaseURL(): string
     {
-        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database . '?serverVersion=mariadb-' . $this->getVersion() . '&charset=utf8mb4';
+        $version = $this->getVersionNumber();
+        $isComplete = null !== $version && substr_count($version, '.') >= 2;
+
+        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database . '?' . http_build_query(array_filter([
+            'serverVersion' => $isComplete ? 'mariadb-' . $version : null,
+            'charset' => 'utf8mb4',
+        ]));
     }
 
     public function hasHealthCheck(): bool
