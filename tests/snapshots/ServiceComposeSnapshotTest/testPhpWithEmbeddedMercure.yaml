@@ -1,0 +1,82 @@
+services:
+    app:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
+            target: frontend
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+                mercure: 'true'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app:cache'
+        user: '1000:1000'
+        environment:
+            MERCURE_CORS_ORIGINS: 'https://app.demo.test https://demo.test'
+            MERCURE_URL: 'http://app/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - 'caddy=app.demo.test demo.test'
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    app-builder:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
+            target: builder
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+                mercure: 'true'
+                node_version: 24.x
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
+        user: '1000:1000'
+        init: true
+        environment:
+            MERCURE_URL: 'http://app/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+            - '/project/.castor/vendor/.tools:/castor-tools:cached'
+        profiles:
+            - builder
+    app-worker-messenger:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
+            target: worker
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+                mercure: 'true'
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
+        user: '1000:1000'
+        environment:
+            MERCURE_URL: 'http://app/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://app.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+        command: 'php bin/console messenger:consume async'
+volumes: {}

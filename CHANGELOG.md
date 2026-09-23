@@ -11,6 +11,41 @@
   own, going through the router with the `Host` rewritten to the local domain.
   The tunnels run in the background until `castor docker:tunnel:stop`,
   `docker:stop` or `docker:destroy`, and `docker:about` lists them.
+* `link()` hands an application what it needs from another service, and makes
+  it wait for it: `(new SymfonyService('app'))->link($postgres)->link($meilisearch)`.
+  The variables are named after what the libraries read — `DATABASE_URL`,
+  `MAILER_DSN`, `MEILISEARCH_URL`… — and reach every container of the
+  application, its builder and its workers included. Every application service
+  links, not only the PHP ones: a Go, Rust or Node.js application gets its
+  database the same way. A service of your own becomes
+  linkable by implementing `LinkableServiceInterface`. See [linking
+  services](services/index.md#linking-services).
+* `MeilisearchService`, with its search preview dashboard on
+  `meilisearch.{root_domain}`. A linked application gets `MEILISEARCH_URL` and
+  `MEILISEARCH_API_KEY` for the Symfony bundle, `MEILISEARCH_HOST` and
+  `MEILISEARCH_KEY` for Laravel Scout, and `MEILISEARCH_PUBLIC_URL` for a search
+  running in the browser. The data survives a new version of the image: the
+  server migrates it instead of refusing to start. See
+  [Meilisearch](services/infrastructure.md#meilisearchservice).
+* `MercureService`, a Mercure hub. A linked application gets `MERCURE_URL`,
+  `MERCURE_PUBLIC_URL` and `MERCURE_JWT_SECRET`, the variables of the
+  `symfony/mercure-bundle` recipe, and its domains are the origins the hub
+  accepts. When its only subscriber is a FrankenPHP application, the hub runs
+  in it — a directive of its Caddyfile, on `/.well-known/mercure` of its own
+  domains — and no container is generated; otherwise it is a container on
+  `mercure.{root_domain}`. See [Mercure](services/mercure.md).
+* `RustFSService`, an S3-compatible object storage, with its API on
+  `rustfs.{root_domain}` and its console on `rustfs-console.{root_domain}`. The
+  buckets declared with `->withBucket('uploads')` are created when the stack
+  starts — `public: true` lets anyone download their objects — and a linked
+  application starts once they are there, with the credentials, the endpoint
+  and the region under the names the AWS SDK and Laravel read. See [S3 object
+  storage](services/object-storage.md).
+* `castor docker:service:install` installs `meilisearch`, `mercure` and
+  `rustfs` (`--with-buckets=uploads,media`).
+* `ServiceBuilder::withHttpRouting()` can be called more than once: each call
+  serves another port of the container on other domains, as a site of its own.
+  `ServiceBuilder::entrypoint()` replaces the entrypoint of the image.
 
 ### Changed
 
@@ -25,6 +60,17 @@
   plugin, since a running router is never restarted behind your back.
   `castor docker:router:status` tells which version it comes from. An upgrade
   of the plugin that leaves the router as it was asks for nothing.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
+
+### Upgrading
+
+* A FrankenPHP application linked to a Mercure hub it serves itself needs a
+  `castor docker:build`: the hub is a directive of the Caddyfile baked into its
+  image, like the worker mode.
 
 ## 0.7.1 - 2026-09-22
 
@@ -81,6 +127,11 @@
   of letting docker fail, and keeps the request so the forwarder comes back on
   the next `docker:up` once the port is free.
 
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
+
 ### Upgrading
 
 * The exposed services are now remembered under a key scoped to the checkout,
@@ -122,6 +173,11 @@
   were mounting — so with the default version, which is 18, the database lived
   in the container layer and was lost on every recreate. Services pinned to 17
   or below keep the old path.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 
@@ -201,6 +257,11 @@
   `builder_php_configuration`. The NodeSource key is used armoured, so the
   builder installs no gnupg.
 
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
+
 ### Upgrading
 
 * Every container of a `PhpMode::FrankenPhp` application rebuilds on
@@ -272,6 +333,11 @@
 
 * The quality assurance page no longer says composer resolves the tools against
   the PHP running castor; it stopped in 0.3.5.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 
@@ -514,6 +580,11 @@ Four things change under a project that did nothing:
 * `CaddyRouterService` and the `router` compose profile.
 * `router:enable` and `router:disable`, renamed `docker:router:enable` and
   `docker:router:disable`.
+
+### Deprecated
+
+* `withDatabaseService()` and `withMailerService()`, removed in 1.0: use
+  `link()`.
 
 ### Upgrading
 

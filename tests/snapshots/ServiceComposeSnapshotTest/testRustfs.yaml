@@ -1,0 +1,117 @@
+services:
+    rustfs:
+        image: 'rustfs/rustfs:1.0.0'
+        environment:
+            RUSTFS_ACCESS_KEY: access
+            RUSTFS_SECRET_KEY: se/cret
+            RUSTFS_CONSOLE_ENABLE: 'true'
+            RUSTFS_CORS_ALLOWED_ORIGINS: '*'
+            RUSTFS_OBS_LOG_DIRECTORY: ''
+        volumes:
+            - 'rustfs-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:9000/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=rustfs.demo.test
+            - 'caddy.reverse_proxy={{upstreams 9000}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - caddy_2=rustfs-console.demo.test
+            - 'caddy_2.reverse_proxy={{upstreams 9001}}'
+            - caddy_2.tls=internal
+            - caddy_2.tls.on_demand=
+        profiles:
+            - default
+    rustfs-buckets:
+        image: 'rustfs/rc:v0.1.36'
+        restart: 'no'
+        environment:
+            RC_HOST_local: 'http://access:se%2Fcret@rustfs:9000'
+        depends_on:
+            rustfs:
+                condition: service_healthy
+        profiles:
+            - default
+        entrypoint:
+            - /bin/sh
+            - '-ec'
+        command:
+            - |-
+                rc bucket create --ignore-existing local/uploads
+                rc bucket create --ignore-existing local/media
+                rc bucket anonymous set download local/media
+    app:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
+            target: frontend
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app:cache'
+        user: '1000:1000'
+        environment:
+            AWS_ACCESS_KEY_ID: access
+            AWS_SECRET_ACCESS_KEY: se/cret
+            AWS_REGION: us-east-1
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_ENDPOINT_URL_S3: 'http://rustfs:9000'
+            AWS_ENDPOINT: 'http://rustfs:9000'
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            S3_PUBLIC_ENDPOINT: 'https://rustfs.demo.test'
+        depends_on:
+            rustfs-buckets:
+                condition: service_completed_successfully
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+    app-builder:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile.frankenphp'
+            target: builder
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pdo_pgsql","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+                node_version: 24.x
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
+        user: '1000:1000'
+        init: true
+        environment:
+            AWS_ACCESS_KEY_ID: access
+            AWS_SECRET_ACCESS_KEY: se/cret
+            AWS_REGION: us-east-1
+            AWS_DEFAULT_REGION: us-east-1
+            AWS_ENDPOINT_URL_S3: 'http://rustfs:9000'
+            AWS_ENDPOINT: 'http://rustfs:9000'
+            AWS_USE_PATH_STYLE_ENDPOINT: 'true'
+            S3_PUBLIC_ENDPOINT: 'https://rustfs.demo.test'
+        depends_on:
+            rustfs-buckets:
+                condition: service_completed_successfully
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+            - '/project/.castor/vendor/.tools:/castor-tools:cached'
+        profiles:
+            - builder
+volumes:
+    rustfs-data: {}

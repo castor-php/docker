@@ -238,6 +238,21 @@ final class DockerfileTemplateTest extends TestCase
     }
 
     /**
+     * The hub is a directive of the Caddyfile, only there when asked for, and
+     * reads its secret and its origins from the environment.
+     */
+    public function testFrankenPhpEmbedsMercureOnlyWhenAskedTo(): void
+    {
+        static::assertStringNotContainsString('mercure', $this->render('php/frontend-frankenphp/Caddyfile.twig', []));
+
+        $caddyfile = $this->render('php/frontend-frankenphp/Caddyfile.twig', ['mercure' => 'true']);
+
+        static::assertStringContainsString('publisher_jwt {env.MERCURE_JWT_SECRET}', $caddyfile);
+        static::assertStringContainsString('cors_origins {$MERCURE_CORS_ORIGINS}', $caddyfile);
+        static::assertLessThan(strpos($caddyfile, "\n\tphp_server"), strpos($caddyfile, 'mercure {'));
+    }
+
+    /**
      * The CLI of the builder and of the workers has to be the binary FrankenPHP
      * serves with: two PHP installations meant an extension, a version or an
      * ini file could be in one and missing from the other — which is invisible

@@ -9,6 +9,7 @@ use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasDirectory;
 use Castor\Docker\Service\Behaviour\HasDockerfile;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -38,6 +39,7 @@ class GoService implements ServiceInterface
     use HasDirectory;
     use HasDockerfile;
     use HasHttpRouting;
+    use HasLinks;
     use HasSharedHomeDirectory;
     use HasVersion;
 
@@ -133,6 +135,7 @@ class GoService implements ServiceInterface
                 ->environment('HOME', '/home/app')
         ;
 
+        $this->applyLinks($context, $appService);
         $this->applyBuild($appService, $context);
         $this->applyHttpRouting($appService);
 

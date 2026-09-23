@@ -12,6 +12,8 @@
     - [Node.js](services/node.md)
     - [Databases](services/databases.md)
     - [Cache, queue and search](services/infrastructure.md)
+    - [Mercure](services/mercure.md)
+    - [S3 object storage](services/object-storage.md)
     - [redirection.io](services/redirectionio.md)
     - [Router and HTTPS](services/router.md)
 - [Tasks](tasks.md)

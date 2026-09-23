@@ -13,7 +13,7 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
-class MailpitService implements ServiceInterface
+class MailpitService implements LinkableServiceInterface
 {
     use HasName;
     use HasVersion;
@@ -60,5 +60,18 @@ class MailpitService implements ServiceInterface
     public function getMailerDSN(): string
     {
         return 'smtp://' . $this->getName() . ':1025';
+    }
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        return ['MAILER_DSN' => $this->getMailerDSN()];
+    }
+
+    /**
+     * Started is enough: nothing sends a mail while booting.
+     */
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_started'];
     }
 }

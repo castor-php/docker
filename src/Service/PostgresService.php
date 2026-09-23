@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Castor\Docker\Service\Behaviour\HasDatabaseLink;
 use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -18,6 +19,7 @@ use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface
 {
+    use HasDatabaseLink;
     use HasName;
     use HasVersion;
 

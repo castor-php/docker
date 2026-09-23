@@ -33,6 +33,7 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, `NodeService`, the builders |
 | `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService`, `NodeService` |
 | `HasName` | `withName()`, `getName()` | every service naming itself |
+| `HasLinks` | `link()`, `getLinks()`, `applyLinks()` | every application service |
 | `HasMysqlConfiguration` | `withSetting()`, `withSettings()`, `withConfiguration()`, `withConfigurationFile()` | `MySQLService`, `MariaDBService` |
 
 ### Registering the same service twice

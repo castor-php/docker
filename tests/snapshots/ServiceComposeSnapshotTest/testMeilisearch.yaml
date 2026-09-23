@@ -1,0 +1,66 @@
+services:
+    meilisearch:
+        image: 'getmeili/meilisearch:v1.54'
+        environment:
+            MEILI_MASTER_KEY: castor-meilisearch-master-key
+            MEILI_ENV: development
+            MEILI_NO_ANALYTICS: 'true'
+            MEILI_UPGRADE_DB: 'true'
+        volumes:
+            - 'meilisearch-data:/meili_data'
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-fsS'
+                - '-o'
+                - /dev/null
+                - 'http://127.0.0.1:7700/health'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=meilisearch.demo.test
+            - 'caddy.reverse_proxy={{upstreams 7700}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    front:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/node'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/node/Dockerfile'
+            target: runtime
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                node_version: '24'
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/front:cache'
+        working_dir: /app
+        user: '1000:1000'
+        init: true
+        environment:
+            HOME: /home/app
+            COREPACK_HOME: /home/app/.cache/node/corepack
+            HOST: 0.0.0.0
+            PORT: '3000'
+            MEILISEARCH_URL: 'http://meilisearch:7700'
+            MEILISEARCH_API_KEY: castor-meilisearch-master-key
+            MEILISEARCH_HOST: 'http://meilisearch:7700'
+            MEILISEARCH_KEY: castor-meilisearch-master-key
+            MEILISEARCH_PUBLIC_URL: 'https://meilisearch.demo.test'
+        depends_on:
+            meilisearch:
+                condition: service_started
+        volumes:
+            - '/project/front:/app:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+        command:
+            - npm
+            - run
+            - dev
+volumes:
+    meilisearch-data: {}

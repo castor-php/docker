@@ -13,6 +13,8 @@ use Castor\Docker\Service\GoBuilder;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MailpitService;
 use Castor\Docker\Service\MariaDBService;
+use Castor\Docker\Service\MeilisearchService;
+use Castor\Docker\Service\MercureService;
 use Castor\Docker\Service\MySQLService;
 use Castor\Docker\Service\NodeService;
 use Castor\Docker\Service\PHPService;
@@ -22,6 +24,7 @@ use Castor\Docker\Service\RabbitMQService;
 use Castor\Docker\Service\RedirectionioAgentService;
 use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\RustBuilder;
+use Castor\Docker\Service\RustFSService;
 use Castor\Docker\Service\RustService;
 use Castor\Docker\Service\ServiceInterface;
 use Castor\Docker\Service\SymfonyService;
@@ -83,6 +86,75 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $this->assertMatchesYamlSnapshot($this->build((new ClickhouseService())->withVersion('25.8')));
     }
 
+    /**
+     * A hub of its own, linked to an nginx + PHP-FPM application: the hub
+     * allows the origins of the application, the application gets the
+     * variables of the symfony/mercure-bundle recipe — the internal URL to
+     * publish to, the public one for the browser.
+     */
+    public function testMercure(): void
+    {
+        $mercure = (new MercureService())->withCorsOrigin('https://legacy.demo.test/');
+
+        $this->assertMatchesYamlSnapshot($this->build(
+            $mercure,
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
+                ->withMode(PhpMode::Fpm)
+                ->withDomain('app.demo.test')
+                ->withHttpAccess()
+                ->link($mercure)
+                ->addWorker('messenger', 'php bin/console messenger:consume async'),
+        ));
+    }
+
+    /**
+     * A hub whose only subscriber is a FrankenPHP application runs in it: no
+     * container, a directive of its Caddyfile turned on by a build argument,
+     * and every domain of the application allowed.
+     */
+    public function testPhpWithEmbeddedMercure(): void
+    {
+        $mercure = new MercureService();
+
+        $this->assertMatchesYamlSnapshot($this->build(
+            $mercure,
+            (new PHPService('app'))
+                ->withDirectory('/project/app')
+                ->withDomain('app.demo.test', 'demo.test')
+                ->link($mercure)
+                ->addWorker('messenger', 'php bin/console messenger:consume async'),
+        ));
+    }
+
+    public function testMeilisearch(): void
+    {
+        $meilisearch = new MeilisearchService();
+
+        $this->assertMatchesYamlSnapshot($this->build(
+            $meilisearch,
+            (new NodeService('front'))->withVersion('24')->withDirectory('/project/front')->link($meilisearch),
+        ));
+    }
+
+    /**
+     * Two routed sites on one container, and a one-shot container creating
+     * the buckets, which the linked application waits for.
+     */
+    public function testRustfs(): void
+    {
+        $rustfs = (new RustFSService())
+            ->withCredentials('access', 'se/cret')
+            ->withBucket('uploads')
+            ->withBucket('media', public: true)
+        ;
+
+        $this->assertMatchesYamlSnapshot($this->build(
+            $rustfs,
+            (new PHPService('app'))->withDirectory('/project/app')->link($rustfs),
+        ));
+    }
+
     public function testRedirectionioAgent(): void
     {
         $this->assertMatchesYamlSnapshot($this->build(new RedirectionioAgentService()));
@@ -141,6 +213,12 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
             new ElasticsearchService(),
             (new ElasticsearchService())->withName('logs'),
             (new ClickhouseService())->withVersion('25.8')->withName('events'),
+            new MercureService(),
+            (new MercureService())->withName('notifications'),
+            new MeilisearchService(),
+            (new MeilisearchService())->withName('catalog'),
+            (new RustFSService())->withBucket('uploads'),
+            (new RustFSService())->withName('backups')->withBucket('archives'),
         ));
     }
 
@@ -325,7 +403,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
         $php = (new PHPService('app'))
             ->withDirectory('/project/app')
             ->withVersion('8.4')
-            ->withDatabaseService($postgres)
+            ->link($postgres)
             ->withDomain('app.demo.test', 'demo.test')
             ->withHttpAccess()
             ->addWorker('messenger', 'php bin/console messenger:consume async')
@@ -343,7 +421,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
             $mailer,
             (new PHPService('app'))
                 ->withDirectory('/project/app')
-                ->withMailerService($mailer)
+                ->link($mailer)
                 ->addWorker('messenger', 'php bin/console messenger:consume async'),
         );
 
@@ -358,7 +436,7 @@ final class ServiceComposeSnapshotTest extends SnapshotTestCase
 
         $symfony = (new SymfonyService('app'))
             ->withDirectory('/project/app')
-            ->withDatabaseService($mysql)
+            ->link($mysql)
             ->withDomain('app.demo.test')
         ;
 

@@ -1,0 +1,124 @@
+services:
+    mercure:
+        image: 'dunglas/mercure:v0.24.2'
+        environment:
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+            MERCURE_EXTRA_DIRECTIVES: |-
+                cors_origins https://app.demo.test http://app.demo.test https://legacy.demo.test
+                anonymous
+                subscriptions
+                ui
+            GLOBAL_OPTIONS: |-
+                log default {
+                	exclude admin.api
+                }
+        volumes:
+            - 'mercure-data:/data'
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - '-q'
+                - '--spider'
+                - 'http://127.0.0.1:2019/mercure/health/ready'
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - caddy=mercure.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+        profiles:
+            - default
+    app:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile'
+            target: frontend
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app:cache'
+        user: '1000:1000'
+        environment:
+            MERCURE_URL: 'http://mercure/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://mercure.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        depends_on:
+            mercure:
+                condition: service_started
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        labels:
+            - caddy=app.demo.test
+            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - caddy.tls=internal
+            - caddy.tls.on_demand=
+            - 'caddy_1=http://app.demo.test'
+            - 'caddy_1.reverse_proxy={{upstreams 80}}'
+        profiles:
+            - default
+    app-builder:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile'
+            target: builder
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+                node_version: 24.x
+                package_manager: npm
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-builder:cache'
+        user: '1000:1000'
+        init: true
+        environment:
+            MERCURE_URL: 'http://mercure/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://mercure.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        depends_on:
+            mercure:
+                condition: service_started
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+            - '/project/.castor/vendor/.tools:/castor-tools:cached'
+        profiles:
+            - builder
+    app-worker-messenger:
+        build:
+            context: '%PACKAGE%/src/Service/../Resources/php'
+            dockerfile: '%PACKAGE%/src/Service/../Resources/php/Dockerfile'
+            target: worker
+            args:
+                BUILDKIT_SYNTAX: 'ghcr.io/castor-php/twig-dockerfile:0.1'
+                php_version: '8.5'
+                php_extensions: '["apcu","bcmath","curl","iconv","intl","mbstring","pgsql","uuid","xml","zip"]'
+                pie_version: 1.0.0
+            cache_from:
+                - 'type=registry,ref=${REGISTRY:-}/app-worker:cache'
+        user: '1000:1000'
+        environment:
+            MERCURE_URL: 'http://mercure/.well-known/mercure'
+            MERCURE_PUBLIC_URL: 'https://mercure.demo.test/.well-known/mercure'
+            MERCURE_JWT_SECRET: '!ChangeThisMercureHubJWTSecretKey!'
+        depends_on:
+            mercure:
+                condition: service_started
+        volumes:
+            - '/project/app:/var/www:cached'
+            - '.home:/home/app:cached'
+        profiles:
+            - default
+        command: 'php bin/console messenger:consume async'
+volumes:
+    mercure-data: {}

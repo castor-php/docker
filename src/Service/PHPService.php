@@ -11,6 +11,7 @@ use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasDirectory;
 use Castor\Docker\Service\Behaviour\HasDockerfile;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
+use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
@@ -29,6 +30,7 @@ class PHPService implements ServiceInterface
     use HasDirectory;
     use HasDockerfile;
     use HasHttpRouting;
+    use HasLinks;
     use HasSharedHomeDirectory;
     use HasVersion;
 
@@ -127,6 +129,11 @@ class PHPService implements ServiceInterface
         $this->mode = $mode;
 
         return $this;
+    }
+
+    public function getMode(): PhpMode
+    {
+        return $this->mode;
     }
 
     /**
@@ -386,16 +393,40 @@ class PHPService implements ServiceInterface
         return $this->name . '-builder';
     }
 
+    /**
+     * Link the database of the application, replacing the previous one.
+     *
+     * @deprecated since 0.8, removed in 1.0: use link() instead
+     */
     public function withDatabaseService(DatabaseServiceInterface $databaseService): static
     {
+        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
+
+        if ($this->databaseService) {
+            $this->unlink($this->databaseService);
+        }
+
         $this->databaseService = $databaseService;
-        return $this;
+
+        return $this->link($databaseService);
     }
 
+    /**
+     * Link the mail catcher of the application, replacing the previous one.
+     *
+     * @deprecated since 0.8, removed in 1.0: use link() instead
+     */
     public function withMailerService(MailpitService $mailerService): static
     {
+        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
+
+        if ($this->mailerService) {
+            $this->unlink($this->mailerService);
+        }
+
         $this->mailerService = $mailerService;
-        return $this;
+
+        return $this->link($mailerService);
     }
 
     public function addPhpStanExtraDependency(string $package, string $version): static
@@ -614,6 +645,18 @@ class PHPService implements ServiceInterface
             }
         }
 
+        foreach ($this->links as $service) {
+            // A hub whose only subscriber is this application runs in it:
+            // FrankenPHP is Caddy with the Mercure module, the hub is a
+            // directive of its Caddyfile rather than a container.
+            if ($service instanceof MercureService && $service->getHost() === $this) {
+                $appService->build()->arg('mercure', 'true');
+                // Read by the Caddyfile when the server starts, not baked in:
+                // a new domain is a "docker:up" away.
+                $appService->environment('MERCURE_CORS_ORIGINS', implode(' ', $service->getCorsOrigins($context)));
+            }
+        }
+
         $buildBuilder = $builder->service($this->name)->build();
 
         // Skipped when the builder is shared with another application, or when
@@ -662,38 +705,7 @@ class PHPService implements ServiceInterface
         }
 
         $this->applyHttpRouting($appService);
-
-        if ($this->databaseService) {
-            $appService
-                ->dependsOn($this->databaseService->getName(), [
-                    'condition' => 'service_healthy',
-                ])
-                ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
-            ;
-
-            $builderService
-                ?->dependsOn($this->databaseService->getName(), [
-                    'condition' => 'service_healthy',
-                ])
-                ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
-            ;
-        }
-
-        if ($this->mailerService) {
-            $appService
-                ->dependsOn($this->mailerService->getName(), [
-                    'condition' => 'service_started',
-                ])
-                ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
-            ;
-
-            $builderService
-                ?->dependsOn($this->mailerService->getName(), [
-                    'condition' => 'service_started',
-                ])
-                ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
-            ;
-        }
+        $this->applyLinks($context, $appService, $builderService);
 
         foreach ($this->workers as $workerName => $worker) {
             $workerService = $builder
@@ -725,23 +737,7 @@ class PHPService implements ServiceInterface
                 $workerService->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT));
             }
 
-            if ($this->databaseService) {
-                $workerService
-                    ->dependsOn($this->databaseService->getName(), [
-                        'condition' => 'service_healthy',
-                    ])
-                    ->environment('DATABASE_URL', $this->databaseService->getDatabaseURL())
-                ;
-            }
-
-            if ($this->mailerService) {
-                $workerService
-                    ->dependsOn($this->mailerService->getName(), [
-                        'condition' => 'service_started',
-                    ])
-                    ->environment('MAILER_DSN', $this->mailerService->getMailerDSN())
-                ;
-            }
+            $this->applyLinks($context, $workerService);
         }
 
         return $builder;

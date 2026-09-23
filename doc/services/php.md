@@ -17,8 +17,8 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withNodeVersion('22')          // Node.js in the builder container (default: 24)
     ->withSudo()                     // Passwordless sudo in the builder, off by default
     ->withMode(PhpMode::FrankenPhp)  // PhpMode::FrankenPhp (default) or PhpMode::Fpm
-    ->withDatabaseService($databaseService)
-    ->withMailerService($mailpitService)
+    ->link($databaseService)         // DATABASE_URL, see "Linking services"
+    ->link($meilisearchService)      // any linkable service: Mailpit, RustFS, a Mercure hub…
     ->withDomain('app.example.test', 'example.test')
     ->withHttpAccess()               // Also serve plain HTTP, without redirecting to HTTPS
     ->addExtension('redis')          // An extension, in every container of the application
@@ -26,6 +26,14 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->addWorker('messenger', 'php bin/console messenger:consume async', 'unless-stopped')
     ->withFrankenPhpWorkerMode('public/index.php', num: 4)
 ```
+
+`link()` hands the application the variables of another service — a
+database, a mail catcher, a search engine, an object storage — in the
+application, its builder and its workers alike; see [linking
+services](index.md#linking-services). `withDatabaseService()` and
+`withMailerService()` are deprecated, and removed in 1.0: use `link()`. A
+FrankenPHP application linked to a Mercure hub nobody else links to [serves it
+itself](mercure.md#where-the-hub-runs).
 
 ## Applications inside a monorepo
 
