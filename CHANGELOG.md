@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `castor docker:tunnel:start`, which gives the domains of the project a public
+  HTTPS URL through a Cloudflare quick tunnel, with no account to create: every
+  domain by default, or the ones given, and `castor tunnel` for short. Each
+  domain gets a `cloudflared` container and a `*.trycloudflare.com` URL of its
+  own, going through the router with the `Host` rewritten to the local domain.
+  The tunnels run in the background until `castor docker:tunnel:stop`,
+  `docker:stop` or `docker:destroy`, and `docker:about` lists them.
+
+### Changed
+
+* The router passes on the `X-Forwarded-*` headers of a request coming from a
+  private address instead of overwriting them, so an application behind a
+  tunnel sees its public host name in `X-Forwarded-Host`. Run
+  `castor docker:router:restart` once to pick it up.
+* The router records the version of the plugin that created it, and a checksum
+  of its configuration. A project on an older version of the plugin no longer
+  takes it back to its own configuration, even with `docker:router:enable`.
+  `castor docker:up` warns when the running router is older than the project's
+  plugin, since a running router is never restarted behind your back.
+  `castor docker:router:status` tells which version it comes from. An upgrade
+  of the plugin that leaves the router as it was asks for nothing.
+
 ## 0.7.1 - 2026-09-22
 
 ### Fixed

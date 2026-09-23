@@ -13,6 +13,7 @@ it.
 - 🎯 Service-specific tasks for common operations
 - 🔒 On-demand, locally-trusted HTTPS (with mkcert support)
 - 🌐 Caddy-based reverse proxy with automatic routing from Docker labels
+- 🔗 Public HTTPS tunnels to your domains through Cloudflare, with `castor docker:tunnel:start`
 - 📦 Multi-stage Docker builds with registry caching
 - 👥 Multi-application, multi-language support in a single project
 - 🌳 Every git worktree is a stack of its own, with no configuration

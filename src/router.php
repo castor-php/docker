@@ -6,6 +6,7 @@ namespace Castor\Docker;
 
 use Castor\Attribute\AsTask;
 use Castor\Context;
+use Composer\InstalledVersions;
 use Symfony\Component\Process\ExecutableFinder;
 
 use function Castor\capture;
@@ -15,6 +16,7 @@ use function Castor\get_cache;
 use function Castor\io;
 use function Castor\run;
 use function Castor\yaml_dump;
+use function Castor\yaml_parse;
 
 /**
  * The name of the router, used for its compose project, its container and —
@@ -126,6 +128,10 @@ function is_router_autostart_enabled(?Context $c = null): bool
 
 /**
  * Ensure the global router compose file exists and is up to date.
+ *
+ * Unless it describes a newer router: every project on the machine writes this
+ * file, with the version of the plugin it has installed, and one lagging behind
+ * must not take the router back to its older configuration.
  */
 function ensure_router_compose(): void
 {
@@ -133,6 +139,18 @@ function ensure_router_compose(): void
     // is mounted by the router, so it must exist beforehand or Docker would
     // create it as root.
     fs()->mkdir([get_router_directory(), get_router_certs_directory()]);
+
+    $existing = get_router_compose_file_labels();
+
+    if (compare_router_configuration($existing['version'], $existing['checksum']) > 0) {
+        io()->comment(\sprintf(
+            'Keeping the router configuration of castor-php/docker %s, newer than the %s of this project.',
+            $existing['version'],
+            get_plugin_version(),
+        ));
+
+        return;
+    }
 
     $yamlContent = yaml_dump(get_router_compose(), inline: 10);
 
@@ -196,10 +214,171 @@ function get_router_compose(): array
                 'labels' => [
                     'castor.managed' => 'true',
                     'castor.router' => 'true',
+                    // Which plugin created the router, and from what: several
+                    // projects share it, each on its own version of the plugin
+                    // (see compare_router_configuration()). The checksum is
+                    // also what makes compose recreate the router when only the
+                    // content of its inline config changed.
+                    'castor.router.version' => get_plugin_version(),
+                    'castor.router.checksum' => get_router_checksum(),
                 ],
             ],
         ],
     ];
+}
+
+/**
+ * The version of this plugin, as composer installed it: a release ("0.7.1"),
+ * or a branch ("dev-main") for a checkout of the repository.
+ */
+function get_plugin_version(): string
+{
+    if (class_exists(InstalledVersions::class) && InstalledVersions::isInstalled('castor-php/docker')) {
+        return InstalledVersions::getPrettyVersion('castor-php/docker') ?? 'dev-unknown';
+    }
+
+    return 'dev-unknown';
+}
+
+/**
+ * Order two versions of the plugin: negative when $a is older than $b, zero
+ * when nothing tells them apart, positive when $a is newer.
+ *
+ * No version at all is a router created before the plugin labelled it, older
+ * than anything. A branch ranks above every release, the way composer ranks the
+ * default branch: it is where the next release is being written. Two branches
+ * cannot be ordered.
+ */
+function compare_plugin_versions(?string $a, ?string $b): int
+{
+    $rank = static fn(?string $version): int => match (true) {
+        null === $version || '' === $version => 0,
+        str_starts_with($version, 'dev-') || str_ends_with($version, '-dev') => 2,
+        default => 1,
+    };
+
+    if ($rank($a) !== $rank($b) || 1 !== $rank($a)) {
+        return $rank($a) <=> $rank($b);
+    }
+
+    return version_compare(ltrim((string) $a, 'v'), ltrim((string) $b, 'v'));
+}
+
+/**
+ * A digest of what the router is made of: its base Caddyfile and its image.
+ * Two versions of the plugin shipping the same router give the same one.
+ */
+function get_router_checksum(): string
+{
+    $caddyfile = (string) file_get_contents(__DIR__ . '/Resources/router/Caddyfile');
+
+    return substr(hash('xxh128', $caddyfile . "\n" . get_router_image()), 0, 12);
+}
+
+/**
+ * How a router created by $version from $checksum compares to the one this
+ * plugin would create: zero when it is the same, negative when it is older and
+ * should give way to this one, positive when it is newer and should be kept.
+ *
+ * Only a different configuration is worth replacing a router serving every
+ * project of the machine, however far apart the versions of the plugin are.
+ * When both are branches, nothing orders them, and this one wins: that is a
+ * developer of the plugin switching branches, who expects to see theirs.
+ */
+function compare_router_configuration(?string $version, ?string $checksum, ?string $pluginVersion = null, ?string $pluginChecksum = null): int
+{
+    $pluginVersion ??= get_plugin_version();
+    $pluginChecksum ??= get_router_checksum();
+
+    if ($checksum === $pluginChecksum) {
+        return 0;
+    }
+
+    return compare_plugin_versions($version, $pluginVersion) > 0 ? 1 : -1;
+}
+
+/**
+ * The version and checksum labels of a router definition — of the compose file,
+ * or of the container — null for the ones it does not carry.
+ *
+ * @return array{version: ?string, checksum: ?string}
+ */
+function parse_router_labels(mixed $labels): array
+{
+    $labels = normalize_compose_labels($labels);
+
+    return [
+        'version' => ($labels['castor.router.version'] ?? '') ?: null,
+        'checksum' => ($labels['castor.router.checksum'] ?? '') ?: null,
+    ];
+}
+
+/**
+ * The labels of the router the compose file on disk describes.
+ *
+ * @return array{version: ?string, checksum: ?string}
+ */
+function get_router_compose_file_labels(): array
+{
+    $file = get_router_compose_file();
+    $compose = file_exists($file) ? yaml_parse((string) file_get_contents($file)) : null;
+
+    return parse_router_labels($compose['services']['router']['labels'] ?? null);
+}
+
+/**
+ * The labels of the router container.
+ *
+ * @return array{version: ?string, checksum: ?string}
+ */
+function get_router_container_labels(): array
+{
+    $labels = json_decode(capture(
+        ['docker', 'inspect', '-f', '{{json .Config.Labels}}', get_router_name()],
+        context: context()->withQuiet()->withAllowFailure()
+    ), true);
+
+    return parse_router_labels($labels);
+}
+
+/**
+ * Whether the router container is at least as recent as the one this plugin
+ * would create.
+ *
+ * A router outlives the projects and serves all of them, each on its own
+ * version of the plugin: the one running may have been created by an older
+ * version, whose configuration lacks what a task relies on — or by a newer one,
+ * which is fine.
+ */
+function is_router_up_to_date(): bool
+{
+    $labels = get_router_container_labels();
+
+    return compare_router_configuration($labels['version'], $labels['checksum']) >= 0;
+}
+
+/**
+ * Warn when the running router was created by an older version of the plugin.
+ *
+ * Starting the router recreates it whenever its configuration is older, but one
+ * that already runs is left alone: it serves every project of the machine, and
+ * when to interrupt them is the user's call.
+ */
+function warn_if_router_outdated(?string $consequence = null): void
+{
+    if (is_router_up_to_date()) {
+        return;
+    }
+
+    io()->warning(array_filter([
+        \sprintf(
+            'The global router was created by castor-php/docker %s, and runs an older configuration than the %s of this project.',
+            get_router_container_labels()['version'] ?? '(version unknown)',
+            get_plugin_version(),
+        ),
+        $consequence,
+        'Run "castor docker:router:restart" to apply the new one. It briefly interrupts every project it serves.',
+    ]));
 }
 
 /**
@@ -307,6 +486,10 @@ function stop_router(): bool
         return false;
     }
 
+    // The tunnels are on the router network, which compose cannot remove while
+    // anything is still attached to it.
+    close_all_tunnels();
+
     run(['docker', 'compose', '-f', $composeFile, 'down']);
 
     $routerCache = get_cache()->getItem('infrastructure.router.enabled');
@@ -318,7 +501,8 @@ function stop_router(): bool
 
 /**
  * Start the router on "docker:up", when the project needs it and it is not
- * already running.
+ * already running — and when it is, warn if an older version of the plugin
+ * created it.
  *
  * Called before compose starts the containers, because the project network is
  * joined right after and a router that is not up yet cannot join it.
@@ -330,7 +514,19 @@ function autostart_router(?Context $c = null): void
 {
     $c ??= context();
 
-    if (!is_router_autostart_enabled($c) || !get_project_urls($c) || is_router_running()) {
+    if (!get_project_urls($c)) {
+        return;
+    }
+
+    // Whoever started it, the project is served by this router: whether it is
+    // outdated matters with the autostart off too.
+    if (is_router_running()) {
+        warn_if_router_outdated();
+
+        return;
+    }
+
+    if (!is_router_autostart_enabled($c)) {
         return;
     }
 
@@ -598,6 +794,22 @@ function router_disable(): void
     }
 }
 
+/**
+ * The version of the plugin the running router comes from, and how it compares
+ * to the one of this project.
+ */
+function describe_router_configuration(): string
+{
+    $labels = get_router_container_labels();
+    $version = $labels['version'] ?? '(version unknown)';
+
+    return match (compare_router_configuration($labels['version'], $labels['checksum']) <=> 0) {
+        0 => \sprintf('<fg=green>Up to date, from castor-php/docker %s</>', $version),
+        1 => \sprintf('<fg=green>From castor-php/docker %s, newer than the %s of this project</>', $version, get_plugin_version()),
+        -1 => \sprintf('<fg=yellow>From castor-php/docker %s, older than the %s of this project: run "castor docker:router:restart"</>', $version, get_plugin_version()),
+    };
+}
+
 #[AsTask(name: 'status', namespace: 'docker:router', description: 'Show the status of the global Caddy router')]
 function router_status(): void
 {
@@ -615,6 +827,7 @@ function router_status(): void
         ['Compose file' => file_exists(get_router_compose_file()) ? get_router_compose_file() : '<fg=red>Not found</>'],
         ['Container name' => get_router_name()],
         ['Ports' => '80:80, 443:443'],
+        ['Configuration' => $isRunning ? describe_router_configuration() : '<fg=yellow>n/a</>'],
         ['Joined networks' => $isRunning ? implode(', ', get_router_networks()) : '<fg=yellow>n/a</>'],
         ['Projects served' => $isRunning ? (implode(', ', $served) ?: '<fg=yellow>none</>') : '<fg=yellow>n/a</>'],
     );

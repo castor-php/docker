@@ -16,6 +16,7 @@
             "src/functions.php",
             "src/router.php",
             "src/tasks.php",
+            "src/tunnel.php",
             "src/worktree.php"
         ]
     },

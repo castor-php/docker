@@ -119,6 +119,12 @@ function stop(
         io()->title('Stopping infrastructure');
     }
 
+    // A tunnel to a stopped project would only answer errors, to anyone who
+    // still has its public URL.
+    if (!$service) {
+        close_project_tunnels();
+    }
+
     $command = ['stop'];
 
     if ($service) {
@@ -275,6 +281,23 @@ function about(): void
             io()->note('Start it with "castor docker:router:enable".');
         }
     }
+
+    $tunnels = array_filter(get_project_tunnels($c), fn(array $tunnel) => $tunnel['running']);
+
+    if (!$tunnels) {
+        return;
+    }
+
+    io()->section('Public tunnels:');
+
+    $rows = [];
+
+    foreach ($tunnels as $domain => $tunnel) {
+        $url = parse_tunnel_url(get_tunnel_logs($tunnel['container'], $c));
+        $rows[] = [$domain, null === $url ? '<fg=yellow>waiting for its URL</>' : \sprintf('<href=%s>%s</>', $url, $url)];
+    }
+
+    io()->table(['Domain', 'Public URL'], $rows);
 }
 
 /**
@@ -607,6 +630,8 @@ function destroy(
             return;
         }
     }
+
+    close_project_tunnels();
 
     docker_compose(['down', '--remove-orphans', '--volumes', '--rmi=local']);
 }

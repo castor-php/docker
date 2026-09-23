@@ -9,6 +9,16 @@
 # on-demand TLS, so certificates are minted the first time a domain is hit — no
 # certificate has to be generated ahead of time.
 {
+	# Pass the X-Forwarded-* headers of a proxy standing in front of the router
+	# through to the services, rather than overwriting them. The tunnels opened
+	# by "castor docker:tunnel:start" reach the router from its own network and
+	# send the public host name in X-Forwarded-Host: without this, the
+	# application would only ever see the local domain the tunnel rewrote the
+	# Host to.
+	servers {
+		trusted_proxies static private_ranges
+	}
+
 	# Optionally sign those certificates with the mkcert root CA so they are
 	# trusted by the host and its browsers. The file is installed by
 	# "castor docker:router:enable" and the glob is silently ignored when mkcert
