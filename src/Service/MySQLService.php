@@ -9,19 +9,22 @@ use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasMysqlConfiguration;
 use Castor\Docker\Service\Behaviour\HasDatabaseLink;
+use Castor\Docker\Service\Behaviour\HasMysqlDump;
 use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
+use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
 use function Castor\context;
 
-class MySQLService implements DatabaseServiceInterface
+class MySQLService implements DatabaseServiceInterface, DumpableServiceInterface
 {
     use HasDatabaseLink;
     use HasMysqlConfiguration;
+    use HasMysqlDump;
     use HasName;
     use HasVersion;
 
@@ -92,6 +95,13 @@ class MySQLService implements DatabaseServiceInterface
                 expose_service_port($this->getName(), 3306, $port, $stop);
             },
         ];
+
+        yield from get_dump_tasks($this);
+    }
+
+    protected function isMariaDB(): bool
+    {
+        return false;
     }
 
     public function getDatabaseURL(): string

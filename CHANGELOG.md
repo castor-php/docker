@@ -53,6 +53,21 @@
   ports, HTTPS, DNS, worktree — and says how to fix each problem. Works without
   a daemon, exits non-zero on error. See
   [`docker:doctor`](doc/tasks.md#castor-dockerdoctor).
+* Every database service has a `{service}:dump` and a `{service}:restore` task.
+  A dump is written to a file whose name says the format — `.sql`, compressed
+  with `.gz`, `.zst` or `.xz`, and the custom format of `pg_dump` as `.dump` —
+  or to the standard output. A restore reads a file or the standard input, and
+  tells the compression and the format of the dump from its first bytes, so a
+  dump made anywhere else is read as it comes. Both run the tools of the
+  server's own image, so nothing has to be installed on the host.
+  The containers depending on the database are stopped while it is restored,
+  and Postgres restores into a scratch database it swaps in at the end, so a
+  dump failing half-way leaves the database as it was. ClickHouse dumps and
+  restores `BACKUP` archives. See
+  [dumping and restoring](services/databases.md#dumping-and-restoring).
+* `castor worktree:create --copy-data` starts the worktree from the databases
+  of the checkout it is run from, rather than from empty ones. See
+  [git worktrees](going-further/worktrees.md#starting-from-the-data-of-a-checkout).
 
 ### Changed
 
@@ -104,6 +119,9 @@ Pin the old version with `withVersion()` or remove the volume
 * A FrankenPHP application linked to a Mercure hub it serves itself needs a
   `castor docker:build`: the hub is a directive of the Caddyfile baked into its
   image, like the worker mode.
+* The ClickHouse service allows `BACKUP` to write in
+  `/var/lib/clickhouse/backups/`, through a compose config: the container is
+  recreated on the next `castor docker:up`.
 
 ## 0.7.1 - 2026-09-22
 

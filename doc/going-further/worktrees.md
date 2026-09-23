@@ -74,6 +74,31 @@ and `--from` says where a branch that does not exist yet starts.
 `worktree:delete` asks before throwing away uncommitted changes or commits that
 were never pushed; `--force` skips the questions. The branch is always kept.
 
+### Starting from the data of a checkout
+
+A worktree starts with empty databases: its volumes are its own. `--copy-data`
+fills them with the databases of the checkout you run it from instead:
+
+```console
+$ castor worktree:create bug-4242 --copy-data --start
+```
+
+That is what makes a worktree the place for what you would not risk on your
+own data — a migration that may go wrong, a test that wipes a table: the
+worktree works on a copy, and throwing it away with `worktree:delete` is the way
+back.
+
+The copy is taken from wherever the task runs, so a worktree can start from
+another one: `castor --worktree=bug-4242 worktree:create bug-4243 --copy-data`.
+
+Each database goes through a [dump](../services/databases.md#dumping-and-restoring):
+the checkout it is copied from keeps running, and the worktree may well run
+another version of the server — a branch upgrading Postgres is the very kind a
+worktree is for. The dump is restored by the worktree itself, with the
+`castor.php` of its branch, so it lands in whatever that branch declares. A
+database the checkout never started has nothing to copy, and the worktree
+starts with an empty one.
+
 ### Where the checkouts live
 
 `<parent of the main checkout>/worktrees/<repository>/<name>` by default, which

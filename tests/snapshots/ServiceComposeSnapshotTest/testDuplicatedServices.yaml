@@ -231,6 +231,10 @@ services:
             - caddy.tls.on_demand=
         profiles:
             - default
+        configs:
+            -
+                source: events-backups
+                target: /etc/clickhouse-server/config.d/castor-backups.xml
     events-keeper:
         build:
             context: '%PACKAGE%/src/Service/../Resources/clickhouse'
@@ -484,3 +488,11 @@ volumes:
     catalog-data: {}
     rustfs-data: {}
     backups-data: {}
+configs:
+    events-backups:
+        content: |-
+            <clickhouse>
+                <backups>
+                    <allowed_path>/var/lib/clickhouse/backups/</allowed_path>
+                </backups>
+            </clickhouse>

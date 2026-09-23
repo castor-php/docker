@@ -10,6 +10,8 @@ use Castor\Attribute\AsOption;
 use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\DumpableServiceInterface;
+use Castor\Docker\Service\ServiceInterface;
 use Castor\Event\AfterBootEvent;
 use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Console\Input\InputOption;
@@ -406,6 +408,8 @@ function worktree_create(
     string $from = 'HEAD',
     #[AsOption(description: 'Build and start the stack of the worktree once it is created')]
     bool $start = false,
+    #[AsOption(description: 'Copy the databases of this checkout into those of the worktree')]
+    bool $copyData = false,
 ): void {
     $slug = slugify_worktree_name($name);
 
@@ -436,6 +440,17 @@ function worktree_create(
 
     $c = context();
     $domain = worktree_root_domain($slug, get_worktree_base_domain($c));
+
+    if ($copyData) {
+        $databases = array_values(array_filter(collect_services(), static fn(ServiceInterface $service): bool => $service instanceof DumpableServiceInterface));
+
+        if ($databases) {
+            io()->section('Copying the databases of this checkout');
+            copy_databases_to_worktree($databases, $path);
+        } else {
+            io()->comment('There is no database to copy.');
+        }
+    }
 
     if ($start) {
         io()->section('Starting its stack');
