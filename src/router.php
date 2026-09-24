@@ -19,37 +19,28 @@ use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
 /**
- * The name of the router, used for its compose project, its container and —
- * through compose — its own network ("<name>_default").
+ * Names its compose project, its container and its own network
+ * ("<name>_default").
  */
 function get_router_name(): string
 {
     return 'castor-docker-router';
 }
 
-/**
- * Get the path to the global router directory.
- */
 function get_router_directory(): string
 {
     return $_SERVER['HOME'] . '/.castor/docker/router';
 }
 
-/**
- * Get the path to the global router compose file.
- */
 function get_router_compose_file(): string
 {
     return get_router_directory() . '/compose.yaml';
 }
 
 /**
- * Get the path to the router certificate directory, holding the optional
- * mkcert CA used to mint locally-trusted certificates.
- *
- * The router is global, so this must not be derived from any project path: an
- * project-relative one would be resolved against the project directory when
- * written from PHP, but against the router directory when mounted by compose.
+ * Holds the optional mkcert CA. Never derived from a project path: a relative
+ * one would resolve against the project directory when written from PHP, but
+ * against the router directory when mounted by compose.
  */
 function get_router_certs_directory(): string
 {
@@ -57,9 +48,9 @@ function get_router_certs_directory(): string
 }
 
 /**
- * The upstream router image. The base Caddyfile is passed as a compose config
- * rather than baked in with a Dockerfile, so enabling the router never depends
- * on a project's vendor directory being present.
+ * The base Caddyfile is passed as a compose config rather than baked in with a
+ * Dockerfile, so enabling the router never depends on a project's vendor
+ * directory being present.
  */
 function get_router_image(): string
 {
@@ -70,14 +61,10 @@ function get_router_image(): string
  * The socket of the Docker daemon the projects run on, which the router has to
  * watch to see their "caddy.*" labels.
  *
- * Not always /var/run/docker.sock: a CI job installing a daemon of its own, a
- * rootless daemon and Colima all put theirs somewhere else, and the daemon of
- * /var/run/docker.sock may then be a *different* one — where the containers of
- * the project do not exist. The router would come up, see no label at all and
- * serve nothing, refusing the connections on 443 rather than failing outright.
- *
- * DOCKER_SOCKET_PATH is the convention such setups export; DOCKER_HOST is what
- * the Docker CLI itself reads, and only a unix one can be bind-mounted.
+ * Not always /var/run/docker.sock: a rootless daemon, Colima or a CI job put
+ * theirs elsewhere, and /var/run/docker.sock may then be a *different* daemon
+ * where the project's containers do not exist — the router would come up, see
+ * no label and serve nothing. Only a unix DOCKER_HOST can be bind-mounted.
  */
 function get_docker_socket_path(): string
 {
@@ -97,13 +84,10 @@ function get_docker_socket_path(): string
 }
 
 /**
- * Whether the router may be started and stopped along with the projects.
- *
  * On by default: a project routing a domain cannot be reached without the
- * router, and remembering to start it by hand is a step that only shows up as a
- * "connection refused" much later. The environment variable wins over the
- * context, so a CI job, a script or a single shell can turn it off without
- * touching the project — anything the Docker CLI reads as a boolean is accepted.
+ * router, and forgetting to start it only shows up as a "connection refused"
+ * much later. The environment variable wins over the context, so a CI job or a
+ * single shell can turn it off without touching the project.
  */
 function is_router_autostart_enabled(?Context $c = null): bool
 {
@@ -127,17 +111,14 @@ function is_router_autostart_enabled(?Context $c = null): bool
 }
 
 /**
- * Ensure the global router compose file exists and is up to date.
- *
- * Unless it describes a newer router: every project on the machine writes this
- * file, with the version of the plugin it has installed, and one lagging behind
+ * Unless the file describes a newer router: every project on the machine writes
+ * it with the version of the plugin it has installed, and one lagging behind
  * must not take the router back to its older configuration.
  */
 function ensure_router_compose(): void
 {
-    // Create the router directories if they don't exist. The certificate one
-    // is mounted by the router, so it must exist beforehand or Docker would
-    // create it as root.
+    // The certificate directory is mounted by the router, so it must exist
+    // beforehand or Docker would create it as root.
     fs()->mkdir([get_router_directory(), get_router_certs_directory()]);
 
     $existing = get_router_compose_file_labels();
@@ -163,8 +144,6 @@ function ensure_router_compose(): void
 }
 
 /**
- * The compose definition of the router.
- *
  * @return array<string, mixed>
  */
 function get_router_compose(): array
@@ -200,10 +179,9 @@ function get_router_compose(): array
                     ],
                 ],
                 'volumes' => [
-                    // caddy-docker-proxy watches the Docker socket to build its
+                    // caddy-docker-proxy watches the socket to build its
                     // configuration from the "caddy.*" labels of the services.
                     get_docker_socket_path() . ':/var/run/docker.sock',
-                    // Persist issued certificates and the local CA between restarts.
                     'router-data:/data',
                     "{$certsDir}:/certs:cached",
                 ],
@@ -214,11 +192,10 @@ function get_router_compose(): array
                 'labels' => [
                     'castor.managed' => 'true',
                     'castor.router' => 'true',
-                    // Which plugin created the router, and from what: several
-                    // projects share it, each on its own version of the plugin
-                    // (see compare_router_configuration()). The checksum is
-                    // also what makes compose recreate the router when only the
-                    // content of its inline config changed.
+                    // Which plugin created the router, and from what — several
+                    // projects share it, each on its own version. The checksum
+                    // is also what makes compose recreate the router when only
+                    // the content of its inline config changed.
                     'castor.router.version' => get_plugin_version(),
                     'castor.router.checksum' => get_router_checksum(),
                 ],
@@ -228,8 +205,7 @@ function get_router_compose(): array
 }
 
 /**
- * The version of this plugin, as composer installed it: a release ("0.7.1"),
- * or a branch ("dev-main") for a checkout of the repository.
+ * A release ("0.7.1"), or a branch ("dev-main") for a checkout.
  */
 function get_plugin_version(): string
 {
@@ -241,13 +217,11 @@ function get_plugin_version(): string
 }
 
 /**
- * Order two versions of the plugin: negative when $a is older than $b, zero
- * when nothing tells them apart, positive when $a is newer.
+ * Negative when $a is older than $b, zero when nothing tells them apart.
  *
  * No version at all is a router created before the plugin labelled it, older
  * than anything. A branch ranks above every release, the way composer ranks the
- * default branch: it is where the next release is being written. Two branches
- * cannot be ordered.
+ * default branch. Two branches cannot be ordered.
  */
 function compare_plugin_versions(?string $a, ?string $b): int
 {
@@ -265,8 +239,8 @@ function compare_plugin_versions(?string $a, ?string $b): int
 }
 
 /**
- * A digest of what the router is made of: its base Caddyfile and its image.
- * Two versions of the plugin shipping the same router give the same one.
+ * Two versions of the plugin shipping the same Caddyfile and image give the
+ * same digest.
  */
 function get_router_checksum(): string
 {
@@ -276,14 +250,13 @@ function get_router_checksum(): string
 }
 
 /**
- * How a router created by $version from $checksum compares to the one this
- * plugin would create: zero when it is the same, negative when it is older and
- * should give way to this one, positive when it is newer and should be kept.
+ * Zero when a router created by $version from $checksum is the one this plugin
+ * would create, negative when it should give way to it, positive when it should
+ * be kept.
  *
  * Only a different configuration is worth replacing a router serving every
- * project of the machine, however far apart the versions of the plugin are.
- * When both are branches, nothing orders them, and this one wins: that is a
- * developer of the plugin switching branches, who expects to see theirs.
+ * project of the machine, however far apart the plugin versions are. Between
+ * two branches this one wins: that is a plugin developer switching branches.
  */
 function compare_router_configuration(?string $version, ?string $checksum, ?string $pluginVersion = null, ?string $pluginChecksum = null): int
 {
@@ -298,9 +271,6 @@ function compare_router_configuration(?string $version, ?string $checksum, ?stri
 }
 
 /**
- * The version and checksum labels of a router definition — of the compose file,
- * or of the container — null for the ones it does not carry.
- *
  * @return array{version: ?string, checksum: ?string}
  */
 function parse_router_labels(mixed $labels): array
@@ -314,8 +284,6 @@ function parse_router_labels(mixed $labels): array
 }
 
 /**
- * The labels of the router the compose file on disk describes.
- *
  * @return array{version: ?string, checksum: ?string}
  */
 function get_router_compose_file_labels(): array
@@ -327,8 +295,6 @@ function get_router_compose_file_labels(): array
 }
 
 /**
- * The labels of the router container.
- *
  * @return array{version: ?string, checksum: ?string}
  */
 function get_router_container_labels(): array
@@ -342,13 +308,9 @@ function get_router_container_labels(): array
 }
 
 /**
- * Whether the router container is at least as recent as the one this plugin
- * would create.
- *
  * A router outlives the projects and serves all of them, each on its own
  * version of the plugin: the one running may have been created by an older
- * version, whose configuration lacks what a task relies on — or by a newer one,
- * which is fine.
+ * version, whose configuration lacks what a task relies on.
  */
 function is_router_up_to_date(): bool
 {
@@ -358,11 +320,9 @@ function is_router_up_to_date(): bool
 }
 
 /**
- * Warn when the running router was created by an older version of the plugin.
- *
- * Starting the router recreates it whenever its configuration is older, but one
- * that already runs is left alone: it serves every project of the machine, and
- * when to interrupt them is the user's call.
+ * Starting the router recreates an older configuration, but one that already
+ * runs is left alone: it serves every project of the machine, and when to
+ * interrupt them is the user's call.
  */
 function warn_if_router_outdated(?string $consequence = null): void
 {
@@ -381,9 +341,6 @@ function warn_if_router_outdated(?string $consequence = null): void
     ]));
 }
 
-/**
- * Check if the global router is currently running.
- */
 function is_router_running(): bool
 {
     try {
@@ -399,10 +356,7 @@ function is_router_running(): bool
 }
 
 /**
- * The router container as it runs: the version of the plugin that created it
- * and the checksum of its configuration (see compare_router_configuration()),
- * the Docker socket it watches, and the networks it joined. Null when it is not
- * running.
+ * Null when the router is not running.
  *
  * @return array{version: ?string, checksum: ?string, socket: ?string, networks: list<string>}|null
  */
@@ -426,12 +380,9 @@ function get_running_router(): ?array
 }
 
 /**
- * The projects the router is currently serving: the ones with a running
- * container carrying a "caddy" label.
- *
- * A routed container that compose did not create has no project to name, so its
- * own name stands for it — it is still something the router serves, and still a
- * reason to keep it up.
+ * The projects with a running container carrying a "caddy" label. A routed
+ * container compose did not create names no project, so its own name stands
+ * for it.
  *
  * @return list<string>
  */
@@ -464,8 +415,7 @@ function get_routed_projects(): array
 }
 
 /**
- * Create the router compose file, install the CA when mkcert is there, and
- * start the container — what both "docker:router:enable" and the autostart do.
+ * What both "docker:router:enable" and the autostart do.
  *
  * @return list<string> the networks of the already-running projects it joined
  */
@@ -475,9 +425,8 @@ function start_router(): array
 
     $socket = get_docker_socket_path();
 
-    // A router watching a socket that is not there sees no service of any
-    // project, and answers nothing on 443 — with only "connection refused" on
-    // the caller's side to go by. Say it here instead.
+    // A router watching a socket that is not there answers nothing on 443,
+    // with only "connection refused" on the caller's side to go by.
     if (!file_exists($socket)) {
         io()->warning([
             \sprintf('The Docker socket %s does not exist.', $socket),
@@ -490,8 +439,8 @@ function start_router(): array
 
     run(['docker', 'compose', '-f', get_router_compose_file(), 'up', '-d']);
 
-    // Join the projects that are already running: "docker:up" only attaches the
-    // router to its project network when the router is up at that time.
+    // "docker:up" only attaches the router to its project network when the
+    // router is already up at that time.
     $networks = connect_router_to_running_projects();
 
     $routerCache = get_cache()->getItem('infrastructure.router.enabled');
@@ -502,8 +451,8 @@ function start_router(): array
 }
 
 /**
- * Stop the router container. False when there is no compose file to stop it
- * with, which means it was never set up here.
+ * False when there is no compose file to stop it with, which means the router
+ * was never set up here.
  */
 function stop_router(): bool
 {
@@ -527,15 +476,11 @@ function stop_router(): bool
 }
 
 /**
- * Start the router on "docker:up", when the project needs it and it is not
- * already running — and when it is, warn if an older version of the plugin
- * created it.
- *
  * Called before compose starts the containers, because the project network is
  * joined right after and a router that is not up yet cannot join it.
  *
  * A project routing no domain never triggers this: it has nothing for the
- * router to serve, and does not have to pay for a container it does not use.
+ * router to serve.
  */
 function autostart_router(?Context $c = null): void
 {
@@ -545,8 +490,8 @@ function autostart_router(?Context $c = null): void
         return;
     }
 
-    // Whoever started it, the project is served by this router: whether it is
-    // outdated matters with the autostart off too.
+    // Whoever started it, this router serves the project: being outdated
+    // matters with the autostart off too.
     if (is_router_running()) {
         warn_if_router_outdated();
 
@@ -562,23 +507,18 @@ function autostart_router(?Context $c = null): void
     try {
         start_router();
     } catch (\Throwable $e) {
-        // The project itself can still come up: it is only its domains that
-        // will not answer, and saying so beats failing the whole task.
+        // The project itself can still come up: only its domains will not
+        // answer.
         io()->warning('Could not start the global router: ' . $e->getMessage());
         io()->note('Start it yourself with "castor docker:router:enable".');
     }
 }
 
 /**
- * Stop the router on "docker:stop" and "docker:destroy", once no project is
- * left for it to serve.
- *
- * However it was started: a router serving nothing is a container holding ports
- * 80 and 443 for no one, and the next project that needs it starts it again.
- * Turn the autostart off to keep one running for good.
- *
- * A project routing no domain leaves it alone: it never asked for the router,
- * so it has no business taking it away from the others.
+ * Stop the router once no project is left for it to serve, however it was
+ * started: it would be holding ports 80 and 443 for no one, and the next
+ * project that needs it starts it again. Turn the autostart off to keep one
+ * running for good.
  */
 function autostop_router(?Context $c = null): void
 {
@@ -605,9 +545,6 @@ function autostop_router(?Context $c = null): void
     }
 }
 
-/**
- * Install the mkcert certificate authority for locally-trusted certificates.
- */
 function install_certificate_authority(): void
 {
     $certsDir = get_router_certs_directory();
@@ -642,15 +579,10 @@ function install_certificate_authority(): void
     fs()->copy("{$caRoot}/rootCA.pem", "{$certsDir}/rootCA.pem", true);
     fs()->copy("{$caRoot}/rootCA-key.pem", "{$certsDir}/rootCA-key.pem", true);
 
-    // Tell Caddy's internal issuer to sign on-demand certificates with the
-    // mkcert root, which is already trusted by the host and its browsers.
-    //
-    // The mkcert root is created with "pathlen:0", so it may only sign leaf
-    // certificates directly, not an intermediate CA. Caddy signs leaves with
-    // its intermediate by default, so we point the intermediate at the mkcert
-    // root as well: leaves are then signed straight from the mkcert root and
-    // the chain stays valid (otherwise browsers reject it with a "path length
-    // constraint exceeded" error).
+    // The mkcert root is created with "pathlen:0", so it may only sign leaves,
+    // not the intermediate Caddy signs with by default: pointing both at the
+    // mkcert root keeps the chain valid ("path length constraint exceeded"
+    // otherwise).
     fs()->dumpFile("{$caddyDir}/ca.caddy", <<<'CADDY'
         pki {
             ca local {
@@ -670,24 +602,15 @@ function install_certificate_authority(): void
 }
 
 /**
- * Attach the router to a project network so it can reach that project's
- * services.
- *
- * Projects deliberately do not share a network: each keeps its own, and the
- * router — which is a member of all of them — is the only container with a foot
- * in several projects. Two projects exposing a service under the same name
- * therefore never collide in the Docker DNS. caddy-docker-proxy resolves
- * "{{upstreams}}" to container IPs rather than names, so it only needs to be
- * routable to them.
- *
- * A no-op when the router is not running, and when it is already a member.
+ * Projects deliberately do not share a network: the router is the only
+ * container with a foot in several of them, so two projects exposing a service
+ * under the same name never collide in the Docker DNS. caddy-docker-proxy
+ * resolves "{{upstreams}}" to container IPs, so it only needs to be routable.
  *
  * The project domains are passed as network aliases, so they also resolve to
- * the router through the Docker DNS. This is a complement to the extra_hosts
- * the generator writes (see add_project_extra_hosts()), which take precedence
- * as /etc/hosts always does — it is what makes the domains resolve when that
- * behaviour is turned off. Aliases are only applied when the router actually
- * joins: Docker keeps the ones it already has for a network it is a member of.
+ * the router through the Docker DNS — a fallback for when the extra_hosts of
+ * add_project_extra_hosts() are turned off. Docker keeps the aliases of a
+ * network it is already a member of, so they only apply when it really joins.
  *
  * @param list<string> $aliases
  */
@@ -711,11 +634,8 @@ function connect_router_to_network(string $network, array $aliases = []): void
 }
 
 /**
- * Detach the router from a project network.
- *
  * Required before "docker compose down": Docker refuses to remove a network
- * that still has an endpoint, so leaving the router attached would leave a
- * dangling network behind and print an error.
+ * that still has an endpoint, leaving a dangling network and an error behind.
  */
 function disconnect_router_from_network(string $network): void
 {
@@ -730,8 +650,6 @@ function disconnect_router_from_network(string $network): void
 }
 
 /**
- * The networks the router is currently a member of.
- *
  * @return list<string>
  */
 function get_router_networks(): array
@@ -745,8 +663,6 @@ function get_router_networks(): array
 }
 
 /**
- * Attach the router to the networks of every already-running routed container.
- *
  * Enabling the router after the projects are up would otherwise route nothing
  * until the next "docker:up".
  *
@@ -822,8 +738,7 @@ function router_disable(): void
 }
 
 /**
- * The version of the plugin the running router comes from, and how it compares
- * to the one of this project.
+ * How the running router compares to the one of this project.
  */
 function describe_router_configuration(): string
 {

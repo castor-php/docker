@@ -11,13 +11,10 @@ use function Castor\Docker\get_project_name;
 use function Castor\Docker\initialize_project;
 
 /**
- * The project name is what containers, networks, volumes and the images of a
- * shared builder are all derived from, so a second checkout of the same
- * repository — a git worktree, say — only has to override it to run beside the
- * first.
- *
- * That only works if the context wins over the "name" of compose.yaml, which
- * every checkout shares.
+ * Containers, networks, volumes and the images of a shared builder are all
+ * derived from the project name, so a second checkout only has to override it
+ * to run beside the first — which needs the context to win over the "name" of
+ * compose.yaml, shared by every checkout.
  */
 final class ProjectNameTest extends TestCase
 {

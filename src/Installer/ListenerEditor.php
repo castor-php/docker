@@ -33,8 +33,8 @@ use PhpParser\PrettyPrinter;
 
 /**
  * Format-preserving editor for the user's castor.php: it registers services on
- * the RegisterServiceEvent listener (creating the listener when there is none),
- * merging the required "use" imports, and only rewrites the nodes it touches.
+ * the RegisterServiceEvent listener, creating it when there is none, merges the
+ * required imports, and only rewrites the nodes it touches.
  */
 final class ListenerEditor
 {
@@ -73,9 +73,8 @@ final class ListenerEditor
     }
 
     /**
-     * The variable name of the RegisterServiceEvent parameter of the existing
-     * listener (so generated code uses the same "$event"), or the default when
-     * the listener still has to be created.
+     * The RegisterServiceEvent parameter of the existing listener, so generated
+     * code uses the same "$event".
      */
     public function getEventVariable(): string
     {
@@ -160,10 +159,9 @@ final class ListenerEditor
     }
 
     /**
-     * Ensure the given service class is registered through a variable (so it can
-     * be referenced, e.g. to link a database), extracting it from an inline
-     * "$event->addService(new X())" if needed. Returns the variable name, or
-     * null when the service is not registered in the listener.
+     * Make the service referenceable — to link a database to it — by extracting
+     * it out of an inline "$event->addService(new X())" if needed. Null when it
+     * is not registered in the listener.
      */
     public function ensureServiceVariable(string $class, string $preferredVariable): ?string
     {
@@ -212,11 +210,11 @@ final class ListenerEditor
     }
 
     /**
-     * Remove the registration of the given service (matched by class, and by the
-     * "name:" argument when present) from the listener, dropping a now-unused
-     * variable assignment and imports. Returns false when it is not registered.
+     * Matched by class, and by the "name:" argument when present. Drops a
+     * now-unused variable assignment and imports. False when it is not
+     * registered.
      *
-     * @throws \RuntimeException when the service is referenced by another one (e.g. a linked database)
+     * @throws \RuntimeException when the service is referenced by another one
      */
     public function removeService(string $class, string $name): bool
     {

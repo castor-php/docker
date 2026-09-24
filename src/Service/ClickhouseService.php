@@ -74,9 +74,6 @@ class ClickhouseService implements DumpableServiceInterface
         return 'clickhouse';
     }
 
-    /**
-     * The keeper container that comes with this instance.
-     */
     public function getKeeperName(): string
     {
         return $this->getName() . '-keeper';
@@ -101,9 +98,8 @@ class ClickhouseService implements DumpableServiceInterface
                 ->end()
                 ->volume($name . '-data', '/var/lib/clickhouse')
                 ->config($name . '-backups', '/etc/clickhouse-server/config.d/castor-backups.xml')
-                // The image exposes 8123 (HTTP) and 9000 (native protocol);
-                // without a port Caddy picks whichever it finds first, and
-                // routing to the native one answers 502.
+                // The image exposes 8123 (HTTP) and 9000 (native protocol),
+                // and Caddy routing to the native one would answer 502.
                 ->withHttpRouting("{$name}.{$rootDomain}", 8123)
                 ->environment('CLICKHOUSE_DB', $this->database)
                 ->environment('CLICKHOUSE_USER', $this->username)
@@ -150,9 +146,8 @@ class ClickhouseService implements DumpableServiceInterface
     }
 
     /**
-     * A BACKUP archive, the only format holding both the schema and the data
-     * of a whole database — and a copy of its data parts, so restoring one is
-     * not a replay of inserts.
+     * The only format holding both the schema and the data of a whole database,
+     * as a copy of its data parts rather than a replay of inserts.
      */
     public function getDumpFormats(): array
     {
@@ -199,9 +194,9 @@ class ClickhouseService implements DumpableServiceInterface
     }
 
     /**
-     * The archive is copied where the server may read it, next to its data.
-     * The database is dropped synchronously first: the keeper would otherwise
-     * still hold the replicas of its tables when RESTORE creates them again.
+     * The archive is copied next to the data, where the server may read it. The
+     * database is dropped synchronously first: the keeper would otherwise still
+     * hold the replicas of its tables when RESTORE creates them again.
      */
     public function getRestoreScript(): string
     {

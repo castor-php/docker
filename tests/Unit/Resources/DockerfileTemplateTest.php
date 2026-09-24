@@ -16,10 +16,8 @@ use Twig\TwigFunction;
  * BuildKit frontend does, so a template error surfaces here instead of in a
  * user's build.
  *
- * The environment mirrors the frontend's: no autoescaping (a Dockerfile is not
- * HTML), and neither trim_blocks nor lstrip_blocks — a block tag therefore
- * leaves its newline behind, which is harmless in a Dockerfile but means the
- * templates must not rely on either being on.
+ * The environment mirrors the frontend's: no autoescaping, and neither
+ * trim_blocks nor lstrip_blocks — so the templates must not rely on either.
  *
  * @see https://github.com/castor-php/twig-dockerfile
  */
@@ -385,15 +383,13 @@ final class DockerfileTemplateTest extends TestCase
     }
 
     /**
-     * The templates shipped here carry no "# syntax=" directive: the frontend is
-     * pinned by the BUILDKIT_SYNTAX build argument every generated service
-     * passes, which BuildKit honours over the directive anyway.
+     * The templates carry no "# syntax=" directive: the frontend is pinned by
+     * the BUILDKIT_SYNTAX build argument every generated service passes, which
+     * BuildKit honours over the directive anyway.
      *
-     * That line is text as far as Twig is concerned, and a template that
-     * extends another one cannot hold text outside its blocks. Carrying it
-     * therefore costs a template the ability to extend — and any project
-     * extending such a template is rejected on line 1, which is the whole point
-     * of shipping templates.
+     * That line is text to Twig, and a template that extends another cannot
+     * hold text outside its blocks — carrying it would cost every shipped
+     * template the ability to be extended.
      */
     public function testNoShippedTemplateCarriesTheSyntaxDirective(): void
     {

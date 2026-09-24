@@ -15,8 +15,8 @@ use function Castor\io;
 use function Castor\run;
 
 /**
- * The upstream cloudflared image. Its entrypoint already passes
- * "--no-autoupdate": a container is replaced, not updated in place.
+ * Its entrypoint already passes "--no-autoupdate": a container is replaced, not
+ * updated in place.
  */
 function get_tunnel_image(): string
 {
@@ -24,8 +24,7 @@ function get_tunnel_image(): string
 }
 
 /**
- * How long "docker:tunnel:start" waits for Cloudflare to hand out the URLs,
- * in seconds.
+ * Seconds "docker:tunnel:start" waits for Cloudflare to hand out the URLs.
  */
 function get_tunnel_timeout(): int
 {
@@ -33,13 +32,9 @@ function get_tunnel_timeout(): int
 }
 
 /**
- * Every domain of the project a tunnel can be opened to, with the compose
- * service serving it.
- *
- * Read from the same labels as "docker:about", so a domain declared by a
- * service, by an #[AsDockerComposeBuilder] function or straight in
- * compose.override.yaml can be tunnelled alike. A wildcard is left out: it is a
- * family of names, and a tunnel has to rewrite the Host to a single one.
+ * Read from the same labels as "docker:about", so any declared domain can be
+ * tunnelled alike. A wildcard is left out: it is a family of names, and a
+ * tunnel has to rewrite the Host to a single one.
  *
  * @return array<string, string> the service, keyed by domain
  */
@@ -65,11 +60,8 @@ function get_tunnel_domains(?Context $c = null): array
 }
 
 /**
- * Completion callback for the domains argument of the "docker:tunnel:*" tasks.
- *
- * The argument takes several domains: the ones already on the command line are
- * not offered again. The word being completed is on it too, and has to stay
- * offered, or a domain typed in full would not complete.
+ * The domains already on the command line are not offered again — except the
+ * word being completed, or a domain typed in full would not complete.
  *
  * @return list<string>
  */
@@ -82,8 +74,8 @@ function autocomplete_tunnel_domain(CompletionInput $input): array
 }
 
 /**
- * The container holding the tunnel of a domain. One per domain: a quick tunnel
- * gets one public host name, and forwards everything to a single origin.
+ * One per domain: a quick tunnel gets one public host name, and forwards
+ * everything to a single origin.
  */
 function get_tunnel_container_name(string $project, string $domain): string
 {
@@ -91,25 +83,20 @@ function get_tunnel_container_name(string $project, string $domain): string
 }
 
 /**
- * The "docker run" starting the tunnel of a domain.
+ * The container joins the network of the router and sends everything to it, so
+ * every domain is reached the way a browser reaches it. Over HTTPS, because a
+ * service refusing plain HTTP would answer with a redirection to its *local*
+ * domain.
  *
- * The container joins the network of the global router rather than the one of
- * the project, and sends everything to the router: every domain is then reached
- * the way a browser reaches it, whatever serves it behind. It goes over HTTPS,
- * because a service that does not allow plain HTTP answers it with a redirection
- * to its *local* domain.
+ * The Host is rewritten to the local domain, which the router routes on, and so
+ * is the SNI, which it mints its on-demand certificate for. cloudflared passes
+ * the public host name on in X-Forwarded-Host, which the router hands down
+ * untouched. The certificate is left unverified: it is signed by a local CA the
+ * container knows nothing about, and the traffic never leaves the docker host.
  *
- * The Host is rewritten to the local domain, since that is what the router
- * routes on, and so is the SNI, which is what the router mints its on-demand
- * certificate for. cloudflared passes the public host name on in
- * X-Forwarded-Host, which the router hands down to the service untouched (see
- * the trusted_proxies of its Caddyfile). The certificate is left unverified:
- * the router signs it with a local CA the container knows nothing about, and the
- * traffic never leaves the docker host.
- *
- * The containers carry labels of their own rather than the compose ones:
- * "docker:up" runs compose with --remove-orphans, which would take a tunnel of
- * the project down — and a quick tunnel never comes back on the same URL.
+ * The containers carry labels of their own rather than the compose ones: the
+ * --remove-orphans of "docker:up" would take a tunnel down, and a quick tunnel
+ * never comes back on the same URL.
  *
  * @return list<string>
  */
@@ -132,8 +119,7 @@ function get_tunnel_command(string $project, string $domain): array
 }
 
 /**
- * The public URL a quick tunnel was given, read from the logs of its container,
- * or null while cloudflared has not got one.
+ * Read from the logs of its container, null while cloudflared has not got one.
  *
  * The last one wins: a container restarted by hand asks for a new URL, and the
  * logs still hold the previous one. api.trycloudflare.com is where the URL is
@@ -185,8 +171,8 @@ function get_project_tunnels(?Context $c = null): array
 }
 
 /**
- * The logs of a tunnel container. cloudflared writes them on stderr, which
- * "docker logs" keeps apart from stdout.
+ * cloudflared writes its logs on stderr, which "docker logs" keeps apart from
+ * stdout.
  */
 function get_tunnel_logs(string $container, ?Context $c = null): string
 {
@@ -196,8 +182,6 @@ function get_tunnel_logs(string $container, ?Context $c = null): string
 }
 
 /**
- * Wait for Cloudflare to give each container its URL.
- *
  * A null URL is a tunnel that exited or timed out, returned with its logs so
  * the caller can tell why.
  *
@@ -217,8 +201,7 @@ function wait_for_tunnel_urls(array $containers, ?Context $c = null): array
             $url = parse_tunnel_url($logs);
 
             // cloudflared exits when it cannot get a quick tunnel — Cloudflare
-            // limits how many may be asked for — and waiting longer changes
-            // nothing then.
+            // limits how many may be asked for — so waiting longer is pointless.
             if (null === $url && 'true' === capture(['docker', 'inspect', '-f', '{{.State.Running}}', $container], context: $c->withQuiet()->withAllowFailure())) {
                 continue;
             }
@@ -242,9 +225,6 @@ function wait_for_tunnel_urls(array $containers, ?Context $c = null): array
 }
 
 /**
- * Remove the tunnel containers of the project, or only the ones of the given
- * domains.
- *
  * Removed rather than stopped: a quick tunnel never comes back on the same URL,
  * so there is nothing worth keeping in a stopped one.
  *
@@ -271,11 +251,8 @@ function close_project_tunnels(array $domains = [], ?Context $c = null): array
 }
 
 /**
- * Remove the tunnel containers of every project.
- *
- * Called before the router goes down: they are on its network, which compose
- * cannot remove while they are attached to it — and they have nothing left to
- * forward to anyway.
+ * Called before the router goes down: the tunnels are on its network, which
+ * compose cannot remove while they are attached to it.
  */
 function close_all_tunnels(?Context $c = null): void
 {
@@ -349,8 +326,7 @@ function tunnel_start(
             continue;
         }
 
-        // A tunnel that exited — the quick tunnel could not be created, the
-        // docker daemon restarted — has no URL left to give.
+        // A tunnel that exited has no URL left to give.
         if (null !== $tunnel) {
             run(['docker', 'rm', '--force', $tunnel['container']], context: $c->withQuiet()->withAllowFailure());
         }

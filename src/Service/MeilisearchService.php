@@ -49,8 +49,8 @@ class MeilisearchService implements LinkableServiceInterface
     }
 
     /**
-     * The key everything else derives from. It is the key the linked
-     * applications receive, and the one the dashboard asks for.
+     * The key the linked applications receive, and the one the dashboard asks
+     * for.
      */
     public function withMasterKey(string $masterKey): static
     {
@@ -97,12 +97,12 @@ class MeilisearchService implements LinkableServiceInterface
                 // What serves the dashboard on the root URL.
                 ->environment('MEILI_ENV', 'development')
                 ->environment('MEILI_NO_ANALYTICS', 'true')
-                // Meilisearch refuses to open a database written by another
-                // version, even a patch apart: without this, the next pull of
-                // the floating tag leaves it down until the volume is dropped.
+                // Meilisearch refuses a database written by another version,
+                // even a patch apart, so the next pull of the floating tag
+                // would leave it down until the volume is dropped.
                 ->environment('MEILI_UPGRADE_DB', 'true')
                 ->volume($name . '-data', '/meili_data')
-                // 127.0.0.1 rather than localhost: it only listens on IPv4.
+                // It only listens on IPv4.
                 ->healthcheck(['CMD', 'curl', '-fsS', '-o', '/dev/null', 'http://127.0.0.1:7700/health'])
                 ->withHttpRouting($this->getDomain($context), 7700)
                 ->profile('default')

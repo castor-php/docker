@@ -60,11 +60,8 @@ use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
 /**
- * Get default Docker Compose profiles to activate.
- *
- * Read from the "docker_profiles" context data when the project sets one, so a
- * project organising its containers in more than the two built-in profiles does
- * not have to pass --profiles to every task.
+ * Read from the "docker_profiles" context data, so a project with more than the
+ * two built-in profiles does not have to pass --profiles to every task.
  *
  * @return list<string>
  */
@@ -82,8 +79,7 @@ function get_default_profiles(?Context $c = null): array
 /**
  * @param list<string> $subCommand
  * @param list<string> $profiles
- * @param ?string      $progress    one of compose's progress writers — "auto", "tty",
- *                                  "plain", "json" or "quiet" — left to compose when null
+ * @param ?string      $progress    "auto", "tty", "plain", "json" or "quiet", left to compose when null
  */
 function docker_compose(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): Process
 {
@@ -95,13 +91,8 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $c = $c
         ->withTimeout(null)
         ->withEnvironment([
-            // Compose reads the project name from the "name" of compose.yaml
-            // unless told otherwise, which would leave it disagreeing with the
-            // one the plugin derives everything else from — the network it
-            // connects the router to, the expose forwarders, and the
-            // "${PROJECT_NAME}-<service>" images a shared builder is referenced
-            // by. COMPOSE_PROJECT_NAME takes precedence over that "name", so
-            // the context stays the single source of truth.
+            // Takes precedence over the "name" of compose.yaml, so the context
+            // stays the single source of truth for everything derived from it.
             'COMPOSE_PROJECT_NAME' => $projectName,
             'PROJECT_NAME' => $projectName,
             'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
@@ -129,9 +120,8 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
 
     $command = array_merge($command, $subCommand);
 
-    // The global router is not a service of this compose file: it joins the
-    // project network from the outside, so it has to be attached once the
-    // network exists, and detached before "down" removes it.
+    // The router is not a service of this file: it joins the project network
+    // from the outside, so it is attached after "up" and detached before "down".
     $network = get_project_network($c);
     $subCommandName = $subCommand[0] ?? null;
 
@@ -139,8 +129,6 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         disconnect_router_from_network($network);
     }
 
-    // Before the containers start, so the router is there to be attached to the
-    // project network below.
     if ('up' === $subCommandName) {
         autostart_router($c);
     }
@@ -151,8 +139,6 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
         connect_router_to_network($network, get_project_domains($c));
     }
 
-    // The containers this project routed are gone by now, so what the router
-    // still serves is what other projects need it for.
     if ('stop' === $subCommandName || 'down' === $subCommandName) {
         autostop_router($c);
     }
@@ -161,11 +147,9 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
 }
 
 /**
- * The docker compose project name.
- *
- * Read from the "name" of compose.yaml rather than from the context data: the
- * context is only enriched when castor instantiates a declared #[AsContext],
- * and a project that declares none boots on a bare one.
+ * Falls back to the "name" of compose.yaml: the context is only enriched when
+ * castor instantiates a declared #[AsContext], and a project that declares
+ * none boots on a bare one.
  */
 function get_project_name(?Context $c = null): string
 {
@@ -188,9 +172,6 @@ function get_project_name(?Context $c = null): string
     return basename($c->workingDirectory);
 }
 
-/**
- * The default network compose creates for this project.
- */
 function get_project_network(?Context $c = null): string
 {
     $c ??= context();
@@ -199,11 +180,8 @@ function get_project_network(?Context $c = null): string
 }
 
 /**
- * The compose services of this project, read from the generated file and from
- * the ones the project writes itself.
- *
- * Read rather than asked to docker: this feeds the shell completion, which has
- * to answer instantly and must not need a running daemon.
+ * Read from the compose files rather than asked to docker: this feeds the shell
+ * completion, which must answer instantly and without a running daemon.
  *
  * @return list<string>
  */
@@ -235,9 +213,6 @@ function get_compose_service_names(?Context $c = null): array
 }
 
 /**
- * Completion callback for the "service" argument of the docker tasks, which
- * name a container of the generated compose file.
- *
  * @return list<string>
  */
 function autocomplete_service_name(CompletionInput $input): array
@@ -246,9 +221,8 @@ function autocomplete_service_name(CompletionInput $input): array
 }
 
 /**
- * Completion callback for the arguments naming a *registered* service — the
- * ones declared in castor.php, which are fewer than the containers they
- * generate.
+ * The services declared in castor.php, which are fewer than the containers
+ * they generate.
  *
  * @return list<string>
  */
@@ -265,9 +239,6 @@ function autocomplete_registered_service_name(CompletionInput $input): array
 }
 
 /**
- * Completion callback for the arguments naming an installer, the services
- * "docker:service:install" knows how to set up.
- *
  * @return list<string>
  */
 function autocomplete_installer_name(CompletionInput $input): array
@@ -279,11 +250,9 @@ function autocomplete_installer_name(CompletionInput $input): array
 }
 
 /**
- * Completion callback for the worker argument of the "{app}:worker:*" tasks.
- *
- * Which workers to offer depends on the application the task belongs to, and an
- * attribute cannot carry that: the application is read back from the command
- * being completed, whose namespace is its name.
+ * The workers to offer depend on the application the task belongs to, which an
+ * attribute cannot carry: it is read back from the namespace of the command
+ * being completed.
  *
  * @return list<string>
  */
@@ -305,12 +274,10 @@ function autocomplete_worker_name(CompletionInput $input): array
 }
 
 /**
- * Every domain routed to a container of this project, read back from the
- * generated compose file.
+ * Every domain routed to a container of this project.
  *
  * Taken from the "caddy" labels rather than from the services, so a domain
- * declared straight on the builder — by an #[AsDockerComposeBuilder] function,
- * or by a listener — counts too.
+ * declared straight on the builder counts too.
  *
  * @return list<string>
  */
@@ -328,8 +295,7 @@ function get_project_domains(?Context $c = null): array
 
     foreach ($compose['services'] ?? [] as $service) {
         foreach ($service['labels'] ?? [] as $label) {
-            // "caddy=a.test b.test", and "caddy_1=http://a.test" for the plain
-            // HTTP site withHttpAccess() adds.
+            // "caddy=a.test b.test", "caddy_1=http://a.test" for withHttpAccess().
             if (!\is_string($label) || 1 !== preg_match('/^caddy(?:_\d+)?=(.+)$/', $label, $matches)) {
                 continue;
             }
@@ -337,8 +303,8 @@ function get_project_domains(?Context $c = null): array
             foreach (preg_split('/\s+/', trim($matches[1])) ?: [] as $domain) {
                 $domain = (string) preg_replace('#^https?://#', '', $domain);
 
-                // A network alias has to be a plain host name: a wildcard or a
-                // matcher would make "docker network connect" fail as a whole.
+                // A wildcard or a matcher would make the whole
+                // "docker network connect" fail.
                 if (1 !== preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/', $domain)) {
                     continue;
                 }
@@ -354,10 +320,8 @@ function get_project_domains(?Context $c = null): array
 /**
  * Every HTTP(S) URL the project serves, keyed by the compose service serving it.
  *
- * Read from the "caddy" labels of every compose file of the project — the
- * generated one, and the ones the project writes itself — so a domain declared
- * by a service, by an #[AsDockerComposeBuilder] function or straight in
- * compose.override.yaml is listed the same way.
+ * Read from the "caddy" labels of every compose file, so a domain declared by a
+ * service, a builder or compose.override.yaml is listed the same way.
  *
  * @return array<string, list<string>>
  */
@@ -382,8 +346,6 @@ function get_project_urls(?Context $c = null): array
             }
 
             foreach (normalize_compose_labels($service['labels'] ?? null) as $label => $value) {
-                // "caddy=a.test b.test", and "caddy_1=http://a.test" for the
-                // plain HTTP site withHttpAccess() adds.
                 if (1 !== preg_match('/^caddy(?:_\d+)?$/', $label)) {
                     continue;
                 }
@@ -392,8 +354,7 @@ function get_project_urls(?Context $c = null): array
                     $scheme = str_starts_with($domain, 'http://') ? 'http' : 'https';
                     $domain = (string) preg_replace('#^https?://#', '', $domain);
 
-                    // Anything but a host name — a caddy matcher, a placeholder
-                    // left uninterpolated — is not a URL we could print.
+                    // A caddy matcher or an uninterpolated placeholder is no URL.
                     if (1 !== preg_match('/^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/', $domain)) {
                         continue;
                     }
@@ -410,9 +371,7 @@ function get_project_urls(?Context $c = null): array
 }
 
 /**
- * Compose accepts the labels of a service either as a map or as a list of
- * "key=value" strings — the generated file uses the list, a project writing its
- * own service may use either.
+ * Compose accepts labels either as a map or as a list of "key=value" strings.
  *
  * @return array<string, string>
  */
@@ -445,9 +404,6 @@ function normalize_compose_labels(mixed $labels): array
 /**
  * The compose services of this project that have a running container.
  *
- * Asked to docker rather than read from a file, and tolerant of a daemon that is
- * not there: an unreachable docker simply means nothing runs.
- *
  * @return list<string>
  */
 function get_running_service_names(?Context $c = null): array
@@ -461,8 +417,6 @@ function get_running_service_names(?Context $c = null): array
             '--format', '{{.Label "com.docker.compose.service"}}',
         ], context: $c->withQuiet()->withAllowFailure()));
     } catch (\Throwable) {
-        // No docker on this machine, or none this user may talk to: nothing of
-        // the project runs, which is all the caller asked.
         return [];
     }
 
@@ -479,9 +433,8 @@ function get_running_service_names(?Context $c = null): array
 /**
  * Parse a size the way the docker CLI writes it — "1.26GB", "254.1MiB", "0B".
  *
- * Docker prints disk sizes in SI units and memory in binary ones, so both
- * scales are read here. Anything else — "N/A" for a volume nobody measured,
- * an empty field for a container listed without --size — is no size at all.
+ * Docker prints disk sizes in SI units and memory in binary ones, hence both
+ * scales.
  */
 function parse_docker_size(string $size): ?int
 {
@@ -514,8 +467,7 @@ function parse_docker_size(string $size): ?int
 }
 
 /**
- * Parse a percentage as the docker CLI writes it — "99.27%", or "--" for a
- * container it could not measure.
+ * Parse a percentage as the docker CLI writes it — "99.27%", or "--".
  */
 function parse_docker_percent(string $percent): ?float
 {
@@ -527,8 +479,7 @@ function parse_docker_percent(string $percent): ?float
 }
 
 /**
- * Render a byte count the way docker renders one, so the totals this plugin
- * computes read like the sizes docker itself prints.
+ * Render a byte count the way docker renders one.
  */
 function format_bytes(int|float $bytes): string
 {
@@ -567,9 +518,8 @@ function parse_docker_labels(string $labels): array
 /**
  * Every container compose created for this project, running or not.
  *
- * Asking for the size makes docker measure the writable layer of each
- * container, which costs a walk of its filesystem: only the task reporting disk
- * usage asks for it.
+ * $withSize makes docker walk the filesystem of each container to measure its
+ * writable layer, so only the disk usage task asks for it.
  *
  * @return list<array{id: string, service: string, oneOff: bool, state: string, status: string, size: ?int, image: string}>
  */
@@ -578,9 +528,8 @@ function get_project_containers(bool $withSize = false, ?Context $c = null): arr
     $c ??= context();
 
     // Read field by field rather than as JSON: the "Labels" of the JSON output
-    // is a flat "key=value,key=value" string, which a label holding a comma —
-    // com.docker.compose.project.config_files does, for a project with several
-    // compose files — would make ambiguous.
+    // is a flat "key=value,key=value" string, ambiguous for a label holding a
+    // comma — com.docker.compose.project.config_files does.
     $format = implode("\t", [
         '{{.ID}}',
         '{{.Label "com.docker.compose.service"}}',
@@ -605,8 +554,6 @@ function get_project_containers(bool $withSize = false, ?Context $c = null): arr
     try {
         $output = trim(capture($command, context: $c->withQuiet()->withAllowFailure()->withTimeout(null)));
     } catch (\Throwable) {
-        // No docker on this machine, or none this user may talk to: the project
-        // has no container, which is all the caller asked.
         return [];
     }
 
@@ -627,8 +574,8 @@ function get_project_containers(bool $withSize = false, ?Context $c = null): arr
             'oneOff' => 'True' === $oneOff,
             'state' => $state,
             'status' => $status,
-            // "49.2kB (virtual 1.36GB)": only the first number belongs to the
-            // container, the rest is the image it shares with its siblings.
+            // "49.2kB (virtual 1.36GB)": only the first number is the
+            // container's, the rest is the image it shares with its siblings.
             'size' => parse_docker_size(explode(' ', $size)[0]),
             'image' => $image,
         ];
@@ -649,8 +596,7 @@ function get_project_containers(bool $withSize = false, ?Context $c = null): arr
  */
 function get_container_stats(array $ids, ?Context $c = null): array
 {
-    // "docker stats" with no container samples every container of the daemon,
-    // which is precisely not what an empty list means here.
+    // "docker stats" with no argument samples every container of the daemon.
     if (!$ids) {
         return [];
     }
@@ -698,14 +644,12 @@ function get_container_stats(array $ids, ?Context $c = null): array
 /**
  * The images and volumes of this project, and the disk they take.
  *
- * "docker system df" is the only place docker reports the size of a volume, or
- * the layers an image shares with the other ones, and it reports them for the
- * whole daemon: the share belonging to this project is picked out of it here.
+ * "docker system df" is the only place docker reports the size of a volume or
+ * the layers an image shares, and it reports them for the whole daemon.
  *
- * Images carry no compose label, so they are recognised by name: the one this
- * plugin builds them under — "<project>-<service>" — and the one every project
- * container was started from, which is how the third-party images the project
- * pulls are attributed to it.
+ * Images carry no compose label, so they are recognised by name: the
+ * "<project>-<service>" this plugin builds, and the image every project
+ * container was started from.
  *
  * @return array{images: list<array{name: string, size: ?int, exclusive: ?int, containers: int}>, volumes: list<array{name: string, size: ?int, links: int}>}
  */
@@ -732,9 +676,8 @@ function get_project_disk_usage(?Context $c = null): array
 
     $project = get_project_name($c);
 
-    // Matched on the name rather than on the id: "docker system df" reports the
-    // digest of the image index, where a container reports the digest of the
-    // image configuration, and the two do not compare.
+    // Not matched on the id: "docker system df" reports the digest of the image
+    // index, a container that of the image configuration.
     $imageNames = [$project => true];
 
     foreach (get_compose_service_names($c) as $service) {
@@ -742,8 +685,8 @@ function get_project_disk_usage(?Context $c = null): array
     }
 
     foreach (get_project_containers(c: $c) as $container) {
-        // A container whose image lost its tag names it by id, which nothing
-        // here can match: it is left out rather than attributed at random.
+        // A container whose image lost its tag names it by id, which matches
+        // nothing here.
         if ('' !== $container['image'] && !preg_match('/^[0-9a-f]{12,64}$/', $container['image'])) {
             $imageNames[$container['image']] = true;
         }
@@ -755,8 +698,7 @@ function get_project_disk_usage(?Context $c = null): array
         $repository = $image['Repository'] ?? '';
         $tag = $image['Tag'] ?? '';
 
-        // The plugin builds untagged images, docker tags what it pulls, and a
-        // container names its image either way, so both forms are looked up.
+        // The plugin builds untagged images, docker tags what it pulls.
         if (!isset($imageNames[$repository]) && !isset($imageNames[$repository . ':' . $tag])) {
             continue;
         }
@@ -792,9 +734,6 @@ function get_project_disk_usage(?Context $c = null): array
 }
 
 /**
- * What the docker host has to give, to put the numbers of "docker:stats" in
- * proportion.
- *
  * @return array{cpus: ?int, memory: ?int}
  */
 function get_docker_host_resources(?Context $c = null): array
@@ -821,16 +760,10 @@ function get_docker_host_resources(?Context $c = null): array
 /**
  * A context for a command that wants a terminal — a shell, a database session.
  *
- * castor's toInteractive() throws when the surrounding environment is not
- * interactive, which is right for a task that would otherwise hang waiting on a
- * terminal nobody is watching. It is too strict here: "castor app:bash" with
- * something piped into it, or with its output piped somewhere, is a scripted
- * shell and works perfectly well without a TTY — it just must not ask for one.
- *
- * So the interactive flags are only requested when they can be honoured. What
- * the rest of toInteractive() does is kept either way: no timeout, since a
- * session lasts as long as the user wants, and a non-zero exit is how a shell
- * reports the last command rather than a failure of the task.
+ * castor's toInteractive() throws without a TTY, which is too strict here: a
+ * piped "castor app:bash" is a scripted shell and works fine, it just must not
+ * ask for one. The rest of toInteractive() is kept either way: no timeout, and
+ * a non-zero exit is the last command of the shell, not a failed task.
  */
 function interactive_context(?Context $c = null): Context
 {
@@ -844,12 +777,8 @@ function interactive_context(?Context $c = null): Context
 }
 
 /**
- * The progress writer to give compose for a one-off command.
- *
- * Every "docker compose run" announces the throwaway container it creates —
- * "Container app-builder-run-8c9d8bef Creating", then "Created" — which is
- * noise in front of the output of the command you actually asked for. Silenced
- * unless the user asked for more output, where it becomes useful again.
+ * Silence the "Container app-builder-run-8c9d8bef Creating" chatter every
+ * "docker compose run" prints in front of the output actually asked for.
  */
 function get_compose_progress(?Context $c = null): ?string
 {
@@ -862,19 +791,12 @@ function get_compose_progress(?Context $c = null): ?string
  * The size of the terminal castor runs in, as the COLUMNS and LINES a command
  * in a container is given.
  *
- * castor runs docker behind a pseudo-terminal, and that pty is born 0x0: the
- * tty compose then allocates in the container inherits those zeroes, so "stty
- * size" has nothing to say there and everything that sizes its output to the
- * terminal — Symfony\Component\Console\Terminal, and every console command
- * through it — falls back to 80 columns whatever the real window is. COLUMNS
- * and LINES are what those readers look at before asking the tty, so handing
- * them over is enough to make the width right again.
+ * castor runs docker behind a pty born 0x0, and the tty compose allocates in
+ * the container inherits those zeroes: everything sizing its output to the
+ * terminal then falls back to 80 columns. COLUMNS and LINES are read before
+ * the tty is asked, so handing them over restores the real width.
  *
- * Nothing is handed over when castor is not writing to a terminal itself (a
- * pipe, a CI job): there is no width to speak of then, and 80 columns is the
- * right answer.
- *
- * @param null|array{int, int} $size the width and height to use, defaulting to those of the terminal castor runs in
+ * @param null|array{int, int} $size defaults to the size of the terminal castor runs in
  *
  * @return array<string, string>
  */
@@ -882,9 +804,8 @@ function get_terminal_size_environment(?Context $c = null, ?array $size = null):
 {
     $c ??= context();
 
-    // A real terminal is passed through to the container as it is, and docker
-    // keeps its size in sync — including the resizes that happen mid-command,
-    // which a fixed COLUMNS would hide.
+    // docker keeps a real tty in sync, including mid-command resizes that a
+    // fixed COLUMNS would hide.
     if ($c->tty) {
         return [];
     }
@@ -902,9 +823,6 @@ function get_terminal_size_environment(?Context $c = null, ?array $size = null):
 }
 
 /**
- * The size of the terminal castor writes to, or null when it writes to
- * something that has no size.
- *
  * @return null|array{int, int}
  */
 function get_host_terminal_size(): ?array
@@ -921,11 +839,9 @@ function get_host_terminal_size(): ?array
 /**
  * Run a one-off command in a service container ("docker compose run --rm").
  *
- * Give the command as a list of tokens rather than as a string: the tokens are
- * handed to docker as they are, so nothing quotes, splits or expands them, and
- * an argument holding a space, a quote or a "$" arrives whole. A string is
- * still accepted, and still goes through a shell in the container, which is
- * what you want for a command written to use one.
+ * A list of tokens is handed to docker untouched, so an argument holding a
+ * space, a quote or a "$" arrives whole. A string goes through a shell in the
+ * container instead, which is what a command written to use one needs.
  *
  * @param string|array<int, string> $runCommand
  * @param array<string, string>     $environment extra variables, passed as "-e KEY=VALUE"
@@ -984,8 +900,7 @@ function docker_compose_run(
     try {
         return docker_compose($command, c: $c, progress: get_compose_progress($c));
     } catch (ExceptionInterface $e) {
-        // The process exception only names "docker compose", which says nothing
-        // about which container the command actually broke in.
+        // The process exception only names "docker compose", not the container.
         throw new \RuntimeException(\sprintf('The command "%s" failed in the "%s" service.', describe_command($runCommand), $service), previous: $e);
     }
 }
@@ -1035,11 +950,8 @@ function docker_compose_exec(
 }
 
 /**
- * The tokens docker is given to run in the container.
- *
- * A list is passed through untouched, so docker execs it as it is. A string
- * keeps the shell it has always been given — it may well hold a pipe or a "&&"
- * — and "exec" replaces that shell with the command, so signals reach it.
+ * A list is exec'd as it is; a string gets a shell, since it may hold a pipe or
+ * a "&&", and "exec" replaces that shell so signals reach the command.
  *
  * @param string|array<int, string> $command
  *
@@ -1055,8 +967,6 @@ function to_container_command(string|array $command): array
 }
 
 /**
- * A command named in an error message, whichever form it was given in.
- *
  * @param string|array<int, string> $command
  */
 function describe_command(string|array $command): string
@@ -1080,8 +990,8 @@ function docker_exit_code(
     ?string $entrypoint = null,
     array $ports = [],
 ): int {
-    // Allowing failure is what makes docker_compose_run() return instead of
-    // throwing: the caller wants the exit code, not an exception.
+    // Makes docker_compose_run() return instead of throwing: the caller wants
+    // the exit code.
     $c = ($c ?? context())->withAllowFailure();
 
     $process = docker_compose_run(
@@ -1101,11 +1011,8 @@ function docker_exit_code(
 
 /**
  * The log file docker writes for each container of the project, or of one
- * service, keyed by container name.
- *
- * Stopped containers are included: their logs are still there, and still worth
- * clearing. A container whose logging driver keeps no file — anything but
- * "json-file" — comes back with an empty path.
+ * service, keyed by container name. Stopped containers are included, and a
+ * container whose logging driver keeps no file comes back with an empty path.
  *
  * @return array<string, string>
  */
@@ -1149,13 +1056,11 @@ function get_container_log_paths(?string $service = null, ?Context $c = null): a
 }
 
 /**
- * Empty a container log file in place, so the container keeps running and keeps
- * the same log stream — "docker logs" simply starts again from nothing.
+ * Empty a container log file in place, so the container keeps running on the
+ * same log stream.
  *
- * The file belongs to root, and on Docker Desktop it does not even exist on
- * this machine: it lives inside the VM docker runs in. Entering the mount
- * namespace of the docker host's init covers both cases, and is only used when
- * writing the file directly is not possible.
+ * The file belongs to root, and on Docker Desktop it lives inside the VM:
+ * entering the mount namespace of the docker host's init covers both cases.
  */
 function truncate_container_log(string $logPath, ?Context $c = null): void
 {
@@ -1178,21 +1083,10 @@ function truncate_container_log(string $logPath, ?Context $c = null): void
 /**
  * Expose a service's TCP port on the host, or stop exposing it when $stop is true.
  *
- * Runs a small socat forwarder container that publishes $hostPort and forwards
- * it to $service:$containerPort over the project network — handy to reach a
- * database or broker from the host without publishing a port statically. There
- * is one forwarder per service: calling this again replaces it, and $stop
- * removes it. The forwarder is tagged as an orphan of the compose project so
- * "docker:destroy" tears it down with the rest of the infrastructure.
- *
- * Meant to be wired into a service task, e.g. "castor mysql:expose [port] [--stop]".
- *
- * The exposed set is remembered in the cache so "docker:up" can restore it (see
- * restore_exposed_services()) — the user never has to re-expose after a restart.
- *
- * A host port belongs to the machine, not to the project: a second checkout
- * asking for the same one is told who holds it instead of being handed a raw
- * docker failure.
+ * Runs a socat forwarder publishing $hostPort to $service:$containerPort over
+ * the project network. There is one per service: calling this again replaces
+ * it. The set is remembered in the cache so "docker:up" restores it — see
+ * restore_exposed_services().
  */
 function expose_service_port(string $service, int $containerPort, ?int $hostPort = null, bool $stop = false): void
 {
@@ -1201,7 +1095,7 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
     $project = get_project_name($context);
     $name = "{$project}-expose-{$service}";
 
-    // Remove any existing forwarder first (idempotent, and how --stop works).
+    // Idempotent, and how --stop works.
     run(['docker', 'rm', '-f', $name], context: $context->withQuiet()->withAllowFailure());
 
     $exposed = get_exposed_services();
@@ -1220,7 +1114,7 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
         io()->note(\sprintf('Expose "%s" on another port instead: castor %s:expose <port>.', $service, $service));
 
         // Remembered all the same: the forwarder comes back on the next
-        // "docker:up", once whoever holds the port has let go of it.
+        // "docker:up", once the port is free.
         $exposed[$service] = ['container_port' => $containerPort, 'host_port' => $hostPort];
         set_exposed_services($exposed);
 
@@ -1233,9 +1127,8 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
         '--network', "{$project}_default",
         '--publish', "{$hostPort}:{$hostPort}",
         '--restart', 'unless-stopped',
-        // Tag as an orphan of the compose project so "docker:destroy"
-        // ("compose down --remove-orphans") tears it down with the rest, and
-        // with our own label so "docker:stop" can find every forwarder.
+        // An orphan of the compose project, so "docker:destroy" tears it down
+        // with the rest; castor.expose is how "docker:stop" finds them.
         '--label', "com.docker.compose.project={$project}",
         '--label', "com.docker.compose.service=expose-{$service}",
         '--label', 'castor.expose=1',
@@ -1251,10 +1144,8 @@ function expose_service_port(string $service, int $containerPort, ?int $hostPort
 }
 
 /**
- * The container already publishing a host port, or null when it is free.
- *
- * Only containers are looked at: a port taken by a plain process on the host is
- * docker's own error to report, and a clear one.
+ * The container already publishing a host port, or null when it is free. A port
+ * taken by a plain host process is left to docker to report.
  */
 function find_published_port_holder(int $hostPort, ?Context $c = null): ?string
 {
@@ -1297,17 +1188,9 @@ function set_exposed_services(array $exposed, ?Context $c = null): void
 }
 
 /**
- * The cache key the exposed services of *this* checkout are remembered under.
- *
- * Castor's cache is a single directory shared by every project of the machine,
- * so the set has to be scoped: an unscoped key made "docker:up" restore the
- * forwarders of whatever project exposed a service last — pointing at services
- * that may not exist here, and fighting over host ports with the checkout that
- * really asked for them.
- *
- * Keyed on the directory rather than on the project name: two checkouts of the
- * same repository that forgot to tell their stacks apart are at least not told
- * to expose each other's ports.
+ * Castor's cache is one directory shared by every project of the machine, so
+ * the set has to be scoped — on the directory rather than on the project name,
+ * so two checkouts of the same repository keep their own ports.
  */
 function get_exposed_services_cache_key(?Context $c = null): string
 {
@@ -1317,9 +1200,8 @@ function get_exposed_services_cache_key(?Context $c = null): string
 }
 
 /**
- * Re-create the forwarder of every remembered exposed service, so the exposed
- * ports come back after "docker:up" without the user re-running each task.
- * Services whose forwarder is already running are left untouched.
+ * Re-create the forwarder of every remembered exposed service, so the ports
+ * come back after "docker:up". Already running ones are left untouched.
  */
 function restore_exposed_services(): void
 {
@@ -1336,8 +1218,8 @@ function restore_exposed_services(): void
             continue;
         }
 
-        // Another checkout of the project may have taken the port in the
-        // meantime: say so, and leave the entry alone so it comes back later.
+        // Another checkout may hold the port: leave the entry alone so it
+        // comes back later.
         if (null !== ($holder = find_published_port_holder($ports['host_port'], $context))) {
             io()->note(\sprintf('Not exposing "%s": the port %d is published by "%s".', $service, $ports['host_port'], $holder));
 
@@ -1350,7 +1232,6 @@ function restore_exposed_services(): void
 
 /**
  * Stop every "<service>:expose" forwarder container of the current project.
- * Called by "docker:stop" so the exposed ports go down with the infrastructure.
  */
 function stop_exposed_services(): void
 {
@@ -1380,10 +1261,8 @@ function on_init_context(ContextCreatedEvent $event): void
  * Create compose.yaml if the project has none, and return the context enriched
  * with the data the services build on.
  *
- * Castor only dispatches ContextCreatedEvent when it instantiates a context
- * declared with #[AsContext]. A project that declares none never goes through
- * it — neither does "castor list", whatever the project — so this also runs on
- * boot, where it is idempotent.
+ * Castor only dispatches ContextCreatedEvent for a context declared with
+ * #[AsContext], so this also runs on boot, where it is idempotent.
  */
 function initialize_project(Context $context): Context
 {
@@ -1424,18 +1303,15 @@ function initialize_project(Context $context): Context
 
     $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
 
-    // The context wins over the "name" of compose.yaml, which is the order
-    // get_project_name() documents — and the only way a second checkout of the
-    // same repository can run beside the first: everything the plugin names is
-    // derived from the project name and from the root domain.
+    // The context wins over the "name" of compose.yaml, which is the only way
+    // a second checkout of the same repository can run beside the first.
     $projectName = $context->data['project_name'] ?? $projectName;
     $rootDomain = $context->data['root_domain'] ?? null;
     $worktree = worktree_of($context);
 
     if (null !== $worktree) {
-        // Only when the project did not already do it itself: this runs on
-        // every boot, and a project deriving its own names from the worktree
-        // must not see them suffixed twice.
+        // This runs on every boot, and a project deriving its own names from
+        // the worktree must not see them suffixed twice.
         if (!str_ends_with($projectName, '-' . $worktree)) {
             $projectName .= '-' . $worktree;
         }
@@ -1461,9 +1337,8 @@ function initialize_project(Context $context): Context
 }
 
 /**
- * The worktree a context runs in, honouring what the project asked for: a name
- * it pins itself, or "worktree_isolation" turned off to make every checkout
- * share one stack again.
+ * The worktree a context runs in, honouring a name the project pins itself and
+ * "worktree_isolation" turned off to share one stack between checkouts.
  */
 function worktree_of(Context $context): ?string
 {
@@ -1475,11 +1350,6 @@ function worktree_of(Context $context): ?string
 }
 
 /**
- * Dispatch RegisterServiceEvent and return the registered services.
- *
- * Note: The Caddy router is no longer automatically registered as a service.
- * It runs globally and is managed via docker:router:* commands.
- *
  * @return ServiceInterface[]
  */
 function collect_services(): array
@@ -1488,16 +1358,11 @@ function collect_services(): array
 }
 
 /**
- * Create the host directories the services bind-mount, when they do not exist
- * yet.
+ * Create the host directories the services bind-mount.
  *
- * Docker creates a missing bind mount source itself, but as root: the shared
- * home directory, an application directory or any other mount would then be
- * read-only for the very user the containers run as, and would need sudo to be
- * removed. Creating them first, from the user running castor, avoids it.
- *
- * Only paths inside the project are created: a service may mount the docker
- * socket or any other system path, which is none of our business.
+ * Docker would create a missing bind mount source itself, but as root, leaving
+ * it read-only for the user the containers run as. Only paths inside the
+ * project are created: the docker socket and other system paths are not ours.
  */
 function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): void
 {
@@ -1517,8 +1382,8 @@ function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): v
             continue;
         }
 
-        // Left over from a previous run, or from an older version of this
-        // plugin: docker created it as root and nothing here can fix it.
+        // Created as root by docker on an earlier run, and nothing here can
+        // fix it.
         if (!is_writable($path) && '_complete' !== input()->getFirstArgument()) {
             io()->warning(\sprintf('"%s" is not writable, the containers may fail to write in it. Take its ownership back with "sudo chown -R $(id -u):$(id -g) %s".', $path, $path));
         }
@@ -1526,9 +1391,8 @@ function create_mount_directories(Context $c, ComposeBuilder $composeBuilder): v
 }
 
 /**
- * The directories whose bind mounts belong to the project: its own tree, and
- * for a worktree the main checkout too, whose shared home directory it mounts —
- * outside of its own tree, but the same repository.
+ * Its own tree, plus for a worktree the main checkout, whose shared home
+ * directory it mounts from outside of that tree.
  *
  * @return list<string>
  */
@@ -1545,11 +1409,8 @@ function get_project_mount_roots(Context $c): array
 
 /**
  * The host directories the project bind-mounts from its own tree, read back
- * from the compose files — the shared home directory, the application
- * directories, and whatever the project mounts itself.
- *
- * What lies outside of the project, the docker socket or any other system
- * path, is left out: it is not the project's to own.
+ * from the compose files. The docker socket and other system paths are left
+ * out: they are not the project's to own.
  *
  * @return list<string>
  */
@@ -1603,16 +1464,11 @@ function get_project_bind_mounts(?Context $c = null): array
  * Make the public domains of the project resolvable from inside its own
  * containers, by pointing each of them at the host gateway.
  *
- * The router is global and joins the project network from the outside, without
- * a DNS alias: nothing in the project resolves "api.myproject.test", so an
- * application calling its own public API — or any container talking to another
- * one through its public domain — fails. Docker accepts no wildcard in
- * extra_hosts, so the list has to be spelled out; the plugin knows every routed
- * domain and can do it for the user.
- *
- * The traffic leaves through the host gateway and comes back on the ports 80
- * and 443 the router publishes, which works on Linux as well as on Docker
- * Desktop, and keeps working when the router is not on the project network.
+ * The router joins the project network without a DNS alias, so nothing in the
+ * project resolves "api.myproject.test". Docker accepts no wildcard in
+ * extra_hosts, so every routed domain is spelled out. Traffic leaves through
+ * the host gateway and comes back on the ports the router publishes, which
+ * works on Linux as well as on Docker Desktop.
  *
  * Turn it off with the "resolve_domains_via_host" context data.
  */
@@ -1636,12 +1492,9 @@ function add_project_extra_hosts(Context $c, ComposeBuilder $composeBuilder): vo
 }
 
 /**
- * Whether a routed domain may be redirected to the host gateway.
- *
  * A name without a dot is refused: "localhost" would shadow the loopback entry
- * of /etc/hosts and break everything a container reaches on 127.0.0.1, and any
- * other bare label collides with the container names of the project network,
- * where a service reaching another one by name must keep resolving to it.
+ * of /etc/hosts, and any other bare label collides with the container names of
+ * the project network.
  */
 function is_resolvable_project_domain(string $domain): bool
 {
@@ -1650,10 +1503,7 @@ function is_resolvable_project_domain(string $domain): bool
 
 /**
  * Call every function marked with #[AsDockerComposeBuilder], highest priority
- * first.
- *
- * Castor resolves its own attributes only, so the functions carrying this one
- * have to be found here.
+ * first. Castor resolves its own attributes only, hence the lookup here.
  */
 function run_compose_builders(Context $c, ComposeBuilder $builder): void
 {
@@ -1675,8 +1525,6 @@ function run_compose_builders(Context $c, ComposeBuilder $builder): void
 }
 
 /**
- * (Re)write compose.generated.yaml from the given services.
- *
  * @param ServiceInterface[] $services
  */
 function generate_compose_file(Context $c, array $services): void
@@ -1710,9 +1558,6 @@ function generate_compose_file(Context $c, array $services): void
 }
 
 /**
- * Build the installer registry: built-in installers plus any added by other
- * plugins through RegisterServiceInstallerEvent.
- *
  * @return array<string, ServiceInstaller>
  */
 function collect_service_installers(): array
@@ -1721,8 +1566,8 @@ function collect_service_installers(): array
 }
 
 /**
- * The choice a prompt starts on. A multiple choice preselects several, which
- * Symfony reads back from one comma-separated string rather than a list.
+ * Symfony reads a multiple choice's preselection back from one comma-separated
+ * string rather than from a list.
  */
 function format_choice_default(mixed $default): ?string
 {
@@ -1735,8 +1580,8 @@ function format_choice_default(mixed $default): ?string
 
 /**
  * The service to install, read back from the raw command line: the argument
- * castor binds is lost as soon as an option it knows nothing about precedes it,
- * which is exactly what the per-service install options are.
+ * castor binds is lost as soon as an option it knows nothing about precedes
+ * it, which is exactly what the per-service install options are.
  *
  * @param list<string>                    $tokens
  * @param array<string, ServiceInstaller> $installers
@@ -1747,9 +1592,8 @@ function find_installer_name(array $tokens, array $installers, array $applicatio
     $isValue = false;
 
     foreach ($tokens as $token) {
-        // A value written apart from its option ("--with-name blog") names no
-        // service, whatever it says — and is no option either, whatever it
-        // starts with.
+        // A value written apart from its option ("--with-name blog") is
+        // neither a service nor an option, whatever it looks like.
         if ($isValue) {
             $isValue = false;
 
@@ -1771,7 +1615,6 @@ function find_installer_name(array $tokens, array $installers, array $applicatio
 }
 
 /**
- * Ask every question of an installer, honouring defaults (and --no-interaction).
  * A question already answered on the command line is not asked again.
  *
  * @param array<string, mixed> $provided answers coming from the install options, keyed by input name
@@ -1803,8 +1646,8 @@ function ask_installer_inputs(ServiceInstaller $installer, array $provided = [])
 }
 
 /**
- * Resolve the database an app should link to: pick an existing one (extracting
- * it to a variable if needed), or install a fresh one, or none.
+ * Pick an existing database (extracting it to a variable if needed), install a
+ * fresh one, or none.
  *
  * @param array<string, ServiceInstaller> $installers
  * @param string|null                     $requested  what "--with-database" asked for: "none", a registered
@@ -1867,8 +1710,7 @@ function resolve_database_link(ListenerEditor $editor, array $installers, ?strin
 }
 
 /**
- * Link to a database that is already registered, extracting it to a variable
- * when the listener holds it inline.
+ * Extracts the instance to a variable when the listener holds it inline.
  *
  * @return array{variable: ?string, instance: ?DatabaseServiceInterface, services: ServiceInterface[]}
  */
@@ -1882,9 +1724,6 @@ function link_database(ListenerEditor $editor, DatabaseServiceInterface $instanc
 }
 
 /**
- * Register a fresh database in the listener, assigned to a variable the
- * application being installed can link to.
- *
  * @return array{variable: ?string, instance: ?DatabaseServiceInterface, services: ServiceInterface[]}
  */
 function install_database(ListenerEditor $editor, ServiceInstaller $installer): array
@@ -1951,8 +1790,8 @@ function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
     }
 
     // "castor list" is booted on a bare context on purpose (see
-    // Kernel::configureContext): it only needs the task list, and generating
-    // the compose file from that context would drop the project configuration.
+    // Kernel::configureContext): generating the compose file from it would
+    // drop the project configuration.
     if ('list' === input()->getFirstArgument()) {
         return;
     }

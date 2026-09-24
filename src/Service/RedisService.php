@@ -28,9 +28,6 @@ class RedisService implements ServiceInterface
         return 'redis';
     }
 
-    /**
-     * The RedisInsight container that comes with this instance.
-     */
     public function getInsightName(): string
     {
         return $this->getName() . '-insight';

@@ -10,18 +10,14 @@ use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Boots the real castor binary in example/ (which regenerates
- * compose.generated.yaml) and checks the result against a committed,
- * normalized snapshot. Regenerate with UPDATE_SNAPSHOTS=1, then review the
- * diff.
+ * Boots the real castor binary in example/, which regenerates
+ * compose.generated.yaml, and checks it against a committed snapshot.
+ * Regenerate with UPDATE_SNAPSHOTS=1, then review the diff.
  *
- * Requires a castor binary (CASTOR_BINARY env var, or "castor" in PATH).
- * Notes:
- *  - vendor/bin/castor does not work here, it does not act as a project
- *    runner when castor is installed as a dependency of this repository;
- *  - the boot must go through a real task command ("docker:build --help"):
- *    for "castor list" castor sets up a bare context without dispatching
- *    ContextCreatedEvent, so the generated file would lose the project name.
+ * Requires a castor binary — CASTOR_BINARY, or "castor" in PATH: vendor/bin
+ * does not act as a project runner when castor is a dependency. The boot has
+ * to go through a real task command ("docker:build --help"): "castor list"
+ * sets up a bare context, and the generated file would lose the project name.
  */
 final class GeneratedComposeTest extends SnapshotTestCase
 {

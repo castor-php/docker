@@ -6,10 +6,8 @@ namespace Castor\Docker\Service\Behaviour;
 
 /**
  * For services built from a Dockerfile shipped by the plugin, which the project
- * may replace with its own.
- *
- * The default is resolved lazily, so it can depend on other options set after
- * the service was created.
+ * may replace with its own. The default is resolved lazily, so it can depend on
+ * options set after the service was created.
  */
 trait HasDockerfile
 {

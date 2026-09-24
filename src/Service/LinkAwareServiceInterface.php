@@ -6,8 +6,7 @@ namespace Castor\Docker\Service;
 
 /**
  * A linkable service that needs to know who links to it — the Mercure hub,
- * which answers the browsers of the applications linked to it and so has to
- * allow their origins.
+ * which has to allow the origins of the applications it answers.
  */
 interface LinkAwareServiceInterface extends LinkableServiceInterface
 {

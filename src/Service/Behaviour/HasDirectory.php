@@ -10,11 +10,9 @@ use Castor\Context;
  * For application services whose sources are mounted from a directory of the
  * project.
  *
- * What is mounted and where the commands run are two different things: in a
- * monorepo the mount is the repository root — so an application can read a
- * directory produced by another one — while the crate, module or application
- * the service is about sits somewhere below it. withWorkingDirectory() names
- * that sub-directory, relative to the mount.
+ * What is mounted and where the commands run are two different things: a
+ * monorepo mounts the repository root, so an application can read what another
+ * one produced, and withWorkingDirectory() names the sub-directory below it.
  */
 trait HasDirectory
 {
@@ -69,8 +67,7 @@ trait HasDirectory
     }
 
     /**
-     * The working directory as seen from the host, as an absolute path: a
-     * withDirectory() left out or given a relative path is relative to the
+     * Absolute: a withDirectory() left out or relative is relative to the
      * project, which only the context knows about.
      */
     protected function getAbsoluteHostWorkingDirectory(Context $context): string
@@ -94,9 +91,8 @@ trait HasDirectory
     }
 
     /**
-     * Append a relative path to a base one, leaving the base untouched when the
-     * relative path is "." — so the default keeps producing "/app" and not
-     * "/app/.".
+     * A relative path of "." leaves the base untouched, so the default keeps
+     * producing "/app" and not "/app/.".
      */
     protected function joinPath(string $base, string $path): string
     {

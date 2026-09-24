@@ -22,10 +22,8 @@ use function Castor\io;
  *         ->withApp('server/log-injector');
  *
  * Each application gets "<name>:build", "<name>:test", "<name>:cargo",
- * "<name>:qa:clippy" and "<name>:qa:fmt", all running in this container with
- * cargo pointed at the crate directory.
- *
- * The binaries it produces are run by BinaryRunService containers.
+ * "<name>:qa:clippy" and "<name>:qa:fmt", running here with cargo pointed at
+ * its crate directory. The binaries are run by BinaryRunService containers.
  *
  * Extra Debian packages are deliberately not modelled: extend the "rust_base"
  * block of the Dockerfile instead.
@@ -71,8 +69,8 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
-     * Install a rustup component on the default toolchain. "clippy" and
-     * "rustfmt" are there by default, so the QA tasks work out of the box.
+     * "clippy" and "rustfmt" are there by default, so the QA tasks work out of
+     * the box.
      */
     public function addRustupComponent(string ...$components): static
     {
@@ -86,8 +84,7 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
-     * Install an additional toolchain, e.g. "nightly" for a lint or a formatter
-     * that is not stable yet.
+     * E.g. "nightly", for a lint or a formatter that is not stable yet.
      *
      * @param list<string> $components
      */
@@ -102,11 +99,9 @@ class RustBuilder extends AbstractBuilderService
      * Format with the nightly toolchain, leaving everything else on the default
      * one.
      *
-     * Most of rustfmt's options are still unstable, so a rustfmt.toml using any
-     * of them is silently ignored by a stable rustfmt — the usual answer is to
-     * build and lint on stable and to format on nightly. This installs the
-     * nightly toolchain with its rustfmt in the image, and points the "fmt"
-     * task of every application at it.
+     * Most of rustfmt's options are still unstable, and a stable rustfmt
+     * silently ignores a rustfmt.toml using them — hence the usual build and
+     * lint on stable, format on nightly.
      */
     public function withNightlyFormatter(bool $nightlyFormatter = true): static
     {
@@ -116,11 +111,8 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
-     * Declare a crate built by this builder.
-     *
      * $target adds "--target <triple>" to its build command; $toolchain runs
-     * cargo through "rustup run <toolchain>", for a crate that needs another
-     * one than the default.
+     * cargo through "rustup run <toolchain>".
      */
     public function withApp(
         string $directory,
@@ -141,9 +133,8 @@ class RustBuilder extends AbstractBuilderService
     {
         $builder = parent::updateCompose($context, $builder);
 
-        // Keep the crate registry inside the shared home directory instead of
-        // the image, so it is reused across rebuilds and shared by every Rust
-        // application of the project.
+        // The crate registry in the shared home rather than the image, so it
+        // survives rebuilds and is shared project-wide.
         $builder->service($this->name)->environment('CARGO_HOME', '/home/app/.cargo');
 
         return $builder;
@@ -165,11 +156,9 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
-     * The toolchains the image installs: the ones declared, plus the nightly
-     * rustfmt needs when withNightlyFormatter() is on.
-     *
-     * Declaring nightly yourself keeps working — it is completed with rustfmt
-     * rather than added a second time.
+     * The declared ones, plus the nightly rustfmt needs when
+     * withNightlyFormatter() is on. A nightly declared by hand is completed
+     * with rustfmt rather than added a second time.
      *
      * @return list<array{name: string, components: list<string>}>
      */
@@ -199,8 +188,7 @@ class RustBuilder extends AbstractBuilderService
     }
 
     /**
-     * The cargo the "fmt" task runs through, which is the only one nightly
-     * applies to.
+     * "fmt" is the only task nightly applies to.
      *
      * @param array<string, mixed> $options
      *

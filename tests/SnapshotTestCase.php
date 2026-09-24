@@ -77,12 +77,10 @@ abstract class SnapshotTestCase extends TestCase
     }
 
     /**
-     * Snapshots are compared through the dumper instead of byte by byte: this
-     * repository does not commit a composer.lock, so CI always runs against
-     * the latest symfony/yaml, and its exact formatting changes between
-     * releases (v8.1.5 for instance stopped packing "- key: value" on a single
-     * line when a custom indentation is used). Re-dumping the stored snapshot
-     * keeps the assertion about the data we generate.
+     * Compared through the dumper instead of byte by byte: this repository
+     * commits no composer.lock, so CI runs against the latest symfony/yaml,
+     * whose exact formatting changes between releases. Re-dumping the stored
+     * snapshot keeps the assertion about the data we generate.
      *
      * @param array<mixed> $data
      */

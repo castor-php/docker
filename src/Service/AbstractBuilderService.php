@@ -23,19 +23,17 @@ use function Castor\Docker\interactive_context;
  * the build and QA commands of the applications declared on it. It runs no
  * application itself.
  *
- * This is the monorepo counterpart of RustService / GoService, which build and
- * run a single application in one container. Here the two are split: one
- * builder for the whole repository, and one BinaryRunService per binary it
- * produces.
+ * The monorepo counterpart of RustService / GoService, which build and run a
+ * single application in one container. Here the two are split: one builder for
+ * the whole repository, one BinaryRunService per binary it produces.
  *
  *     $rust = (new RustBuilder('rust-builder'))
  *         ->withDirectory(__DIR__)                   // the repository root
  *         ->withApp('agent/agent-application')
  *         ->withApp('server/log-injector');
  *
- * Each application registered with withApp() gets its own task namespace, and
- * its commands run in this container with the working directory set to the
- * application directory.
+ * Each withApp() gets its own task namespace, whose commands run here with the
+ * working directory set to the application directory.
  *
  * The builder sits on the "builder" profile: "docker:build" builds it,
  * "docker:up" does not start it.
@@ -62,11 +60,8 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * The applications this builder compiles, each below the mounted directory.
-     *
      * $name defaults to the last segment of $directory and becomes the task
-     * namespace, so "agent/agent-application" yields
-     * "agent-application:build".
+     * namespace, so "agent/agent-application" yields "agent-application:build".
      *
      * @param array<string, mixed> $options language-specific settings, see the concrete builders
      */
@@ -90,8 +85,7 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * The directory of a declared application, named either by its name or by
-     * its directory. Null when this builder declares no such application.
+     * The application is named either by its name or by its directory.
      */
     public function getAppDirectory(string $app): ?string
     {
@@ -105,8 +99,7 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * Where an application lives inside the container — what the tasks of that
-     * application set as their working directory.
+     * What the tasks of that application set as their working directory.
      */
     public function getAppWorkingDirectory(string $directory): string
     {
@@ -124,9 +117,8 @@ abstract class AbstractBuilderService implements ServiceInterface
                 ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->environment('HOME', '/home/app')
-                // No command: nothing runs here on "docker:up". The container
-                // exists to be built, and to host the one-off build and QA
-                // commands of the applications declared on it.
+                // Nothing runs here on "docker:up": the container exists to
+                // be built, and to host the one-off commands.
                 ->init(true)
                 ->profile('builder')
         ;
@@ -146,11 +138,8 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * Compile one of the applications declared on this builder, named either by
-     * its name or by its directory.
-     *
-     * This is what BinaryRunService::build() calls, so a runtime container can
-     * rebuild the binary it runs without duplicating the build command.
+     * What BinaryRunService::build() calls, so a runtime container can rebuild
+     * the binary it runs without duplicating the build command.
      *
      * @param array<int, string> $args
      */
@@ -178,7 +167,7 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * The tasks a single application contributes — one set per withApp() call.
+     * One set per withApp() call.
      *
      * @param array<string, mixed> $options
      *
@@ -187,8 +176,6 @@ abstract class AbstractBuilderService implements ServiceInterface
     abstract protected function getAppTasks(string $name, string $directory, array $options): iterable;
 
     /**
-     * The command compiling one application, as it runs in the container.
-     *
      * Tokens for a command this plugin builds; a string for one a project gave
      * it, which may be written to use a shell.
      *
@@ -198,9 +185,6 @@ abstract class AbstractBuilderService implements ServiceInterface
      */
     abstract protected function getBuildCommand(string $name, string $directory, array $options): string|array;
 
-    /**
-     * Declare the build producing the toolchain image.
-     */
     abstract protected function applyBuild(ServiceBuilder $service, Context $context): void;
 
     /**
@@ -217,9 +201,6 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * Run a command in the builder container, optionally in the directory of
-     * one of its applications.
-     *
      * @param string|array<int, string> $command
      */
     public function run(string|array $command, ?string $directory = null, ?Context $c = null): void
@@ -233,11 +214,9 @@ abstract class AbstractBuilderService implements ServiceInterface
     }
 
     /**
-     * A command with the arguments of the task appended.
-     *
      * Tokens stay tokens, so nothing a user typed is split or expanded. A
-     * command given as a string keeps its shell — that is what a project
-     * supplying its own build command through withApp() may well want.
+     * command given as a string keeps its shell, which a project supplying its
+     * own build command through withApp() may well want.
      *
      * @param string|array<int, string> $command
      * @param array<int, string>        $args

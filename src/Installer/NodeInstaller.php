@@ -90,8 +90,7 @@ final class NodeInstaller extends AbstractServiceInstaller
         $directory = context()->workingDirectory . '/' . $answers['directory'];
 
         // The container command is a package.json script, so a directory
-        // without a package.json would leave it restarting forever. Whatever
-        // was already there is left alone.
+        // without one would leave it restarting forever.
         if (!is_file($directory . '/package.json')) {
             match ((string) $answers['template']) {
                 self::TEMPLATE_VITE_REACT => $this->scaffoldVite($answers, $directory),
@@ -131,9 +130,9 @@ final class NodeInstaller extends AbstractServiceInstaller
     }
 
     /**
-     * The official create-vite, run through npx so the invocation is the same
-     * whichever package manager the service uses. It scaffolds but does not
-     * install; scaffold() runs the install afterwards.
+     * Run through npx so the invocation is the same whichever package manager
+     * the service uses. create-vite scaffolds without installing; scaffold()
+     * runs the install afterwards.
      *
      * @param array<string, mixed> $answers
      */
@@ -141,16 +140,14 @@ final class NodeInstaller extends AbstractServiceInstaller
     {
         $this->runInService($answers, ['npx', '--yes', 'create-vite@latest', '.', '--template', 'react']);
 
-        // create-vite writes a config with no server section at all, which
-        // leaves Vite bound to localhost inside the container. Overwriting it is
-        // the whole point of scaffolding through this installer.
+        // create-vite writes no server section at all, which leaves Vite bound
+        // to localhost inside the container.
         $content = file_get_contents(__DIR__ . '/../Resources/node/skeleton/vite.config.js');
         \assert($content !== false);
 
         $hmr = ($answers['domain'] ?? '') !== ''
-            // The page is served over HTTPS on 443 by the router, so the HMR
-            // client has to open its websocket there rather than on the port
-            // Vite listens on inside the container.
+            // The router serves the page over HTTPS on 443, so the HMR client
+            // has to open its websocket there rather than on the container port.
             ? "        hmr: { protocol: 'wss', clientPort: 443 },\n"
             : '';
 
@@ -165,19 +162,16 @@ final class NodeInstaller extends AbstractServiceInstaller
     }
 
     /**
-     * The official create-next-app. "next dev" already binds 0.0.0.0 and reads
-     * the PORT the service sets, so only the cross-origin guard needs a word.
+     * "next dev" already binds 0.0.0.0 and reads the PORT the service sets, so
+     * only the cross-origin guard needs a word.
      *
      * @param array<string, mixed> $answers
      */
     private function scaffoldNext(array $answers, string $directory): void
     {
         // Not ".": create-next-app checks the *parent* of its target for
-        // writability, and the parent of the /app mount is the root of the
-        // container, which the unprivileged user running this does not own — so
-        // scaffolding in place fails on a permission the application never
-        // needed. Give it a directory to create below the mount instead, and
-        // lift the result up.
+        // writability, and the parent of the /app mount is the container root,
+        // which the unprivileged user running this does not own.
         $temporary = '.castor-next';
 
         $this->runInService($answers, [
@@ -191,9 +185,8 @@ final class NodeInstaller extends AbstractServiceInstaller
     }
 
     /**
-     * Move everything $source holds into $target, then drop $source. Both sides
-     * are on the same filesystem, so each entry is a rename and node_modules
-     * costs nothing to move.
+     * Both sides are on the same filesystem, so each entry is a rename and
+     * node_modules costs nothing to move.
      */
     private function lift(string $source, string $target): void
     {
@@ -209,10 +202,9 @@ final class NodeInstaller extends AbstractServiceInstaller
     }
 
     /**
-     * Next.js refuses the dev requests coming from another origin than the one
-     * it listens on, which is exactly what being served on a domain by the
-     * router is. The generated config carries a marker comment where the
-     * options go; when it does not, say so rather than rewrite blind.
+     * Next.js refuses dev requests from another origin than the one it listens
+     * on, which is exactly what the router serving it on a domain is. The
+     * generated config carries a marker comment where the options go.
      *
      * @param array<string, mixed> $answers
      */

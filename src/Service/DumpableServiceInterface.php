@@ -7,11 +7,9 @@ namespace Castor\Docker\Service;
 /**
  * A service whose data can be dumped to a file and restored from one.
  *
- * The service only says how, as bash run in a throwaway container of its own
- * image: the tools are then those of the server, at its version, and nothing
- * has to be installed on the host. Everything around it — finding the file,
- * compressing, detecting the format of a dump, stopping what uses the database
- * — is shared, see dump_database() and restore_database().
+ * It only says how, as bash run in a throwaway container of its own image, so
+ * the tools are those of the server at its version and nothing is needed on the
+ * host. The rest is shared, see dump_database() and restore_database().
  */
 interface DumpableServiceInterface extends ServiceInterface
 {
@@ -25,9 +23,8 @@ interface DumpableServiceInterface extends ServiceInterface
     public function getDumpFormats(): array;
 
     /**
-     * Bash defining what the two scripts below build on: the client
-     * functions, and a "castor_ready" function that succeeds once the server
-     * accepts connections over the network.
+     * Bash defining what the two scripts below build on: the client functions,
+     * and a "castor_ready" succeeding once the server accepts connections.
      */
     public function getConnectionScript(): string;
 
@@ -38,9 +35,8 @@ interface DumpableServiceInterface extends ServiceInterface
     public function getDumpScript(string $format): string;
 
     /**
-     * Bash defining a "castor_restore" function, which reads a dump on its
-     * standard input — already decompressed — and loads it in place of the
-     * current content of the database.
+     * Bash defining a "castor_restore" function, reading an already
+     * decompressed dump on its standard input.
      */
     public function getRestoreScript(): string;
 

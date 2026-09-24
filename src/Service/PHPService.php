@@ -47,8 +47,7 @@ class PHPService implements ServiceInterface
     private array $workers = [];
 
     /**
-     * The extensions asked for, on top of the defaults of the mode, keyed by
-     * name so asking twice installs once.
+     * Keyed by name, so asking twice installs once.
      *
      * @var array<string, array{installer: ExtensionInstaller, dependencies: list<string>}>
      */
@@ -86,8 +85,8 @@ class PHPService implements ServiceInterface
     protected const MOUNT_POINT = '/var/www';
 
     /**
-     * Where the QA tools are installed, and mounted in the
-     * container that runs them.
+     * Where the QA tools are installed, and mounted in the container that runs
+     * them.
      */
     protected const QA_TOOLS_MOUNT_POINT = '/castor-tools';
 
@@ -102,8 +101,8 @@ class PHPService implements ServiceInterface
     ];
 
     /**
-     * The application whose builder container this one uses, or false when no
-     * builder container is generated at all. Null means "generate my own".
+     * The application whose builder container this one uses, false when none is
+     * generated at all, null to generate its own.
      */
     protected PHPService|false|null $sharedBuilder = null;
 
@@ -137,12 +136,9 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The Node.js the builder container installs.
-     *
      * NodeSource publishes one repository per major version, named "node_22.x",
-     * so only the major is used: "22", "22.x" and "v22.11.0" all name the same
-     * one. An application sharing the builder of another one gets the version of
-     * that one, since it is that image which carries node.
+     * so only the major is used: "22", "22.x" and "v22.11.0" name the same one.
+     * An application sharing a builder gets the version of that image.
      */
     public function withNodeVersion(string $version): static
     {
@@ -165,13 +161,9 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The package manager the builder image prepares.
-     *
-     * Corepack is enabled whichever one this is, so a project declaring a
-     * "packageManager" field in its package.json gets that one regardless. This
-     * decides what a project declaring nothing finds ready to run: npm comes
-     * with node and needs nothing prepared, yarn is pinned to its current
-     * stable, pnpm is activated through corepack.
+     * Corepack is enabled whichever one this is, so a "packageManager" field in
+     * package.json still wins. This only decides what a project declaring
+     * nothing finds ready to run.
      */
     public function withPackageManager(PackageManager $packageManager): static
     {
@@ -188,11 +180,9 @@ class PHPService implements ServiceInterface
     /**
      * Install a passwordless sudo in the builder container.
      *
-     * It is a two line script around gosu, so anyone reaching the container
-     * becomes root in it without knowing anything. That is convenient while
-     * developing — installing a package to try something out, fixing the owner
-     * of a file the container wrote — and it is a hole in an image that is
-     * anything more than a developer machine. Off by default for that reason.
+     * A two line script around gosu, so anyone reaching the container becomes
+     * root in it: convenient while developing, a hole anywhere else. Hence off
+     * by default.
      */
     public function withSudo(bool $sudo = true): static
     {
@@ -207,15 +197,11 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * PHP ini directives for this application.
+     * Mounted into the containers rather than built into the image, so changing
+     * one is a "docker:up" away instead of a rebuild.
      *
-     * They are mounted into the containers rather than built into the image, so
-     * changing one is a "docker:up" away instead of a rebuild — the containers
-     * concerned are recreated because their configuration changed.
-     *
-     * The scope says which PHP they reach: the one running commands, the one
-     * serving requests, or both. Calling this again merges, a directive given
-     * twice keeps the value given last.
+     * The scope says which PHP they reach. Calling this again merges, a
+     * directive given twice keeps the value given last.
      *
      * @param array<string, scalar> $directives
      */
@@ -260,8 +246,6 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The ini file mounted in the containers of one scope.
-     *
      * @param array<string, string> $directives
      */
     protected function renderPhpIni(array $directives): string
@@ -276,16 +260,13 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Where the mounted file goes, which is the one thing the two ways of
-     * serving disagree on: every container of a FrankenPHP application runs the
-     * PHP of the official image, which reads one /usr/local/etc/php/conf.d
-     * whatever the SAPI, and a PhpMode::Fpm one runs the Debian packages, which
-     * read a directory per SAPI. 99 puts the file after everything the image
-     * ships, so a project always has the last word.
+     * The one thing the two ways of serving disagree on: the official FrankenPHP
+     * image reads one /usr/local/etc/php/conf.d whatever the SAPI, the Debian
+     * packages of PhpMode::Fpm read a directory per SAPI. 99 puts the file after
+     * everything the image ships, so a project has the last word.
      *
-     * The two scopes landing on the same path in FrankenPHP mode is not a
-     * conflict: they are mounted in different containers, the web one in the
-     * application and the CLI one in the builder and the workers.
+     * Both scopes landing on the same FrankenPHP path is no conflict: they are
+     * mounted in different containers.
      */
     protected function getPhpIniPath(PhpIniScope $scope): string
     {
@@ -327,15 +308,11 @@ class PHPService implements ServiceInterface
     /**
      * Run $command in a container of its own, next to the application.
      *
-     * $restart is the compose restart policy of that container — "on-failure",
-     * "unless-stopped", "always", "no". There is none by default, which means a
-     * worker that exits stays down until the next "docker:up".
-     *
-     * A consumer given "--time-limit" or "--memory-limit" exits *successfully*
-     * when it reaches one, so bringing it back needs "unless-stopped" rather
-     * than "on-failure" — the latter only reacts to a non-zero exit. Prefer
-     * "unless-stopped" over "always": it honours "castor {app}:worker:stop"
-     * instead of fighting it.
+     * $restart is the compose restart policy of that container, none by
+     * default: a worker that exits stays down until the next "docker:up". A
+     * consumer given "--time-limit" exits *successfully*, so bringing it back
+     * needs "unless-stopped" rather than "on-failure" — and "unless-stopped"
+     * over "always", which fights "castor {app}:worker:stop".
      */
     public function addWorker(string $name, string $command, ?string $restart = null): static
     {
@@ -353,10 +330,9 @@ class PHPService implements ServiceInterface
      * Run the builder tasks of this application in the builder container of
      * another one, instead of generating an identical one.
      *
-     * Three applications of the same monorepo otherwise produce three "-builder"
-     * containers built from the same sources. The shared builder has to mount a
-     * directory containing this application — the repository root — and each
-     * application names its own sub-directory with withWorkingDirectory().
+     * The shared builder has to mount a directory containing this application —
+     * the repository root — and each application names its own sub-directory
+     * with withWorkingDirectory().
      */
     public function withSharedBuilder(self $service): static
     {
@@ -394,8 +370,6 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Link the database of the application, replacing the previous one.
-     *
      * @deprecated since 0.8, removed in 1.0: use link() instead
      */
     public function withDatabaseService(DatabaseServiceInterface $databaseService): static
@@ -412,8 +386,6 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Link the mail catcher of the application, replacing the previous one.
-     *
      * @deprecated since 0.8, removed in 1.0: use link() instead
      */
     public function withMailerService(MailpitService $mailerService): static
@@ -437,17 +409,15 @@ class PHPService implements ServiceInterface
 
     /**
      * Adds an extension to every container of the application: it is installed
-     * once, in the stage the application, the builder and the workers are all
-     * built on.
+     * once, in the stage they are all built on.
      *
-     * The name reaches the installer as written — a version constraint the
-     * installer understands is part of the name, so "xdebug/xdebug:^3.5" with
-     * ExtensionInstaller::Pie or "redis-6.0.2" in PhpMode::FrankenPhp pin one.
+     * The name reaches the installer as written, so a constraint it understands
+     * pins a version: "xdebug/xdebug:^3.5" with ExtensionInstaller::Pie, or
+     * "redis-6.0.2" in PhpMode::FrankenPhp.
      *
      * $dependencies are the Debian packages the extension needs on top of what
-     * the installer pulls by itself, usually the "-dev" ones of the libraries
-     * PIE compiles against — librdkafka-dev for a Kafka binding. They stay in
-     * the image.
+     * the installer pulls by itself, usually the "-dev" ones PIE compiles
+     * against. They stay in the image.
      *
      * @param string             $extension    named after the installer, see getExtensions()
      * @param list<string>       $dependencies Debian packages to install alongside
@@ -470,9 +440,8 @@ class PHPService implements ServiceInterface
     /**
      * The extensions the installer of the mode puts in the image, named the way
      * it names them: the Debian packages of sury for PhpMode::Fpm, the
-     * install-php-extensions catalogue for PhpMode::FrankenPhp. The ones
-     * addExtension() was given ExtensionInstaller::Pie for are not in here,
-     * they are in getPieExtensions().
+     * install-php-extensions catalogue for PhpMode::FrankenPhp. The
+     * ExtensionInstaller::Pie ones are in getPieExtensions() instead.
      *
      * @return list<string>
      */
@@ -490,9 +459,8 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The ones PIE builds from their sources, each with the packages its
-     * sources need: one layer of the image per entry, so adding an extension
-     * does not rebuild the others.
+     * One layer of the image per entry, so adding an extension does not rebuild
+     * the others.
      *
      * @return list<array{name: string, dependencies: list<string>}>
      */
@@ -510,9 +478,8 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The packages the extensions of the mode's own installer asked for. The
-     * PIE ones keep theirs in getPieExtensions(), next to the extension that
-     * needs them.
+     * The PIE ones keep theirs in getPieExtensions(), next to the extension
+     * that needs them.
      *
      * @return list<string>
      */
@@ -530,12 +497,9 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * What an application asking for nothing gets. The two modes install from
-     * two catalogues that do not name things the same, so they do not hold the
-     * same list: a sury package sometimes ships several modules —
-     * "php-pgsql" is pdo_pgsql too — where install-php-extensions names one at
-     * a time, and an application talking to the PostgreSQL of this plugin wants
-     * that driver either way.
+     * What an application asking for nothing gets. The two catalogues do not
+     * name things the same — a sury "php-pgsql" ships pdo_pgsql too, where
+     * install-php-extensions names one module at a time — so the lists differ.
      *
      * @return list<string>
      */
@@ -548,8 +512,8 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The PIE release the images install: the one that builds the extensions
-     * of getPieExtensions(), and the "pie" of the builder container.
+     * Builds the extensions of getPieExtensions(), and is the "pie" of the
+     * builder container.
      */
     public function withPieVersion(string $version): static
     {
@@ -564,11 +528,9 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Enables FrankenPHP worker mode (PhpMode::FrankenPhp only): the given
-     * script is booted once and kept in memory to handle every request,
-     * instead of being re-interpreted on each request. Your application
-     * needs a compatible runtime (e.g. runtime/frankenphp-symfony) to loop
-     * over incoming requests from that script.
+     * Enables FrankenPHP worker mode (PhpMode::FrankenPhp only): the script is
+     * booted once and kept in memory to handle every request. It needs a
+     * compatible runtime, e.g. runtime/frankenphp-symfony, to loop over them.
      */
     public function withFrankenPhpWorkerMode(string $script = 'public/index.php', ?int $num = null, bool $watch = true): static
     {
@@ -613,8 +575,8 @@ class PHPService implements ServiceInterface
             );
         }
 
-        // Sent only when there are any: the templates default both to an
-        // empty list, and everything a PIE build needs hangs off that test.
+        // The templates default both to an empty list, and everything a PIE
+        // build needs hangs off that test.
         if ($this->getPieExtensions()) {
             $appService->build()->arg('pie_extensions', json_encode($this->getPieExtensions(), \JSON_THROW_ON_ERROR));
         }
@@ -626,10 +588,10 @@ class PHPService implements ServiceInterface
         $appRoot = $this->getContainerWorkingDirectory(static::MOUNT_POINT);
 
         if ('.' !== $this->workingDirectory) {
-            // The document root of the frontend is baked into the image
-            // configuration, so it has to follow: mounting the repository root
-            // and pointing the application at a sub-directory would otherwise
-            // serve /var/www/public, which does not exist.
+            // The document root is baked into the image configuration, so it
+            // has to follow: an application in a sub-directory of the mounted
+            // repository would otherwise serve a /var/www/public that is not
+            // there.
             $appService->workingDir($appRoot);
             $appService->build()->arg('app_root', $appRoot);
         }
@@ -646,21 +608,20 @@ class PHPService implements ServiceInterface
         }
 
         foreach ($this->links as $service) {
-            // A hub whose only subscriber is this application runs in it:
-            // FrankenPHP is Caddy with the Mercure module, the hub is a
-            // directive of its Caddyfile rather than a container.
+            // FrankenPHP is Caddy with the Mercure module, so a hub whose only
+            // subscriber is this application is a Caddyfile directive rather
+            // than a container.
             if ($service instanceof MercureService && $service->getHost() === $this) {
                 $appService->build()->arg('mercure', 'true');
-                // Read by the Caddyfile when the server starts, not baked in:
-                // a new domain is a "docker:up" away.
+                // Read by the Caddyfile at startup, not baked in: a new domain
+                // is a "docker:up" away.
                 $appService->environment('MERCURE_CORS_ORIGINS', implode(' ', $service->getCorsOrigins($context)));
             }
         }
 
         $buildBuilder = $builder->service($this->name)->build();
 
-        // Skipped when the builder is shared with another application, or when
-        // the project opted out of it: getBuilderServiceName() then points the
+        // A shared or disabled builder makes getBuilderServiceName() point the
         // tasks somewhere else.
         $builderService = null;
 
@@ -676,9 +637,8 @@ class PHPService implements ServiceInterface
             ;
 
             if ($this->sudo) {
-                // Sent only when it is on: the template tests it with "is
-                // defined", which the string "false" — true to Twig — cannot
-                // fool into installing it anyway.
+                // The template tests it with "is defined", which the string
+                // "false" — true to Twig — would fool.
                 $builderService->build()->arg('sudo', 'true');
             }
 
@@ -699,7 +659,7 @@ class PHPService implements ServiceInterface
                 );
             }
         } elseif (false === $this->sharedBuilder) {
-            // No builder container at all: the QA tasks fall back to the
+            // Without a builder container the QA tasks fall back to the
             // application one, which then needs the tools too.
             $appService->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached');
         }
@@ -743,7 +703,6 @@ class PHPService implements ServiceInterface
         return $builder;
     }
 
-    // This method return a list of tasks associated to this services
     public function getTasks(): iterable
     {
         yield [
@@ -817,10 +776,9 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Install a QA tool, then run it — both inside the container, so the
-     * analysis sees the PHP version, the extensions and the vendor/ the
-     * application actually runs on rather than whichever PHP happens to run
-     * castor.
+     * Install and run the tool inside the container, so the analysis sees the
+     * PHP version, the extensions and the vendor/ the application really runs
+     * on rather than whichever PHP happens to run castor.
      *
      * @param array<string, string> $dependencies the composer requirements of the tool
      * @param list<string>          $arguments
@@ -841,17 +799,13 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Resolving the tool with the composer of the container rather than the one
-     * castor embeds is what makes the installation match the PHP the tool runs
-     * on: composer picks versions against the platform it runs on, so a host on
-     * PHP 8.5 installing for a container on 8.1 gets a tool the container
-     * cannot run — and the reverse silently analyses with a tool older than the
-     * application deserves. The container is also where the extensions the
-     * application declares are, which some tool dependencies require.
+     * Resolved by the composer of the container, not the one castor embeds:
+     * composer picks versions against the platform it runs on, so a host on PHP
+     * 8.5 installing for a container on 8.1 gets a tool the container cannot
+     * run, and the reverse analyses with an older tool than it should.
      *
      * The directory is on the host, mounted in the container: an installation
-     * survives the containers, and the composer cache of the shared home is
-     * reused across the tools.
+     * survives the containers, and the composer cache is reused across tools.
      *
      * @param array<string, string> $dependencies
      */
@@ -860,9 +814,8 @@ class PHPService implements ServiceInterface
         $path = $this->getQaToolsDirectory(context()) . '/' . $directory;
         $manifest = $this->getQaToolManifest($directory, $dependencies);
 
-        // The PHP version takes part in the fingerprint because it takes part
-        // in the resolution: bumping the application to a version the installed
-        // tool does not support has to reinstall it.
+        // The PHP version takes part in the resolution, so bumping it has to
+        // reinstall the tool.
         fingerprint(
             callback: function () use ($path, $manifest, $directory): void {
                 if (!is_dir($path)) {
@@ -882,8 +835,8 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The composer.json of the installation. It pins nothing beyond what the
-     * task asks for: the resolution is the container's to make.
+     * Pins nothing beyond what the task asks for: the resolution is the
+     * container's to make.
      *
      * @param array<string, string> $dependencies
      */
@@ -893,8 +846,8 @@ class PHPService implements ServiceInterface
             'name' => 'tools/' . $directory,
             'require' => $dependencies,
             'config' => [
-                // A tool is a leaf: its own plugins are the only ones that can
-                // run here, and none of them is worth an interactive prompt.
+                // A tool is a leaf: its own plugins are the only ones here,
+                // and none is worth an interactive prompt.
                 'allow-plugins' => array_fill_keys(array_keys($dependencies), true),
             ],
         ], \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
@@ -903,8 +856,7 @@ class PHPService implements ServiceInterface
     /**
      * Run in the builder container, so --working-dir names the mount point and
      * not the host directory behind it.
-     */
-    /**
+     *
      * @return list<string>
      */
     protected function getQaToolInstallCommand(string $directory): array
@@ -920,23 +872,12 @@ class PHPService implements ServiceInterface
     /**
      * What a QA tool analyses when the task was given no arguments of its own.
      *
-     * None of these tools treats a path on the command line as a restriction of
-     * the paths its configuration file declares: it *replaces* them. PHPStan
-     * only falls back to `parameters.paths` when the command line names no path
-     * at all, PHP CS Fixer ignores the finder of its config unless asked for
-     * `--path-mode=intersection`, and Rector does the same with `withPaths()`.
-     *
-     * Naming a path by default is therefore wrong wherever the application
-     * configures the tool: it would analyse `vendor/` and `var/` along with the
-     * sources of an application whose phpstan.neon says `paths: [src]`, and skip
-     * the `tests/` and `config/` a php-cs-fixer finder covers — while still
-     * reporting the configuration file as used, because everything else in it
-     * does apply.
-     *
-     * So the default names no path when the application ships a configuration
-     * the tool discovers on its own, and only falls back to the application
-     * directory — `$suffix` below it, for the tools whose out-of-the-box
-     * behaviour is to fix rather than to report — for one that ships none.
+     * A path on the command line *replaces* the ones the configuration file
+     * declares rather than restricting them — PHPStan only falls back to
+     * `parameters.paths` when none is named, PHP CS Fixer ignores its finder
+     * without `--path-mode=intersection`, Rector does the same with
+     * `withPaths()`. So no path is named when the application ships a
+     * configuration the tool discovers on its own.
      *
      * @param list<string> $command the sub-command the tool needs, if any
      *
@@ -969,14 +910,10 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The directory a tool is installed in: one per application, per tool.
-     *
-     * A single directory per tool would be wrong as soon as a repository holds
-     * two applications — pinning PHPStan 1 on one and 2 on the other would make
-     * every run reinstall over the previous one, and leave whichever ran last
-     * in place. Naming it after the application keeps them apart, and keeps the
-     * name stable: bumping a version reinstalls in place instead of leaving the
-     * previous installation behind forever.
+     * One per application, per tool: a repository pinning PHPStan 1 on one
+     * application and 2 on another would otherwise have every run reinstall
+     * over the previous one. Naming it after the application also keeps the
+     * name stable, so a version bump reinstalls in place.
      */
     protected function getQaToolInstallation(string $tool): string
     {
@@ -993,8 +930,6 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The tasks driving the background workers, only when there are any.
-     *
      * @return iterable<array{task: AsTask, function: \Closure}>
      */
     protected function getWorkerTasks(): iterable
@@ -1011,8 +946,8 @@ class PHPService implements ServiceInterface
                 #[AsArgument(description: 'The worker to restart, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_worker_name')]
                 ?string $worker = null,
             ): void {
-                // "restart" also starts a worker that was stopped, so there is
-                // no separate start task to remember.
+                // "restart" also starts a stopped worker, so there is no
+                // separate start task to remember.
                 docker_compose(['restart', ...$this->resolveWorkerServices($worker)]);
             },
         ];
@@ -1052,8 +987,6 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * The worker names declared with addWorker(), as the tasks take them.
-     *
      * @return list<string>
      */
     public function getWorkerNames(): array
@@ -1067,9 +1000,8 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Run a command in the builder container of this application — which may be
-     * the one of another application (withSharedBuilder()), in the
-     * sub-directory this application lives in.
+     * The builder container may be the one of another application
+     * (withSharedBuilder()), hence the sub-directory.
      *
      * @param string|array<int, string> $command
      */

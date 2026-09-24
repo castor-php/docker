@@ -20,16 +20,12 @@ use function Castor\Docker\is_worktree_domain;
 use function Castor\Docker\worktree_root_domain;
 
 /**
- * Diagnoses what stands between a project and a working environment, and says
- * how to fix each problem it finds.
+ * Only concludes: every question goes to the SystemProbe, so nothing here runs
+ * a command or reads a file, and the tests can put it in front of any machine
+ * they describe.
  *
- * It only concludes: every question goes to the SystemProbe, so nothing here
- * runs a command or reads a file, and the tests can put it in front of any
- * machine they describe.
- *
- * A check that needs something another one reported missing — the daemon, most
- * of the time — is skipped rather than failed, so the report points at the one
- * cause instead of at all of its consequences.
+ * A check that needs something another one reported missing is skipped rather
+ * than failed, so the report points at the cause instead of its consequences.
  */
 final class Doctor
 {
@@ -215,8 +211,8 @@ final class Doctor
 
         $checks = [Check::ok('mkcert', \sprintf('The mkcert CA is in %s.', $caRoot))];
 
-        // The Caddyfile imports the CA when the router starts: a running one
-        // has to be restarted to pick up a new copy.
+        // The Caddyfile imports the CA at startup, so a running router has to
+        // be restarted to pick up a new copy.
         $copy = $this->probe->fileHash(get_router_certs_directory() . '/rootCA.pem');
         $apply = null !== $this->router() ? 'castor docker:router:restart' : 'castor docker:router:enable';
 
@@ -428,8 +424,7 @@ final class Doctor
             return Check::skipped('Disk space', 'Needs the Docker daemon.');
         }
 
-        // Docker Desktop, Colima, a remote host: the disk the daemon writes to
-        // is not one of this machine.
+        // Docker Desktop, Colima, a remote host: not a disk of this machine.
         if (!$this->isLocalDaemon()) {
             return Check::skipped('Disk space', \sprintf('The daemon runs on "%s" (%s), whose disk cannot be measured from here.', $info['name'], $info['os']));
         }
@@ -593,9 +588,9 @@ final class Doctor
             );
         }
 
-        // The daemon resolves the bind mount on its own host: Docker Desktop and
-        // Colima find their own socket at /var/run/docker.sock in their VM,
-        // whatever this machine has at that path.
+        // The daemon resolves the bind mount on its own host: Docker Desktop
+        // and Colima find their own socket in their VM, whatever this machine
+        // has at that path.
         if (!$this->isLocalDaemon()) {
             return Check::ok('Docker socket', \sprintf('The router watches %s, which the daemon resolves on its own host.', $socket));
         }
@@ -650,8 +645,8 @@ final class Doctor
             'darwin' === $this->probe->platform() ? \sprintf('sudo lsof -nP -iTCP:%d -sTCP:LISTEN', $port) : \sprintf("sudo ss -ltnp 'sport = :%d'", $port),
         );
 
-        // docker-proxy, Docker Desktop and rootlesskit hold the ports of the
-        // containers: without the daemon, there is no telling it is not one.
+        // docker-proxy, Docker Desktop and rootlesskit hold container ports,
+        // and without the daemon there is no telling this is not one.
         if (!$this->isDaemonReachable()) {
             return Check::warning($label, \sprintf('Held by %s, which may be a container: castor cannot tell without the Docker daemon.', $who), $fix);
         }
@@ -692,8 +687,6 @@ final class Doctor
     }
 
     /**
-     * The host names the project routes, the way "docker:about" lists them.
-     *
      * @return list<string>
      */
     private function projectDomains(): array
@@ -733,8 +726,7 @@ final class Doctor
     }
 
     /**
-     * Whether the daemon runs on this very machine, where the paths it binds
-     * are the ones castor sees.
+     * Whether the paths the daemon binds are the ones castor sees.
      */
     private function isLocalDaemon(): bool
     {
@@ -744,7 +736,7 @@ final class Doctor
     }
 
     /**
-     * The socket the docker CLI talks to, null when it talks to something else.
+     * Null when the docker CLI talks to something that is not a unix socket.
      */
     private function endpointSocket(): ?string
     {

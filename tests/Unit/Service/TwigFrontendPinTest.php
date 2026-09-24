@@ -20,13 +20,12 @@ use Castor\Docker\Tests\SnapshotTestCase;
 
 /**
  * The Dockerfiles shipped by the plugin are Twig templates and carry no
- * "# syntax=" line: that line is text outside the blocks, which costs a
- * template the ability to extend another one and, in turn, to be extended.
+ * "# syntax=" line: that line is text outside the blocks, which would cost
+ * them the ability to extend and to be extended.
  *
- * What pins the frontend is the BUILDKIT_SYNTAX build argument, which BuildKit
- * honours over the directive. It has to be on every service building one of
- * those templates, or BuildKit reads a Dockerfile full of Twig tags as a
- * Dockerfile.
+ * The BUILDKIT_SYNTAX build argument pins the frontend instead, and has to be
+ * on every service building one of those templates — or BuildKit reads a file
+ * full of Twig tags as a Dockerfile.
  */
 final class TwigFrontendPinTest extends SnapshotTestCase
 {

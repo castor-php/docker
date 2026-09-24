@@ -9,14 +9,12 @@ use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 /**
- * "docker:push" hands the compose file to "docker buildx bake" and tells it,
- * per service, where to export the build cache. Nothing but a real registry
- * says whether that export actually happened, so this starts a throwaway one
- * and pushes to it.
+ * Nothing but a real registry says whether the cache export "docker:push" asks
+ * bake for actually happened, so this starts a throwaway one and pushes to it.
  *
- * Runs on tests/fixtures/push-project, which declares the three cases the task
- * has to tell apart — a full "type=registry,ref=..." cache, the bare reference
- * compose also accepts, and a service that builds with no cache at all.
+ * tests/fixtures/push-project declares the three cases the task has to tell
+ * apart: a full "type=registry,ref=..." cache, the bare reference compose also
+ * accepts, and a service that builds with no cache at all.
  *
  * Requires a castor binary (CASTOR_BINARY env var, or "castor" in PATH) and a
  * running Docker daemon.

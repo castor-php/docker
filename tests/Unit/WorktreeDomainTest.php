@@ -15,12 +15,9 @@ use function Castor\Docker\worktree_domain;
 
 /**
  * A worktree answers under a label of its own inserted right before the root
- * domain, so the plugin's own services — which derive their domain from
- * "root_domain" — and the domains a project spells out end up on the same shape.
- *
- * The rewrite is what makes overriding the root domain enough: a
- * "app.myproject.test" written in a castor.php knows nothing about the checkout
- * it is generated in.
+ * domain, so the services deriving their domain from "root_domain" and the ones
+ * a project spells out end up on the same shape — the latter being why the
+ * rewrite exists: a castor.php knows nothing about the checkout it runs in.
  */
 final class WorktreeDomainTest extends TestCase
 {

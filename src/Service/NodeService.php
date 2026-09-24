@@ -25,20 +25,16 @@ use function Castor\watch;
 
 /**
  * Runs a Node.js application from the source directory mounted in the
- * container. No PHP anywhere: this is the official "node" image, the package
- * manager of your choice through corepack, and the container command is a
- * package.json script.
+ * container: the official "node" image, the package manager of your choice
+ * through corepack, and a package.json script as the container command.
  *
- * The container runs "<manager> run dev" by default, which is what serves a
- * Vite/React or Next.js development server with its own hot reload — the
- * process watches the mounted sources itself, so there is nothing to rebuild
- * from the host. withScript() picks another script, withRunCommand() replaces
- * the command outright for an application that is not started by a script at
- * all ("node server.js").
+ * "<manager> run dev" by default, which serves a Vite/React or Next.js dev
+ * server watching the mounted sources itself. withScript() picks another
+ * script, withRunCommand() replaces the command outright for an application no
+ * script starts ("node server.js").
  *
- * Like the other application services, withDirectory() is what gets mounted and
- * withWorkingDirectory() is where the package.json lives below it — the two
- * come apart in a monorepo mounting its root.
+ * withDirectory() is what gets mounted and withWorkingDirectory() is where the
+ * package.json lives below it — the two come apart in a monorepo.
  */
 class NodeService implements ServiceInterface
 {
@@ -94,12 +90,9 @@ class NodeService implements ServiceInterface
     }
 
     /**
-     * The package manager the generated commands use, and the one the
-     * "<name>:<manager>" task is named after.
-     *
-     * Corepack is enabled in the image whichever one this is, so a project
-     * declaring a "packageManager" field in its package.json gets exactly that
-     * version regardless — this only decides what the tasks type.
+     * Corepack is enabled in the image whichever one this is, so a
+     * "packageManager" field in package.json still wins. This only decides what
+     * the generated tasks type.
      */
     public function withPackageManager(PackageManager $packageManager): static
     {
@@ -162,11 +155,9 @@ class NodeService implements ServiceInterface
     /**
      * Make the file watchers poll instead of waiting for inotify events.
      *
-     * A bind mount does not carry inotify across the virtual machine of Docker
-     * Desktop, nor across a Windows filesystem mounted into WSL: the dev server
-     * starts, serves, and then simply never notices an edit. Polling costs CPU
-     * and is why this is not on by default — turn it on the day nothing
-     * reloads.
+     * A bind mount carries no inotify across the Docker Desktop VM, nor across
+     * a Windows filesystem mounted into WSL: the dev server serves and never
+     * notices an edit. Polling costs CPU, hence off by default.
      */
     public function withPolling(bool $polling = true): static
     {
@@ -205,19 +196,18 @@ class NodeService implements ServiceInterface
                 ->profile('default')
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->command($this->getContainerCommand())
-                // A dev server spawns children — esbuild, a type checker, a
-                // watcher — and is not a process manager: without an init, the
-                // ones it leaks keep the container alive until compose kills it.
+                // A dev server spawns children and is no process manager:
+                // without an init, the ones it leaks keep the container alive
+                // until compose kills it.
                 ->init(true)
                 ->environment('HOME', '/home/app')
-                // The manager corepack downloads on first use lands in the
-                // shared home directory instead of the container filesystem, so
-                // every Node service of the project downloads it once.
+                // Lands what corepack downloads in the shared home directory,
+                // so every Node service of the project downloads it once.
                 ->environment('COREPACK_HOME', '/home/app/.cache/node/corepack')
-                // Read by Next.js, Nuxt and react-scripts. A dev server bound to
-                // localhost answers only inside its own container, which the
-                // router reaches as a 502; Vite needs "--host" on top, it reads
-                // neither variable.
+                // Read by Next.js, Nuxt and react-scripts: bound to localhost
+                // a dev server answers only inside its container, which the
+                // router reaches as a 502. Vite reads neither, it needs
+                // "--host".
                 ->environment('HOST', '0.0.0.0')
                 ->environment('PORT', (string) $this->getPort())
         ;
@@ -291,9 +281,8 @@ class NodeService implements ServiceInterface
     }
 
     /**
-     * Restarting the container on every edit is what an application started
-     * with a plain "node server.js" needs. A dev server watches the mounted
-     * sources by itself and wants nothing of this task.
+     * What an application started with a plain "node server.js" needs. A dev
+     * server watches the mounted sources by itself.
      *
      * @return array{task: AsTask, function: \Closure}
      */
@@ -306,9 +295,8 @@ class NodeService implements ServiceInterface
                 $watchDirectory = str_starts_with($directory, '/') ? $directory : context()['root_dir'] . '/' . $directory;
 
                 watch($watchDirectory, function ($file, $event): void {
-                    // Installing a dependency writes thousands of files, and
-                    // the build output is written by the very process this
-                    // restarts: watching either one loops.
+                    // Installing writes thousands of files, and the build
+                    // output comes from the very process this restarts.
                     if (str_contains($file, '/node_modules/') || str_contains($file, '/.next/') || str_contains($file, '/dist/')) {
                         return;
                     }
@@ -354,8 +342,6 @@ class NodeService implements ServiceInterface
     }
 
     /**
-     * Declare the build producing the Node image.
-     *
      * Extra Debian packages are deliberately not modelled: extend the
      * "node_base" block of the Dockerfile instead.
      */
@@ -386,9 +372,8 @@ class NodeService implements ServiceInterface
     }
 
     /**
-     * The directory to run the tasks in, or null to leave the working directory
-     * of the container alone — which is what a single-package service wants,
-     * and keeps an override from compose.override.yaml effective.
+     * Null leaves the working directory of the container alone, which is what a
+     * single-package service wants and keeps a compose.override.yaml effective.
      */
     protected function getTaskWorkingDirectory(): ?string
     {

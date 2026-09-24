@@ -23,10 +23,8 @@ use function Castor\io;
  *         ->withApp('tools/migrator');
  *
  * Each application gets "<name>:build", "<name>:test", "<name>:go" and
- * "<name>:update", all running in this container with go pointed at the module
- * directory.
- *
- * The binaries it produces are run by BinaryRunService containers.
+ * "<name>:update", running here with go pointed at its module directory. The
+ * binaries are run by BinaryRunService containers.
  *
  * Extra Debian packages are deliberately not modelled: extend the "go_base"
  * block of the Dockerfile instead.
@@ -44,8 +42,6 @@ class GoBuilder extends AbstractBuilderService
     }
 
     /**
-     * Declare a module built by this builder.
-     *
      * $output is where "go build" writes the binary, relative to the module
      * directory; it defaults to the application name.
      */
@@ -102,12 +98,9 @@ class GoBuilder extends AbstractBuilderService
     }
 
     /**
-     * Bring the module dependencies up to date, then put go.mod and go.sum back
-     * in order.
-     *
-     * "go get" alone leaves behind the requirements nothing needs any more, and
-     * an out-of-date go.sum: "go mod tidy" is the other half of the operation,
-     * which is why it runs by default rather than being something to remember.
+     * "go get" alone leaves behind requirements nothing needs any more and an
+     * out-of-date go.sum, so "go mod tidy" runs by default rather than being
+     * something to remember.
      *
      * @return array{task: AsTask, function: \Closure}
      */
@@ -125,8 +118,7 @@ class GoBuilder extends AbstractBuilderService
             ) use ($directory): void {
                 io()->section('Updating the dependencies...');
 
-                // "-u=patch" stays inside the current minor version, which is
-                // what you want between two releases.
+                // "-u=patch" stays inside the current minor version.
                 $this->run(\sprintf('go get %s %s', $patch ? '-u=patch' : '-u', $module ?? './...'), $directory);
 
                 if ($tidy) {

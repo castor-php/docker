@@ -17,22 +17,19 @@ use function Castor\Docker\docker_compose;
 use function Castor\watch;
 
 /**
- * Runs one already-compiled binary from the mounted sources. Language-agnostic:
- * the same class runs a Rust binary, a Go one, or anything else.
- *
- * This is the runtime half of the monorepo model — the compiler lives in a
- * RustBuilder or a GoBuilder, and one of these per binary starts it:
+ * Runs one already-compiled binary from the mounted sources — a Rust binary, a
+ * Go one, or anything else. The runtime half of the monorepo model, where the
+ * compiler lives in a RustBuilder or a GoBuilder:
  *
  *     $agent = (new BinaryRunService('agent', 'agent/target/x86_64-unknown-linux-musl/debug/agent-application'))
  *         ->withBuilder($rustBuilder)
  *         ->withRunCommand(['--listen', '0.0.0.0:18089'])
  *         ->withDomain('agent.project.test');
  *
- * Attaching a builder is what makes "<name>:build" and "<name>:watch" possible
- * — the rebuild has to happen somewhere — and it settles the image: a binary
- * compiled against the glibc of the builder image will not start in an
- * unrelated slim one. Without a builder, pass your own withImage() and you only
- * get "<name>:restart".
+ * Attaching a builder is what makes "<name>:build" and "<name>:watch" possible,
+ * and it settles the image: a binary compiled against the glibc of the builder
+ * image will not start in an unrelated slim one. Without a builder, pass your
+ * own withImage() and you only get "<name>:restart".
  */
 class BinaryRunService implements ServiceInterface
 {
@@ -42,8 +39,8 @@ class BinaryRunService implements ServiceInterface
     use HasLinks;
 
     /**
-     * Sensible only for a statically linked binary (a musl target, or CGO_ENABLED=0):
-     * anything dynamically linked should run the builder image instead.
+     * Sensible only for a statically linked binary (a musl target, or
+     * CGO_ENABLED=0): anything dynamically linked wants the builder image.
      */
     public const DEFAULT_IMAGE = 'debian:13-slim';
 
@@ -82,9 +79,9 @@ class BinaryRunService implements ServiceInterface
      * Run the image of the given builder, mount what it mounts, and rebuild
      * through it.
      *
-     * $app is the application of the builder this binary comes from, named
-     * either by its name or by its directory; it defaults to the service name
-     * and only matters for "<name>:build" and "<name>:watch".
+     * $app names the application of the builder this binary comes from, by name
+     * or by directory. It defaults to the service name and only matters for
+     * "<name>:build" and "<name>:watch".
      */
     public function withBuilder(AbstractBuilderService $builder, ?string $app = null): static
     {
@@ -95,13 +92,11 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * The restart policy of the container: "no", "on-failure",
-     * "on-failure:10", "always" or "unless-stopped".
+     * "no", "on-failure", "on-failure:10", "always" or "unless-stopped".
      *
-     * A binary that exits — because a dependency was not up yet, because it
-     * panicked — otherwise stays down until someone notices, since nothing
-     * watches it. "on-failure" brings it back without fighting a deliberate
-     * "docker:stop", which "always" would.
+     * Nothing watches the container, so a binary that exits — a dependency not
+     * up yet, a panic — stays down until someone notices. "on-failure" brings
+     * it back without fighting a deliberate "docker:stop", which "always" does.
      */
     public function withRestart(string $policy = 'on-failure'): static
     {
@@ -111,8 +106,8 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * Run another image than the builder's — a slim one, for a statically
-     * linked binary that needs nothing from the toolchain.
+     * A slim image, for a statically linked binary that needs nothing from the
+     * toolchain.
      */
     public function withImage(string $image): static
     {
@@ -144,8 +139,8 @@ class BinaryRunService implements ServiceInterface
             return $this->image;
         }
 
-        // Compose names the image it builds for a service "<project>-<service>",
-        // so the builder needs no explicit "image" of its own.
+        // Compose names what it builds "<project>-<service>", so the builder
+        // needs no explicit "image" of its own.
         if ($this->builder !== null) {
             return '${PROJECT_NAME}-' . $this->builder->getName();
         }
@@ -183,8 +178,8 @@ class BinaryRunService implements ServiceInterface
     {
         yield $this->restartTask();
 
-        // Rebuilding needs a compiler: without a builder there is nowhere to
-        // run it, so these two tasks do not exist.
+        // Rebuilding needs a compiler, and without a builder there is nowhere
+        // to run it.
         if ($this->builder !== null) {
             yield $this->buildTask();
             yield $this->watchTask();
@@ -229,8 +224,8 @@ class BinaryRunService implements ServiceInterface
                 $watchDirectory = str_starts_with($directory, '/') ? $directory : context()['root_dir'] . '/' . $directory;
 
                 watch($watchDirectory, function ($file, $event): void {
-                    // Build scripts generate sources under target/, watching
-                    // them would make each build trigger the next one.
+                    // Build scripts generate sources under target/, so each
+                    // build would trigger the next one.
                     if (str_contains($file, '/target/')) {
                         return;
                     }
@@ -247,8 +242,7 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * Rebuild this binary through the builder it is attached to, by running the
-     * "build" task the builder declares for its application.
+     * Runs the "build" task the builder declares for its application.
      */
     protected function build(): void
     {
@@ -260,8 +254,7 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * Which files trigger a rebuild. Anything the builder could compile: a
-     * subclass narrows it when it knows better.
+     * Anything the builder could compile; a subclass narrows it.
      */
     protected function isWatched(string $file): bool
     {
@@ -289,8 +282,7 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * The host directory mounted in the container: the builder's one when this
-     * service defines none of its own.
+     * The builder's one when this service defines none of its own.
      */
     protected function getMountedDirectory(): string
     {
@@ -301,17 +293,13 @@ class BinaryRunService implements ServiceInterface
         return $this->getDirectory();
     }
 
-    /**
-     * What "watch" looks at: the application directory of the builder, below
-     * the mounted one.
-     */
     protected function getWatchedDirectory(): string
     {
         $directory = $this->getMountedDirectory();
         $app = $this->builder?->getAppDirectory($this->getAppName());
 
-        // Watching the whole mount would be the repository root of a monorepo:
-        // narrow it to the application this binary is built from when we can.
+        // The whole mount would be the repository root of a monorepo, so narrow
+        // it to the application this binary is built from when we can.
         return $app === null ? $directory : $this->joinPath($directory, $app);
     }
 }

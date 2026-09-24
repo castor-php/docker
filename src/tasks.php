@@ -103,7 +103,6 @@ function up(
         throw $e;
     }
 
-    // Bring back any port that was exposed before (see expose_service_port()).
     if (!$service) {
         restore_exposed_services();
     }
@@ -123,8 +122,7 @@ function stop(
         io()->title('Stopping infrastructure');
     }
 
-    // A tunnel to a stopped project would only answer errors, to anyone who
-    // still has its public URL.
+    // A tunnel to a stopped project would only answer errors.
     if (!$service) {
         close_project_tunnels();
     }
@@ -137,8 +135,7 @@ function stop(
 
     docker_compose($command, profiles: $profiles);
 
-    // Expose forwarders are standalone containers (not compose services), so a
-    // full stop must take them down too.
+    // Expose forwarders are standalone containers, not compose services.
     if (!$service) {
         stop_exposed_services();
     }
@@ -169,12 +166,6 @@ function logs(
     docker_compose($command, c: $c, profiles: $profiles);
 }
 
-/**
- * Truncate the log files docker keeps for the containers of the project.
- *
- * The containers are left running: emptying the file in place is what makes
- * "castor docker:logs" start from a clean slate without restarting anything.
- */
 #[AsTask(description: 'Clears the logs of a service, or of every service', namespace: 'docker:logs', name: 'clear')]
 function logs_clear(
     #[AsArgument(description: 'The service to clear, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
@@ -203,8 +194,6 @@ function logs_clear(
 
     foreach ($logPaths as $name => $logPath) {
         if ('' === $logPath) {
-            // Any driver but "json-file" keeps its logs somewhere else, and
-            // there is no file of ours to empty.
             io()->note(\sprintf('"%s" does not write its logs to a file, its logging driver keeps them elsewhere.', $name));
 
             continue;
@@ -228,8 +217,6 @@ function ps(): void
 }
 
 /**
- * Sum up the project: what it is made of, and every address it answers on.
- *
  * Everything is read from the compose files, so the task answers whether or not
  * the infrastructure runs — what is running only decorates the listing.
  */
@@ -312,10 +299,6 @@ function status_label(string $service, array $running): string
     return \in_array($service, $running, true) ? '<fg=green>running</>' : '<fg=yellow>stopped</>';
 }
 
-/**
- * What the project costs the machine it runs on: CPU and memory of every
- * container, and the disk its containers, images and volumes take.
- */
 #[AsTask(description: 'Shows the CPU, memory and disk the project uses', aliases: ['stats'], namespace: 'docker')]
 function stats(
     #[AsOption(description: 'Skip the disk usage, which makes docker measure every image, container and volume')]
@@ -457,9 +440,6 @@ function stats(
 }
 
 /**
- * Diagnose what stands between the project and a working environment, and say
- * how to fix each problem found.
- *
  * Nothing has to run for it to answer: without a Docker daemon, the daemon is
  * what gets reported, and the checks needing it are skipped.
  */
@@ -471,8 +451,8 @@ function doctor(): int
     io()->title(\sprintf('Diagnosing "%s"', get_project_name($c)));
 
     $counts = ['error' => 0, 'warning' => 0];
-    // The result column takes what the icon and the label leave of the
-    // terminal, so a long fix wraps inside its cell instead of across the table.
+    // What the icon and the label leave of the terminal, so a long fix wraps
+    // inside its cell instead of across the table.
     $width = max(40, (new Terminal())->getWidth() - 26);
 
     foreach ((new Doctor($c, new HostSystemProbe($c)))->run() as $section => $checks) {
@@ -482,7 +462,7 @@ function doctor(): int
 
         foreach ($checks as $check) {
             $counts[$check->status->value] = ($counts[$check->status->value] ?? 0) + 1;
-            // Escaped: a fix reading "castor <service>:expose" holds no style.
+            // A fix reading "castor <service>:expose" holds no style.
             $rows[] = [
                 $check->status->symbol(),
                 $check->label,
@@ -532,9 +512,8 @@ function service_install(
     ?string $name = null,
     #[AsOption(description: 'The file holding the RegisterServiceEvent listener (defaults to castor.php)')]
     ?string $file = null,
-    // Every service answers its own questions, so its options are only known
-    // once the service is: they are parsed out of the raw command line rather
-    // than declared here.
+    // A service's options are only known once the service is, so they are
+    // parsed out of the raw command line rather than declared here.
     #[AsRawTokens]
     array $tokens = [],
 ): void {
@@ -564,8 +543,6 @@ function service_install(
     $installer = $installers[$name];
     $c = context();
 
-    // The options of the service answer its questions upfront: what is passed
-    // is not asked, and with none left to ask the install runs unattended.
     $options = InstallerOptions::parse($installer, $tokens, $applicationOptions);
 
     $file ??= $options->file ?? $c->workingDirectory . '/castor.php';
@@ -595,8 +572,8 @@ function service_install(
     file_put_contents($file, $editor->getSource());
     io()->success(\sprintf('Registered "%s" in %s.', $installer->getName(), basename($file)));
 
-    // Host-side preparation, then regenerate the compose file in-process with the
-    // freshly created instances so build/up see the new services immediately.
+    // Regenerated in-process with the freshly created instances, so build/up
+    // see the new services immediately.
     $installer->prepare($answers);
 
     $services = [...collect_services(), ...$extraServices, $installer->createInstance($answers)];
@@ -671,8 +648,8 @@ function service_remove(
     file_put_contents($file, $editor->getSource());
     io()->success(\sprintf('Removed "%s" from %s.', $name, basename($file)));
 
-    // Regenerate the compose file without the service, then drop its (now orphan)
-    // containers. Named volumes are kept, so the data survives a re-install.
+    // The service's containers become orphans and are dropped below. Named
+    // volumes are kept, so the data survives a re-install.
     $remaining = array_filter($services, static fn(ServiceInterface $s): bool => $s->getName() !== $name);
     generate_compose_file($c, $remaining);
 
@@ -737,12 +714,9 @@ function push(
 
     $source = get_source_url();
 
-    // A cache manifest carries no label, so a registry that reads one to link
-    // a package — ghcr.io — only ever learns where the image comes from from
-    // the image this task pushes next to it. Pushing without that label leaves
-    // an orphan package behind, which nothing but the account that created it
-    // may write to afterwards: the CI would then be locked out of the very
-    // cache it is supposed to feed.
+    // A cache manifest carries no label, so ghcr.io only learns where an image
+    // comes from from the image pushed next to it. Without it the package is
+    // an orphan only its creator may write to, locking the CI out of its cache.
     if (null === $source && str_starts_with($registry, 'ghcr.io/')) {
         throw new \RuntimeException('Could not tell which repository these images come from, and ghcr.io needs it to attach the packages to it. Add a "repository" variable to your context, holding either "org/project" or the full URL of the repository.');
     }
@@ -751,11 +725,9 @@ function push(
 
     $c = context();
 
-    // bake reads the compose file itself — "include:" and all — so the build
-    // context, the dockerfile, the target, the args, the additional contexts
-    // and the cache-from all come from there, already interpolated. Only the
-    // cache-to has no compose equivalent, and profiles do not apply: bake sees
-    // every service that has a "build".
+    // bake reads the compose file itself — "include:" and all — so everything
+    // but the cache-to comes from there, already interpolated. Profiles do not
+    // apply: bake sees every service that has a "build".
     $command = ['docker', 'buildx', 'bake', '-f', $c->workingDirectory . '/compose.yaml'];
 
     foreach ($targets as $service => $cacheTo) {
@@ -764,9 +736,8 @@ function push(
 
         $cacheRef = get_cache_reference($cacheTo);
 
-        // A cache living anywhere but in a registry — "type=gha", "type=local"
-        // — names no repository to publish an image to, so that service keeps
-        // pushing its cache and nothing else.
+        // "type=gha" or "type=local" names no repository to publish an image
+        // to, so that service pushes its cache and nothing else.
         if (null === $cacheRef) {
             continue;
         }
@@ -783,8 +754,6 @@ function push(
         // is not a registry one must not be pushed anywhere.
         $command[] = '--set';
         $command[] = \sprintf('%s.output=type=registry', $service);
-        // Only ghcr.io is refused a push it could not label, other registries
-        // read no such thing and have no reason to turn a push down.
         if (null !== $source) {
             $command[] = '--set';
             $command[] = \sprintf('%s.labels.org.opencontainers.image.source=%s', $service, $source);
@@ -800,8 +769,8 @@ function push(
         $command[] = '--print';
     }
 
-    // Naming the targets is what keeps the services that build without a cache
-    // out: bake's default group is every buildable service of the project.
+    // Naming the targets keeps out the services that build without a cache:
+    // bake's default group is every buildable service of the project.
     run([...$command, ...array_keys($targets)], context: $c->withEnvironment([
         // bake does not go through docker_compose(), so the variables the
         // generated compose file interpolates have to be given to it here.
@@ -815,9 +784,8 @@ function push(
 }
 
 /**
- * A compose "cache_from" accepts both a bare image reference and a full
- * "type=...,ref=..." entry, but "--set <target>.cache-to=" only understands the
- * latter — buildx rejects a bare reference there.
+ * A compose "cache_from" accepts a bare image reference, but
+ * "--set <target>.cache-to=" only understands a "type=...,ref=..." entry.
  */
 function normalize_cache_entry(string $cacheFrom): string
 {
@@ -831,8 +799,7 @@ function normalize_cache_entry(string $cacheFrom): string
 }
 
 /**
- * The image a registry cache entry is stored in, null for a cache that lives
- * outside of a registry.
+ * Null for a cache that lives outside of a registry.
  */
 function get_cache_reference(string $cacheEntry): ?string
 {
@@ -875,10 +842,9 @@ function get_image_reference(string $cacheRef, string $tag): string
 /**
  * Where the images come from, as "org.opencontainers.image.source" spells it.
  *
- * GitHub attaches a package to the repository this names, and a package
- * attached to a repository inherits its permissions — which is how everyone
- * who may push to the repository may push its images, and not only whoever
- * pushed them first.
+ * GitHub attaches the package to the repository this names, and the package
+ * inherits its permissions: everyone who may push to the repository may push
+ * its images, not only whoever pushed them first.
  */
 function get_source_url(): ?string
 {
@@ -913,9 +879,8 @@ function get_source_revision(): ?string
 }
 
 /**
- * The forms a git remote takes — scp-like, ssh://, https:// — and the
- * "org/project" shorthand a context may hold, as the browsable URL GitHub
- * expects.
+ * Turn any remote form — scp-like, ssh://, https://, "org/project" — into the
+ * browsable URL GitHub expects.
  */
 function normalize_source_url(string $remote): ?string
 {
@@ -944,8 +909,6 @@ function capture_git(array $command): ?string
     try {
         $output = trim(capture($command, context: context()->withQuiet()->withAllowFailure()));
     } catch (\Throwable) {
-        // No git on this machine, or a directory git does not track: the
-        // images have no repository to name, which is all the caller asked.
         return null;
     }
 
@@ -953,8 +916,7 @@ function capture_git(array $command): ?string
 }
 
 /**
- * The compose services of the project, fully resolved, whatever profile they
- * belong to.
+ * Fully resolved, whatever profile they belong to.
  *
  * @return array<string, array{build?: array{cache_from?: list<string>}, depends_on?: array<string, mixed>}>
  */

@@ -13,11 +13,11 @@ use Symfony\Component\Console\Input\InputOption;
 /**
  * The command line of "docker:service:install", where every input of an
  * installer is also an option: "--with-version=11.4" answers the question the
- * install would otherwise ask, so a service installs without any interaction.
+ * install would otherwise ask.
  *
  * Options are prefixed because castor answers some of these names itself —
- * "--version" prints its own version before a task ever runs — and because the
- * prefix reads like the "withVersion()" of the service the input configures.
+ * "--version" prints its own before a task ever runs — and because the prefix
+ * reads like the "withVersion()" of the service the input configures.
  */
 final class InstallerOptions
 {
@@ -59,9 +59,8 @@ final class InstallerOptions
         foreach ($installer->getInputs() as $input) {
             $value = $parsed->getOption(self::optionName($input));
 
-            // Absent options keep their null default — the empty array for a
-            // multiple choice, which repeats — so the question is asked (or its
-            // default taken) as if nothing had been passed.
+            // Absent options keep their null default, so the question is
+            // asked as if nothing had been passed.
             if ($value === null || $value === []) {
                 continue;
             }
@@ -77,10 +76,9 @@ final class InstallerOptions
     }
 
     /**
-     * Whether the token following an option on the command line is its value,
-     * and so names no service. Castor's own options say it themselves; an
-     * install option says it through the input it answers, which holds no value
-     * when that input is a boolean. Anything else is taken to hold one.
+     * Whether the token following an option is its value, and so names no
+     * service. Castor's own options say it themselves; an install option says
+     * it through the input it answers, which holds no value for a boolean.
      *
      * @param array<string, ServiceInstaller> $installers
      * @param list<InputOption>               $applicationOptions
@@ -149,8 +147,7 @@ final class InstallerOptions
     /**
      * Whether an install option answers a boolean input — "--with-force" and
      * the "--no-with-force" negating it, neither of which takes a value. A name
-     * no installer declares is none of their business, and left to the parsing
-     * to reject.
+     * no installer declares is left to the parsing to reject.
      *
      * @param array<string, ServiceInstaller> $installers
      */
@@ -199,8 +196,7 @@ final class InstallerOptions
     private static function createOption(Input $input): InputOption
     {
         // A boolean is a flag and its negation ("--with-x", "--no-with-x"), so
-        // that not passing it stays distinguishable from passing it false. A
-        // multiple choice repeats instead, one occurrence per choice picked.
+        // not passing it stays distinguishable from passing it false.
         $mode = match (true) {
             $input->type === InputType::Boolean => InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE,
             $input->multiple => InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
@@ -241,9 +237,8 @@ final class InstallerOptions
     }
 
     /**
-     * The choices a multiple input was answered with, written as one occurrence
-     * each or comma-separated in one — the prompt reads a comma-separated list
-     * too, so no choice may hold a comma anyway.
+     * Written as one occurrence each or comma-separated in one — the prompt
+     * reads a comma-separated list too, so no choice may hold a comma anyway.
      *
      * @param list<mixed> $values
      *

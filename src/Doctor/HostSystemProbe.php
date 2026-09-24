@@ -18,8 +18,6 @@ use function Castor\Docker\is_router_autostart_enabled;
 use function Castor\run;
 
 /**
- * The machine castor runs on, as "docker:doctor" sees it.
- *
  * Every command runs with a timeout and without failing: a question the machine
  * cannot answer is an answer too — no daemon, no mkcert, no Windows behind WSL.
  */
@@ -168,7 +166,7 @@ final class HostSystemProbe implements SystemProbe
             }
         }
 
-        // Neither can name it, or lsof only sees the processes of this user:
+        // Neither could name it, or lsof only sees this user's processes:
         // knocking on the port still tells whether something is behind it.
         $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.5);
 
@@ -246,8 +244,8 @@ final class HostSystemProbe implements SystemProbe
             return null;
         }
 
-        // certutil answers in the language of Windows, and succeeds whether it
-        // found the certificate or not: only its hash in the output tells.
+        // certutil answers in the language of Windows and succeeds either way:
+        // only its hash in the output tells.
         foreach ([['-user', '-store', 'Root'], ['-store', 'Root']] as $store) {
             [, $output] = $this->exec([$certutil, ...$store, $fingerprint]);
 
@@ -261,8 +259,8 @@ final class HostSystemProbe implements SystemProbe
 
     public function resolve(string $domain): array
     {
-        // getent goes through the resolver of the system — /etc/hosts, mDNS,
-        // DNS — IPv6 included, which gethostbynamel() does not.
+        // getent goes through the system resolver — /etc/hosts, mDNS, DNS —
+        // IPv6 included, which gethostbynamel() does not.
         if (null !== $this->find('getent')) {
             [$code, $output] = $this->exec(['getent', 'ahosts', $domain], 5);
 
@@ -280,8 +278,8 @@ final class HostSystemProbe implements SystemProbe
             return null;
         }
 
-        // The domains come out of get_project_urls(), which only lets host
-        // names through: they are safe between single quotes.
+        // get_project_urls() only lets host names through, so they are safe
+        // between single quotes.
         $script = \sprintf(
             'foreach ($d in @(%s)) { try { $a = ([System.Net.Dns]::GetHostAddresses($d) | ForEach-Object { $_.IPAddressToString }) -join "," } catch { $a = "" }; Write-Output ($d + "|" + $a) }',
             implode(',', array_map(static fn(string $domain): string => "'" . $domain . "'", $domains)),
@@ -396,8 +394,7 @@ final class HostSystemProbe implements SystemProbe
 
     /**
      * The process "ss -Hltnp" says listens: "nginx (pid 812)", an empty string
-     * when it may not tell — the process belongs to another user — and null
-     * when nothing listens.
+     * when it may not tell, null when nothing listens.
      */
     public static function parseSsListener(string $output): ?string
     {
@@ -427,8 +424,7 @@ final class HostSystemProbe implements SystemProbe
     }
 
     /**
-     * The addresses of "getent ahosts", which lists each one once per socket
-     * type.
+     * "getent ahosts" lists each address once per socket type.
      *
      * @return list<string>
      */
@@ -456,8 +452,8 @@ final class HostSystemProbe implements SystemProbe
     }
 
     /**
-     * Run a command, and never fail: a missing binary, a daemon that does not
-     * answer or a timeout all come back as a failed exit code.
+     * A missing binary, a daemon that does not answer or a timeout all come
+     * back as a failed exit code.
      *
      * @param list<string> $command
      *

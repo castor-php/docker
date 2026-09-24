@@ -29,9 +29,8 @@ class ElasticsearchService implements ServiceInterface
     }
 
     /**
-     * The Kibana container that comes with this instance. Unlike the other
-     * generated names it is not derived from the service one, so the first
-     * instance keeps the plain "kibana" it has always had.
+     * Not derived from the service name, unlike the other generated ones, so
+     * the first instance keeps the plain "kibana" it has always had.
      */
     public function getKibanaName(): string
     {

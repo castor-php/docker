@@ -28,17 +28,14 @@ final class ComposeBuilder
     }
 
     /**
-     * Declare an inline compose config: its content is stored in the generated
-     * compose file and mounted in the services referencing it with
-     * ServiceBuilder::config(), so a configuration file can be generated from
-     * PHP without shipping it in an image.
+     * The content is stored in the generated compose file and mounted in the
+     * services referencing it with ServiceBuilder::config(), so a configuration
+     * file can be generated from PHP without shipping it in an image.
      *
-     * Compose interpolates the file it reads, content of the configs included:
-     * an nginx configuration full of $host, $uri and $document_root would reach
-     * the container emptied of them, with only a "variable is not set" warning
-     * to show for it. Every "$" is therefore escaped to "$$" on the way out.
-     * Pass $interpolate to opt a config back into interpolation, when it really
-     * does mean to read ${PROJECT_NAME} & co.
+     * Compose interpolates the file it reads, configs included: an nginx
+     * configuration full of $host and $uri would reach the container emptied of
+     * them. Every "$" is therefore escaped to "$$" on the way out —
+     * $interpolate opts a config that really means ${PROJECT_NAME} back in.
      */
     public function config(string $name, string $content, bool $interpolate = false): self
     {
@@ -48,7 +45,7 @@ final class ComposeBuilder
     }
 
     /**
-     * The content of a declared config, as it was passed — before escaping.
+     * As it was passed, before escaping.
      */
     public function getConfigContent(string $name): ?string
     {
@@ -56,8 +53,7 @@ final class ComposeBuilder
     }
 
     /**
-     * The host paths bind-mounted by the services, named volumes excluded.
-     * They may be relative to the project directory.
+     * Named volumes excluded. The paths may be relative to the project.
      *
      * @return list<string>
      */
@@ -81,7 +77,7 @@ final class ComposeBuilder
     }
 
     /**
-     * Every domain routed to a service of this project, in registration order.
+     * In registration order.
      *
      * @return list<string>
      */
@@ -120,9 +116,8 @@ final class ComposeBuilder
      */
     public function toArray(): array
     {
-        // The project stays on its own network: the global router joins it from
-        // the outside (see connect_router_to_network()) instead of every project
-        // joining a shared one, which would make service names of different
+        // The project stays on its own network, which the router joins from the
+        // outside: a shared one would make the service names of different
         // projects collide in the Docker DNS.
         $compose = [
             'services' => [],

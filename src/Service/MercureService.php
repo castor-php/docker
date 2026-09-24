@@ -16,21 +16,14 @@ use function Castor\Docker\worktree_domain;
  * MERCURE_PUBLIC_URL and MERCURE_JWT_SECRET, the variables of the
  * symfony/mercure-bundle recipe.
  *
- * Where the hub runs is decided by who links to it. FrankenPHP is Caddy with
- * the Mercure module compiled in: when the only service linked to the hub is a
- * FrankenPHP application served on a domain, the hub is a directive of its
- * Caddyfile, on /.well-known/mercure of its own domains, and no container is
- * generated. Otherwise — a PHP-FPM application, several applications sharing
- * the hub, anything else — it is a container of its own, on
- * "{name}.{root_domain}".
+ * Where the hub runs is decided by who links to it: a lone FrankenPHP
+ * application with a domain serves it from its own Caddyfile, since FrankenPHP
+ * is Caddy with the Mercure module compiled in. Anything else gets a container
+ * of its own, on "{name}.{root_domain}".
  *
- * Either way the domains of the linked applications are the origins the hub
- * accepts: a browser subscribes from their pages.
- *
- * The hub is pinned to the 0.x series, which the FrankenPHP images embed and
- * which symfony/mercure-bundle speaks by default: Mercure 1.0 changed the
- * protocol — tokens, issuers, audience — and rejects what a default Symfony
- * application sends.
+ * Pinned to the 0.x series, which the FrankenPHP images embed and
+ * symfony/mercure-bundle speaks by default: Mercure 1.0 changed the protocol
+ * and rejects what a default Symfony application sends.
  */
 class MercureService implements LinkAwareServiceInterface
 {
@@ -38,8 +31,8 @@ class MercureService implements LinkAwareServiceInterface
     use HasVersion;
 
     /**
-     * The one of the symfony/mercure-bundle recipe: an application still
-     * carrying it in its .env matches the hub. At least 32 bytes, which
+     * The one of the symfony/mercure-bundle recipe, so an application still
+     * carrying it in its .env matches the hub. At least the 32 bytes
      * lcobucci/jwt requires for HS256.
      */
     public const DEFAULT_JWT_SECRET = '!ChangeThisMercureHubJWTSecretKey!';
@@ -78,12 +71,10 @@ class MercureService implements LinkAwareServiceInterface
     }
 
     /**
-     * Allow the browsers of other origins than the ones of the linked
-     * applications — one served behind the redirection.io agent, which holds
-     * its domain, or a front-end application of another stack. In a git
-     * worktree, an origin under the root domain moves with it:
-     *
-     *     ->withCorsOrigin('https://app2.project.test')
+     * Allow origins other than the ones of the linked applications — a
+     * front-end of another stack, or an application behind the redirection.io
+     * agent, which holds its domain. In a worktree, an origin under the root
+     * domain moves with it.
      */
     public function withCorsOrigin(string ...$origins): static
     {
@@ -106,9 +97,8 @@ class MercureService implements LinkAwareServiceInterface
     }
 
     /**
-     * The application serving the hub itself, if any: the only service linked
-     * to it, when that one is a FrankenPHP application with a domain for the
-     * browsers to reach the hub on.
+     * The application serving the hub itself: the only service linked to it,
+     * when that one is a FrankenPHP application with a domain.
      */
     public function getHost(): ?PHPService
     {
@@ -126,9 +116,8 @@ class MercureService implements LinkAwareServiceInterface
     }
 
     /**
-     * Where the hub is published to from the other containers: over plain
-     * HTTP on the project network, since they do not trust the certificates of
-     * the router.
+     * Plain HTTP on the project network: the containers do not trust the
+     * certificates of the router.
      */
     public function getUrl(): string
     {
@@ -137,8 +126,7 @@ class MercureService implements LinkAwareServiceInterface
 
     /**
      * Where a browser subscribes, through the router: the first domain of the
-     * application serving the hub — the origin of its pages — or the domain of
-     * the container.
+     * application serving the hub, or the domain of the container.
      */
     public function getPublicUrl(Context $context): string
     {
@@ -154,13 +142,10 @@ class MercureService implements LinkAwareServiceInterface
     }
 
     /**
-     * The origins the hub answers the browsers of: every domain of the linked
-     * applications — over plain HTTP too for the ones allowing it — and the
-     * ones given to withCorsOrigin().
-     *
-     * An explicit list rather than "*": the hub answers "*" without the
-     * credentials a browser needs to send the authorization cookie of private
-     * updates.
+     * Every domain of the linked applications, plus the ones given to
+     * withCorsOrigin(). An explicit list rather than "*": the hub answers "*"
+     * without the credentials a browser needs to send the authorization cookie
+     * of private updates.
      *
      * @return list<string>
      */
@@ -177,9 +162,7 @@ class MercureService implements LinkAwareServiceInterface
 
             /** @var string $domain */
             foreach ($service->getDomains() as $domain) {
-                // The domains of an application are moved under the worktree
-                // once the compose file is built: its pages will be served on
-                // the moved ones.
+                // Its pages will be served on the moved domain.
                 $domain = worktree_domain($domain, $context);
 
                 $origins[] = 'https://' . $domain;
@@ -191,9 +174,7 @@ class MercureService implements LinkAwareServiceInterface
         }
 
         foreach ($this->corsOrigins as $origin) {
-            // Spelled out like a domain of an application, and moved the same
-            // way: "https://app2.myproject.test" is served on the worktree's
-            // own subdomain too.
+            // Moved like a domain of an application would be.
             $origins[] = preg_replace_callback(
                 '#^(https?://)([^/:]+)#',
                 static fn(array $matches): string => $matches[1] . worktree_domain($matches[2], $context),
@@ -219,8 +200,7 @@ class MercureService implements LinkAwareServiceInterface
             $directives[] = 'cors_origins ' . implode(' ', $origins);
         }
 
-        // A development hub: subscribers without a token receive the public
-        // updates, the subscription API is on, and so is the debug UI.
+        // A development hub: anonymous subscribers, subscription API, debug UI.
         $directives[] = 'anonymous';
         $directives[] = 'subscriptions';
         $directives[] = 'ui';
@@ -234,14 +214,14 @@ class MercureService implements LinkAwareServiceInterface
                 ->environment('MERCURE_PUBLISHER_JWT_KEY', $this->jwtSecret)
                 ->environment('MERCURE_SUBSCRIBER_JWT_KEY', $this->jwtSecret)
                 ->environment('MERCURE_EXTRA_DIRECTIVES', implode("\n", $directives))
-                // The admin API logs every request it receives, the
-                // healthcheck included: one line every five seconds.
+                // The admin API logs every request, the healthcheck included:
+                // one line every five seconds.
                 ->environment('GLOBAL_OPTIONS', "log default {\n\texclude admin.api\n}")
                 // The Bolt database keeping the history a reconnecting
                 // subscriber catches up with.
                 ->volume($name . '-data', '/data')
-                // 127.0.0.1 rather than localhost: busybox wget tries ::1 first,
-                // where the admin API does not listen.
+                // busybox wget tries ::1 first, where the admin API does not
+                // listen.
                 ->healthcheck(['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/mercure/health/ready'])
                 ->withHttpRouting($this->getDomain($context), 80)
                 ->profile('default')
@@ -271,10 +251,6 @@ class MercureService implements LinkAwareServiceInterface
         return [$this->getName() => 'service_started'];
     }
 
-    /**
-     * Nothing to expose over TCP: the hub speaks HTTP, and the router already
-     * serves it to the host.
-     */
     public function getTasks(): iterable
     {
         return [];

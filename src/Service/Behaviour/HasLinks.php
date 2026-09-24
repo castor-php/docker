@@ -10,9 +10,8 @@ use Castor\Docker\Service\LinkAwareServiceInterface;
 use Castor\Docker\Service\Builder\ServiceBuilder;
 
 /**
- * For services consuming others: a database, a mail catcher, a search engine,
- * an object storage… Each link hands the variables of the linked service to
- * every container of this one, and makes them wait for it.
+ * Each link hands the variables of the linked service to every container of
+ * this one, and makes them wait for it.
  *
  *     (new SymfonyService('app'))
  *         ->link($postgres)       // DATABASE_URL
@@ -48,11 +47,8 @@ trait HasLinks
     }
 
     /**
-     * The variables every link hands over, merged.
-     *
-     * Two linked services handing over the same variable — two databases, two
-     * DATABASE_URL — is refused rather than resolved by whichever came last:
-     * the application would silently talk to one of them.
+     * Two links handing over the same variable — two databases, two
+     * DATABASE_URL — is refused rather than won by whichever came last.
      *
      * @return array<string, string>
      */
@@ -82,9 +78,8 @@ trait HasLinks
     }
 
     /**
-     * Make the given containers wait for the linked services and receive
-     * their variables — all the containers of this service: an application,
-     * its builder and its workers talk to the same database.
+     * Every container of this service: an application, its builder and its
+     * workers talk to the same database.
      */
     protected function applyLinks(Context $context, ?ServiceBuilder ...$containers): void
     {

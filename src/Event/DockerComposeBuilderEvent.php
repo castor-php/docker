@@ -9,11 +9,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 /**
  * Dispatched once every registered service has contributed to the compose
- * configuration, and before it is serialized.
- *
- * Listen to it to add, change or remove anything in the generated file with the
- * builder API — a service the project needs but no ServiceInterface provides, an
- * extra volume, a label on someone else's service:
+ * configuration, and before it is serialized. Listen to it to change anything
+ * in the generated file with the builder API:
  *
  *     #[AsListener(DockerComposeBuilderEvent::class)]
  *     function tweak_compose(DockerComposeBuilderEvent $event): void
@@ -25,11 +22,9 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
  *         ;
  *     }
  *
- * It is dispatched before the bind-mounted directories are created, so a mount
- * added here still gets its host directory.
- *
- * For the keys the builder does not model, use DockerComposeWriteEvent, which
- * carries the final array instead.
+ * Dispatched before the bind-mounted directories are created, so a mount added
+ * here still gets its host directory. For the keys the builder does not model,
+ * use DockerComposeWriteEvent.
  */
 final class DockerComposeBuilderEvent
 {

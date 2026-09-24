@@ -9,8 +9,7 @@ use Castor\Context;
 final class BuildBuilder
 {
     /**
-     * The BuildKit frontend rendering the Dockerfiles shipped by this plugin,
-     * pinned to the MAJOR.MINOR this release is tested against: the frontend
+     * Pinned to the MAJOR.MINOR this release is tested against: the frontend
      * runs inside the build, so an unpinned reference would let a change in
      * https://github.com/castor-php/twig-dockerfile alter existing projects.
      *
@@ -65,10 +64,8 @@ final class BuildBuilder
     }
 
     /**
-     * Declare that this build renders its Dockerfile with the twig-dockerfile
-     * frontend, and pin the version to use. BuildKit honours BUILDKIT_SYNTAX
-     * over the "# syntax=" directive of the file, so a custom Dockerfile
-     * written by the project is pinned too.
+     * BuildKit honours BUILDKIT_SYNTAX over the "# syntax=" directive of the
+     * file, so a custom Dockerfile written by the project is pinned too.
      */
     public function useTwigFrontend(Context $context): self
     {

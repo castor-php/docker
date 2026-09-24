@@ -37,9 +37,6 @@ class RedirectionioAgentService implements ServiceInterface
     /** @var list<array{domain: string, target: string, port: int, projectKey: ?string, preserveHost: ?bool}> */
     private array $reverseProxies = [];
 
-    /**
-     * Whether the agent forwards the Host header it received.
-     */
     private bool $preserveHost = true;
 
     private bool $debug = false;
@@ -64,8 +61,7 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * Point the agent at another redirection.io API than the SaaS one — a
-     * self-hosted instance, or the very project this agent runs in.
+     * A self-hosted instance, or the very project this agent runs in.
      */
     public function withApiHost(string $apiHost): static
     {
@@ -96,9 +92,8 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * Whether the applications receive the Host of the original request, on by
-     * default. Turn it off to let the agent send the name of the service it
-     * forwards to, which is what it does on its own.
+     * On by default. Turn it off to let the agent send the name of the service
+     * it forwards to, which is what it does on its own.
      */
     public function withPreserveHost(bool $preserveHost = true): static
     {
@@ -129,14 +124,12 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * Serve $domain through the agent and forward the traffic to $target, which
-     * is either a service instance or a service name.
+     * Serve $domain through the agent and forward the traffic to $target, a
+     * service instance or a service name.
      *
-     * The port is read from the target service when it is left out, so a
-     * service listening somewhere else than on 80 — a Node dev server on 3000,
-     * a Rust binary on 8080 — is forwarded to correctly without repeating it
-     * here. Passing a service *name* keeps the historical default of 80, since
-     * a name carries nothing to read.
+     * An omitted port is read from the target service, so a Node dev server on
+     * 3000 is forwarded to correctly without repeating it here. A service
+     * *name* carries nothing to read and keeps the default of 80.
      */
     public function addReverseProxy(string $domain, ServiceInterface|string $target, ?string $projectKey = null, ?int $port = null, ?bool $preserveHost = null): static
     {
@@ -152,9 +145,8 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * The port a target service listens on. Every service routed over HTTP uses
-     * the HasHttpRouting behaviour, which is where getPort() comes from; there
-     * is no interface for it, so anything else falls back to 80.
+     * getPort() comes from the HasHttpRouting behaviour every service routed
+     * over HTTP uses. There is no interface for it, hence the check.
      */
     private function resolveTargetPort(ServiceInterface|string $target): int
     {
@@ -167,8 +159,8 @@ class RedirectionioAgentService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        // The config is named after the service, so two agents do not
-        // overwrite each other's agent.yml.
+        // Named after the service, so two agents do not overwrite each other's
+        // agent.yml.
         $configName = $this->getName();
 
         $builder->config($configName, $this->generateConfiguration());
@@ -176,9 +168,8 @@ class RedirectionioAgentService implements ServiceInterface
         $service = $builder
             ->service($this->getName())
                 ->build(__DIR__ . '/../Resources/redirectionio-agent')->end()
-                // The agent reads agent.yml once, on boot: without the digest
-                // compose would leave it running with the previous one, and
-                // only "--force-recreate" would pick a change up.
+                // The agent reads agent.yml once, on boot, so a change needs
+                // the container recreated.
                 ->config($configName, self::CONFIG_PATH, recreateOnChange: true)
                 ->profile('default')
         ;
@@ -198,7 +189,7 @@ class RedirectionioAgentService implements ServiceInterface
     }
 
     /**
-     * Build the agent.yml served to the container as a compose config.
+     * The agent.yml served to the container as a compose config.
      */
     private function generateConfiguration(): string
     {
@@ -209,9 +200,8 @@ class RedirectionioAgentService implements ServiceInterface
                 'domains' => [$reverseProxy['domain']],
                 'forward' => [
                     'address' => \sprintf('%s:%d', $reverseProxy['target'], $reverseProxy['port']),
-                    // The applications are reached over the Docker network, in
-                    // plain HTTP: TLS is terminated by the router. Note the
-                    // scalar form is required here, the documented
+                    // Plain HTTP over the Docker network: TLS is terminated by
+                    // the router. The scalar form is required, the documented
                     // "tls: { enabled: false }" map is ignored by the agent.
                     'tls' => false,
                     // The target is a compose service reached by name, and the
@@ -220,8 +210,8 @@ class RedirectionioAgentService implements ServiceInterface
                 ],
             ];
 
-            // Resolved here and not in addReverseProxy(), so the fallback key
-            // can be set with withProjectKey() at any point.
+            // Not resolved in addReverseProxy(), so withProjectKey() can set
+            // the fallback at any point.
             $projectKey = $reverseProxy['projectKey'] ?? $this->projectKey;
 
             if ($projectKey !== null) {
@@ -238,8 +228,8 @@ class RedirectionioAgentService implements ServiceInterface
             ],
             'reverse_proxy' => [
                 'listen' => ['tcp://0.0.0.0:80'],
-                // The router sits in front of the agent and sets the legacy
-                // X-Forwarded-* headers, which the agent ignores by default.
+                // The router sets the legacy X-Forwarded-* headers, which the
+                // agent ignores by default.
                 'trusted_proxies' => [
                     'forwarded' => true,
                     'x_forwarded_for' => true,

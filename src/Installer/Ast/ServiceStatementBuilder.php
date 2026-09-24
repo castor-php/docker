@@ -43,9 +43,6 @@ final class ServiceStatementBuilder
         return $this->expressions[] = new ServiceExpression($this->factory, $class, $arguments);
     }
 
-    /**
-     * Register an extra class import (e.g. for an enum used in an argument).
-     */
     public function addImport(string $class): self
     {
         $this->imports[ltrim($class, '\\')] = true;

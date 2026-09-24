@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Castor\Docker\Service\Behaviour;
 
 /**
- * Dumps and restores for the MySQL family: MySQL and MariaDB share the format,
- * the options and most of the tools, under different names.
- *
- * The class using it provides $rootPassword and $database.
+ * MySQL and MariaDB share the format, the options and most of the tools, under
+ * different names. The class using it provides $rootPassword and $database.
  */
 trait HasMysqlDump
 {
@@ -52,8 +50,7 @@ trait HasMysqlDump
 
     /**
      * A dump meant to be restored anywhere: consistent without locking the
-     * tables, with the routines, triggers and events, binary columns in hex,
-     * and nothing tied to this server — no tablespace, no GTID.
+     * tables, and nothing tied to this server — no tablespace, no GTID.
      */
     public function getDumpScript(string $format): string
     {
@@ -70,12 +67,11 @@ trait HasMysqlDump
 
     /**
      * MySQL has no RENAME DATABASE, and moving tables across schemas breaks on
-     * triggers: the dump is restored in place, once the connections left on the
-     * database are closed — a session whose database was dropped under it
-     * answers "No database selected" until it reconnects.
+     * triggers, so the dump is restored in place once the connections left on
+     * the database are closed.
      *
      * The dumps of a recent MariaDB open with a line enabling its sandbox mode,
-     * which the MySQL client rejects: it is dropped on the way into MySQL.
+     * which the MySQL client rejects: it is dropped on the way in.
      */
     public function getRestoreScript(): string
     {

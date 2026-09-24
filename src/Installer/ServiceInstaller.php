@@ -8,9 +8,8 @@ use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
 use Castor\Docker\Service\ServiceInterface;
 
 /**
- * Describes how to install a service: which questions to ask, what code to add
- * to the RegisterServiceEvent listener, the live instance to build/up right
- * away, and any extra install steps.
+ * Which questions to ask, what code to add to the RegisterServiceEvent
+ * listener, the live instance to build/up right away, and any extra steps.
  *
  * Register installers by listening to {@see \Castor\Docker\Event\RegisterServiceInstallerEvent}.
  */

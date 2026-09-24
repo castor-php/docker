@@ -9,15 +9,13 @@ use Castor\Docker\Service\PHPService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * A path on the command line replaces the paths a QA tool reads from its
+ * A path on the command line replaces the ones a QA tool reads from its
  * configuration file rather than narrowing them — PHPStan only falls back to
- * `parameters.paths` when the command line names none, PHP CS Fixer ignores its
- * finder unless asked to intersect with it, Rector does the same with
- * `withPaths()`.
+ * `parameters.paths` when none is named, PHP CS Fixer ignores its finder
+ * without `--path-mode=intersection`, Rector does the same with `withPaths()`.
  *
- * So the default arguments of the tasks may not name a path as soon as the
- * application configures the tool, or an application analysing `src` would end
- * up analysing `vendor/` and `var/` too, configuration file or not.
+ * So the default arguments may not name a path as soon as the application
+ * configures the tool, or one analysing `src` would analyse `vendor/` too.
  */
 final class QaToolDefaultArgumentsTest extends TestCase
 {

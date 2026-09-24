@@ -11,10 +11,9 @@ use Castor\Docker\Service\Builder\ServiceBuilder;
  * Server configuration for the MySQL-family databases, which read every
  * "*.cnf" of /etc/mysql/conf.d on top of their built-in defaults.
  *
- * The three sources are merged into a single file, shipped as a compose config
- * rather than as a bind mount: the content ends up in the generated compose
- * file, so there is no host path to create, nothing to keep in sync, and no
- * file whose permissions the server might refuse.
+ * The sources are merged into a single compose config rather than a bind mount,
+ * so there is no host path to create, nothing to keep in sync, and no file
+ * whose permissions the server might refuse.
  *
  *     (new MySQLService())
  *         ->withSetting('max_connections', 500)
@@ -67,11 +66,9 @@ trait HasMysqlConfiguration
     }
 
     /**
-     * Append the content of a configuration file of your project.
-     *
-     * It is read when the compose file is generated, not mounted, so the file
-     * never has to exist inside the container — and a typo in the path is
-     * reported here instead of silently leaving the server unconfigured.
+     * Read when the compose file is generated rather than mounted, so a typo in
+     * the path is reported here instead of silently leaving the server
+     * unconfigured.
      */
     public function withConfigurationFile(string $path): static
     {
@@ -88,9 +85,6 @@ trait HasMysqlConfiguration
         return $this->withConfiguration($content);
     }
 
-    /**
-     * Mount the generated configuration, when there is anything to mount.
-     */
     protected function applyConfiguration(ComposeBuilder $builder, ServiceBuilder $service): void
     {
         $configuration = $this->generateConfiguration();

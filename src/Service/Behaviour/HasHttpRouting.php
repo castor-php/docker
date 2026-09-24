@@ -7,11 +7,9 @@ namespace Castor\Docker\Service\Behaviour;
 use Castor\Docker\Service\Builder\ServiceBuilder;
 
 /**
- * Full HTTP routing behaviour: the domains to serve, whether plain HTTP is
- * allowed, and the container port the router forwards to.
- *
- * Services override getDefaultPort() when they listen on something else than
- * port 80.
+ * The domains to serve, whether plain HTTP is allowed, and the container port
+ * the router forwards to. Services listening elsewhere than on 80 override
+ * getDefaultPort().
  */
 trait HasHttpRouting
 {

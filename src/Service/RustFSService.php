@@ -17,14 +17,12 @@ use function Castor\Docker\expose_service_port;
  * An S3-compatible object storage, RustFS, with its web console.
  *
  * The API is served on "{name}.{root_domain}", the console on
- * "{name}-console.{root_domain}". The buckets declared with withBucket() are
- * created by a one-shot container once the server is ready, and the
- * applications linked to it wait for that container to succeed: they start
- * with their buckets there.
+ * "{name}-console.{root_domain}". The buckets of withBucket() are created by a
+ * one-shot container once the server is ready, and an application linked to it
+ * waits for that container: it starts with its buckets there.
  *
- * link() it to an application to hand it the credentials, the endpoint and
- * the region under the names the AWS SDK for PHP and Laravel read — see
- * getLinkEnvironment().
+ * link() it to an application to hand it the credentials, the endpoint and the
+ * region — see getLinkEnvironment().
  */
 class RustFSService implements LinkableServiceInterface
 {
@@ -57,8 +55,8 @@ class RustFSService implements LinkableServiceInterface
     }
 
     /**
-     * The root credentials: the ones the console logs in with, and the ones
-     * the linked applications receive.
+     * The ones the console logs in with, and the ones the linked applications
+     * receive.
      */
     public function withCredentials(string $accessKey, string $secretKey): static
     {
@@ -79,14 +77,12 @@ class RustFSService implements LinkableServiceInterface
     }
 
     /**
-     * A bucket to create when the stack starts. It is only ever created: a
-     * bucket removed from the list stays, with its objects, until removed from
-     * the console.
+     * Only ever created: a bucket dropped from the list stays, with its
+     * objects, until removed from the console.
      *
      * A public bucket lets anyone download its objects without signing the
      * request — what an <img src> pointing at an uploaded file needs. Only the
-     * permission is granted on every start: turning it off again is done from
-     * the console, like any policy set there.
+     * permission is granted, and only on start: revoke it from the console.
      */
     public function withBucket(string $name, bool $public = false): static
     {
@@ -127,8 +123,8 @@ class RustFSService implements LinkableServiceInterface
     }
 
     /**
-     * The S3 endpoint of the other containers, over plain HTTP on the project
-     * network: they do not trust the certificates of the router.
+     * Plain HTTP on the project network: the containers do not trust the
+     * certificates of the router.
      */
     public function getEndpoint(): string
     {
@@ -164,19 +160,18 @@ class RustFSService implements LinkableServiceInterface
                 ->environment('RUSTFS_ACCESS_KEY', $this->accessKey)
                 ->environment('RUSTFS_SECRET_KEY', $this->secretKey)
                 ->environment('RUSTFS_CONSOLE_ENABLE', 'true')
-                // A browser uploading straight to a presigned URL comes from
-                // the origin of the application. The request carries its own
-                // signature, no cookie: any origin is as safe as another.
+                // A presigned upload carries its own signature and no cookie,
+                // so any origin is as safe as another.
                 ->environment('RUSTFS_CORS_ALLOWED_ORIGINS', '*')
-                // The image logs to files in /logs, which leaves "docker:logs"
-                // empty. An empty directory sends them to the standard output.
+                // The image logs to files in /logs, leaving "docker:logs"
+                // empty. An empty directory sends them to stdout instead.
                 ->environment('RUSTFS_OBS_LOG_DIRECTORY', '')
                 // A named volume: the server runs as uid 10001 and refuses a
-                // directory of the host it cannot write to.
+                // host directory it cannot write to.
                 ->volume($name . '-data', '/data')
                 ->healthcheck(['CMD', 'curl', '-fsS', '-o', '/dev/null', 'http://127.0.0.1:9000/health/ready'])
-                // Two listeners, two sites: the S3 API, and the console, which
-                // only answers on a port of its own.
+                // Two listeners, two sites: the console only answers on a port
+                // of its own.
                 ->withHttpRouting($this->getDomain($context), 9000)
                 ->withHttpRouting($this->getConsoleDomain($context), 9001)
                 ->profile('default')
@@ -218,20 +213,11 @@ class RustFSService implements LinkableServiceInterface
     }
 
     /**
-     * The names each ecosystem reads, since none of them agree:
-     *
-     *  - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, read by all of them;
-     *  - AWS_REGION for the AWS SDK and async-aws, AWS_DEFAULT_REGION for
-     *    Laravel;
-     *  - AWS_ENDPOINT_URL_S3, which the AWS SDK reads on its own, and
-     *    AWS_ENDPOINT for Laravel. AWS_ENDPOINT_URL — the only one async-aws
-     *    reads — is left out on purpose: it would send the SQS or SES clients
-     *    of the application to the object storage too;
-     *  - AWS_USE_PATH_STYLE_ENDPOINT for Laravel, which a Symfony
-     *    configuration references too: no SDK reads one, and a virtual-hosted
-     *    bucket would be looked up as "<bucket>.rustfs";
-     *  - S3_PUBLIC_ENDPOINT, the endpoint the browsers reach, to presign the
-     *    URLs they follow: a signature covers the host it was made for.
+     * The names each ecosystem reads, since none of them agree. Two are worth a
+     * word: AWS_ENDPOINT_URL — the only one async-aws reads — is left out on
+     * purpose, it would send the SQS and SES clients here too; and
+     * S3_PUBLIC_ENDPOINT is what presigns the URLs a browser follows, since a
+     * signature covers the host it was made for.
      */
     public function getLinkEnvironment(Context $context): array
     {

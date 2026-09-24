@@ -22,17 +22,13 @@ use function Castor\watch;
 
 /**
  * Runs a Go application from the source directory mounted in the container:
- * "go build" happens inside the container and the resulting binary is used as
- * the container command.
+ * "go build" runs inside it and the binary becomes the container command.
  *
- * One module, one container: this is the single-application case. A monorepo
- * building several binaries from one toolchain wants GoBuilder and
- * BinaryRunService instead, which split the toolchain container from the
- * runtime ones.
+ * One module, one container. A monorepo building several binaries from one
+ * toolchain wants GoBuilder and BinaryRunService instead.
  *
- * The paths still need not coincide: withDirectory() is what gets mounted,
- * withWorkingDirectory() is where go runs below it, and withBinaryPath() is the
- * binary the container starts.
+ * withDirectory() is what gets mounted, withWorkingDirectory() is where go runs
+ * below it, and withBinaryPath() is the binary the container starts.
  */
 class GoService implements ServiceInterface
 {
@@ -199,8 +195,6 @@ class GoService implements ServiceInterface
     }
 
     /**
-     * Declare the build producing the Go image.
-     *
      * Extra Debian packages are deliberately not modelled: extend the "go_base"
      * block of the Dockerfile instead.
      */
@@ -230,9 +224,8 @@ class GoService implements ServiceInterface
     }
 
     /**
-     * The directory to run the tasks in, or null to leave the working directory
-     * of the container alone — which is what a single-module service wants, and
-     * keeps an override from compose.override.yaml effective.
+     * Null leaves the working directory of the container alone, which is what a
+     * single-module service wants and keeps a compose.override.yaml effective.
      */
     protected function getTaskWorkingDirectory(): ?string
     {

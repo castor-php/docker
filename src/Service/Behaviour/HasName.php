@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Castor\Docker\Service\Behaviour;
 
 /**
- * For services naming themselves, so the same one can be registered twice.
- *
- * Infrastructure services used to hardcode their name, which made a second
- * instance impossible: the two would have collided on the compose service, on
- * the named volumes and on the routed domain. withName() overrides it, and
- * everything the service generates is derived from it — the default keeps
- * producing exactly what it produced before.
+ * For services naming themselves, so the same one can be registered twice:
+ * everything they generate — the compose service, the named volumes, the routed
+ * domain — is derived from the name, and the default produces what a hardcoded
+ * one used to.
  *
  *     $event->addService(new PostgresService());
  *     $event->addService((new PostgresService())->withName('analytics'));
@@ -33,11 +30,8 @@ trait HasName
     }
 
     /**
-     * Whether this instance still carries the name the service ships with.
-     *
      * Used where a generated name is not derived from the service one — the
-     * Kibana container — so the historical name is kept for the first instance
-     * and only a renamed one gets a derived name.
+     * Kibana container — so only a renamed instance gets a derived name.
      */
     protected function hasDefaultName(): bool
     {

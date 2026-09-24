@@ -36,8 +36,8 @@ class PostgresService implements DatabaseServiceInterface, DumpableServiceInterf
 
     /**
      * Postgres 18 moved PGDATA to a versioned subdirectory and declares its
-     * volume one level up; before that the data directory was the mount point
-     * itself. A tag naming no version ("latest", "bookworm") is a recent one.
+     * volume one level up. A tag naming no version ("latest", "bookworm") is a
+     * recent one.
      */
     protected function getDataDirectory(): string
     {
@@ -88,9 +88,9 @@ class PostgresService implements DatabaseServiceInterface, DumpableServiceInterf
     }
 
     /**
-     * Plain SQL first, what goes to the standard output: any client reads it.
-     * "dump" is the custom format of pg_dump, compressed already, and restored
-     * in parallel.
+     * Plain SQL first, since any client reads it, and it is what goes to the
+     * standard output. "dump" is pg_dump's custom format: already compressed,
+     * and restored in parallel.
      */
     public function getDumpFormats(): array
     {
@@ -134,16 +134,13 @@ class PostgresService implements DatabaseServiceInterface, DumpableServiceInterf
     }
 
     /**
-     * The dump is restored in a scratch database, which then takes the place
-     * of the current one: a dump that fails to restore — truncated, or made
-     * for another schema — leaves the database as it was, and the swap takes
-     * an instant.
+     * Restored in a scratch database which then takes the place of the current
+     * one, so a dump that fails half-way leaves the database as it was — and
+     * the swap takes an instant.
      *
-     * pg_dump's archive formats are restored by pg_restore, in parallel for the
-     * custom one; plain SQL by psql, which carries on past an error the way it
-     * always does: a dump made elsewhere hands its tables to roles that do not
-     * exist here, and failing on each would make most of them unusable. The
-     * errors are counted, and reported.
+     * pg_restore handles the archive formats, in parallel for the custom one;
+     * psql the plain SQL, carrying on past the errors a dump made elsewhere
+     * raises on roles that do not exist here. They are counted and reported.
      */
     public function getRestoreScript(): string
     {

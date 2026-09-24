@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace Castor\Docker\Doctor;
 
 /**
- * Everything "docker:doctor" asks the machine, and nothing it concludes.
- *
- * The Doctor only ever learns facts through this interface, so a test can hand
- * it a machine in any state — no daemon, an old Compose, a port taken by nginx
- * — without having one.
+ * Everything "docker:doctor" asks the machine, and nothing it concludes, so a
+ * test can hand the Doctor a machine in any state without having one.
  */
 interface SystemProbe
 {
@@ -21,9 +18,8 @@ interface SystemProbe
     public function hostname(): string;
 
     /**
-     * The docker CLI and the daemon it reaches. "client" is null when there is
-     * no docker command, "server" is null when the daemon cannot be reached —
-     * "error" then holds what the CLI said.
+     * "client" is null without a docker command, "server" when the daemon
+     * cannot be reached — "error" then holds what the CLI said.
      *
      * @return array{client: ?string, server: ?string, platform: ?string, error: ?string}
      */
@@ -79,9 +75,8 @@ interface SystemProbe
     public function portContainer(int $port): ?array;
 
     /**
-     * The host process listening on a port — "nginx (pid 812)" — an empty
-     * string when something listens but cannot be named, null when nothing
-     * does.
+     * "nginx (pid 812)", an empty string when something listens but cannot be
+     * named, null when nothing does.
      */
     public function portListener(int $port): ?string;
 

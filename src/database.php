@@ -17,9 +17,8 @@ use function Castor\io;
 use function Castor\run;
 
 /**
- * The compressions a dump file can be written with, by file extension, and
- * the command that does it. Decompressing needs no such table: a dump is
- * recognised by its first bytes (see restore_script()).
+ * Decompressing needs no such table: a dump is recognised by its first bytes,
+ * see restore_script().
  */
 const DUMP_COMPRESSIONS = [
     'gz' => 'gzip -c',
@@ -55,8 +54,7 @@ function get_dump_tasks(DumpableServiceInterface $service): iterable
 }
 
 /**
- * The file extensions a service writes its dumps with: every format, and the
- * text ones compressed too.
+ * Every format, and the text ones compressed too.
  *
  * @param list<string> $formats
  *
@@ -80,7 +78,6 @@ function describe_dump_files(array $formats): array
 }
 
 /**
- * The format and the compression a dump file is named after:
  * "prod.sql.zst" is a zstd-compressed "sql" dump, "prod.dump" an uncompressed
  * "dump".
  *
@@ -109,12 +106,12 @@ function resolve_dump_file(string $file, array $formats): array
 }
 
 /**
- * The script a dump runs: the one of the service, compressed if asked to, and
- * written either to the standard output or to CASTOR_OUTPUT.
+ * The script of the service, compressed if asked to, written to the standard
+ * output or to CASTOR_OUTPUT.
  *
  * A file is written under a temporary name and renamed once complete, so a dump
- * that fails half-way never leaves a truncated file behind the real name. It is
- * handed to the user running castor: the container writes it as root.
+ * failing half-way leaves no truncated file behind the real name. It is handed
+ * to the user running castor, since the container writes it as root.
  */
 function dump_script(DumpableServiceInterface $service, string $format, ?string $compression): string
 {
@@ -141,14 +138,12 @@ function dump_script(DumpableServiceInterface $service, string $format, ?string 
 }
 
 /**
- * The script a restore runs: whatever the dump is compressed with is told from
- * its first bytes rather than from a file name, since a dump read from the
- * standard input has none — and a "prod.sql" that is really gzipped is common
- * enough. The service then reads it decompressed.
+ * The compression is told from the first bytes rather than from a file name: a
+ * dump read from the standard input has none, and a gzipped "prod.sql" is
+ * common enough.
  *
- * Only a handful of bytes are read ahead, with "dd" one byte at a time: reading
- * a pipe any other way can swallow more than asked, and those bytes would be
- * lost to the rest of the dump.
+ * Read ahead with "dd" one byte at a time: reading a pipe any other way can
+ * swallow more than asked, and those bytes would be lost to the rest.
  */
 function restore_script(DumpableServiceInterface $service): string
 {
@@ -185,12 +180,12 @@ function restore_script(DumpableServiceInterface $service): string
 }
 
 /**
- * Wait for the server to accept connections over the network, which is what
- * the throwaway container reaches it through.
+ * Wait for the server to accept connections over the network, which the
+ * throwaway container reaches it through.
  *
  * The health check is not enough: the official images initialise a fresh volume
- * with a temporary server that only listens on a local socket, and the health
- * check of MySQL already answers from that one.
+ * with a temporary server on a local socket only, and the health check of MySQL
+ * already answers from that one.
  */
 function wait_script(): string
 {
@@ -211,11 +206,9 @@ function wait_script(): string
 }
 
 /**
- * Write a dump of a database to a file, or to the standard output when there is
- * no file (or "-").
- *
- * The file is written by a throwaway container that mounts its directory:
- * streaming it through the output of docker would be several times slower.
+ * To the standard output when there is no file (or "-"). A file is written by
+ * the throwaway container, which mounts its directory: streaming it through
+ * the output of docker would be several times slower.
  */
 function dump_database(DumpableServiceInterface $service, ?string $file = null): bool
 {
@@ -283,13 +276,11 @@ function dump_database(DumpableServiceInterface $service, ?string $file = null):
 }
 
 /**
- * Replace the content of a database with a dump, read from a file or from the
- * standard input when there is no file (or "-").
+ * From the standard input when there is no file (or "-").
  *
  * The containers depending on the database are stopped for the duration: an
- * application would otherwise keep connections open on a database being
- * dropped, or read one half restored, and a worker losing its connection exits
- * — to stay down, since workers have no restart policy by default.
+ * application would otherwise hold connections on a database being dropped, or
+ * read one half restored, and a worker losing its connection exits for good.
  */
 function restore_database(DumpableServiceInterface $service, ?string $file = null): bool
 {
@@ -339,8 +330,8 @@ function restore_database(DumpableServiceInterface $service, ?string $file = nul
 }
 
 /**
- * Start the containers a dump or a restore needs, and say whether any had to
- * be: a dump puts back the state it found.
+ * Returns whether any had to be started, so a dump can put back the state it
+ * found.
  */
 function start_database(DumpableServiceInterface $service, SymfonyStyle $io): bool
 {
@@ -357,8 +348,6 @@ function start_database(DumpableServiceInterface $service, SymfonyStyle $io): bo
 }
 
 /**
- * The running containers of the project that depend on the given ones.
- *
  * @param list<string> $services
  *
  * @return list<string>
@@ -371,8 +360,7 @@ function get_running_dependents(array $services): array
 }
 
 /**
- * The compose services declaring a "depends_on" on one of the given ones —
- * those link() wires, and the ones a project declares itself.
+ * The compose services declaring a "depends_on" on one of the given ones.
  *
  * @param array<string, array{depends_on?: array<string, mixed>|list<string>}> $composeServices
  * @param list<string>                                                          $services
@@ -398,8 +386,7 @@ function find_dependents(array $composeServices, array $services): array
 }
 
 /**
- * Whether the service ever had a container, which is what tells a database
- * with data from one that was never started.
+ * What tells a database holding data from one that was never started.
  */
 function has_database_container(DumpableServiceInterface $service): bool
 {
@@ -410,8 +397,8 @@ function has_database_container(DumpableServiceInterface $service): bool
  * Run a script in a throwaway container of the image the service runs.
  *
  * Plain "docker run" rather than "docker compose run": a compose container
- * would carry the labels of the service — the router's among them, and it
- * would route the domain of the service to it. "--volumes-from" gives it the
+ * would carry the labels of the service, the router's among them, and the
+ * domain of the service would be routed to it. "--volumes-from" gives it the
  * data directory of the server, where ClickHouse writes its backups.
  *
  * The variables are handed over by name only, so no credential shows in the
@@ -485,7 +472,7 @@ function get_host_owner(): string
 }
 
 /**
- * The file a copy of a database goes through: the format restoring fastest.
+ * The format restoring fastest.
  */
 function get_copy_file_name(DumpableServiceInterface $service): string
 {
@@ -499,12 +486,9 @@ function get_copy_file_name(DumpableServiceInterface $service): string
 }
 
 /**
- * Copy the databases of this checkout into those of a worktree.
- *
  * Each goes through a dump: the checkout keeps running, and the worktree may
- * run another version of the server — a branch upgrading it is the very kind a
- * worktree is for. The dump is restored by the worktree itself, with its own
- * castor.php, so it lands in whatever the branch declares.
+ * run another version of the server. The dump is restored by the worktree
+ * itself, with its own castor.php, so it lands in whatever the branch declares.
  *
  * @param list<DumpableServiceInterface> $services
  */

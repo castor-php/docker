@@ -69,16 +69,15 @@ final class ServiceBuilder
     private array $deploy = [];
 
     /**
-     * The domains routed to this service, remembered so the generator can make
-     * them resolvable from inside the containers (see add_project_extra_hosts()).
+     * Remembered so the generator can make them resolvable from inside the
+     * containers, see add_project_extra_hosts().
      *
      * @var list<string>
      */
     private array $routedDomains = [];
 
     /**
-     * The sites withHttpRouting() declared, each with the labels carrying it:
-     * the HTTPS one, and the plain HTTP one withHttpAccess() adds.
+     * Each site withHttpRouting() declared, with the labels carrying it.
      *
      * @var list<array{domains: list<string>, https: string, http: ?string}>
      */
@@ -98,8 +97,8 @@ final class ServiceBuilder
 
     /**
      * A null value emits "KEY: null", the compose syntax passing the variable
-     * through from the environment castor runs in — which is how a value that
-     * changes between invocations stays out of the generated file.
+     * through from the environment castor runs in — how a value that changes
+     * between invocations stays out of the generated file.
      */
     public function environment(string $key, ?string $value = null): self
     {
@@ -144,7 +143,6 @@ final class ServiceBuilder
     /**
      * "condition" is mandatory in the long syntax used here: without a default,
      * dependsOn('mailpit') writes "mailpit: {}" and compose rejects the file.
-     * "service_started" is what the short syntax, a plain list, means.
      *
      * @param array<mixed> $config
      */
@@ -207,9 +205,6 @@ final class ServiceBuilder
     }
 
     /**
-     * Replace the entrypoint of the image — a CLI image whose entrypoint is
-     * the tool itself, asked to run a script instead.
-     *
      * @param array<string>|string|null $entrypoint
      */
     public function entrypoint(array|string|null $entrypoint): self
@@ -220,18 +215,16 @@ final class ServiceBuilder
     }
 
     /**
-     * Expose the service over HTTP/HTTPS through the Caddy router
-     * (caddy-docker-proxy) by emitting the matching Docker labels.
+     * Expose the service through the Caddy router by emitting the matching
+     * Docker labels.
      *
-     * The port is required. Left out, caddy-docker-proxy resolves "{{upstreams}}"
-     * against whatever the image happens to expose — the first of several, or
-     * port 80 when it exposes nothing — which routes to the wrong one silently
-     * and answers 502. Naming it is the only way to be sure.
+     * The port is required: left out, caddy-docker-proxy resolves
+     * "{{upstreams}}" against whatever the image happens to expose and answers
+     * 502 on the wrong one.
      *
      * Call it again to serve another port of the same container on other
-     * domains — the API and the console of an object storage. Each call is a
-     * site of its own, carried by numbered labels ("caddy_2", "caddy_3"…),
-     * which caddy-docker-proxy keeps apart.
+     * domains. Each call is a site of its own, carried by numbered labels
+     * ("caddy_2", "caddy_3"…) that caddy-docker-proxy keeps apart.
      *
      * @param string|array<string> $domain
      * @param int                  $port   the port the service listens on inside the container
@@ -260,17 +253,15 @@ final class ServiceBuilder
 
         $this->sites[] = ['domains' => $domains, 'https' => $https, 'http' => $http];
 
-        // HTTPS site served with a locally-trusted certificate minted on demand
-        // by the Caddy router (see CaddyRouterService). Plain HTTP is redirected
-        // to HTTPS automatically by Caddy.
+        // The router mints the certificate on demand, and Caddy redirects
+        // plain HTTP to HTTPS by itself.
         $this->label($https, implode(' ', $domains));
         $this->label($https . '.reverse_proxy', $upstream);
         $this->label($https . '.tls', 'internal');
         $this->label($https . '.tls.on_demand', '');
 
         if (null !== $http) {
-            // Additionally serve the same upstream over plain HTTP, without the
-            // automatic redirect to HTTPS.
+            // The same upstream over plain HTTP, without that redirect.
             $this->label($http, implode(' ', self::httpDomains($domains)));
             $this->label($http . '.reverse_proxy', $upstream);
         }
@@ -318,14 +309,10 @@ final class ServiceBuilder
      * Mount a config declared with ComposeBuilder::config() at the given path.
      *
      * Compose does not recreate a container when only the content of an inline
-     * config changed, so a server that reads its configuration once, at boot,
-     * would keep running with the old one until someone thinks of
-     * "--force-recreate". Pass $recreateOnChange to stamp a digest of the
-     * content in a label: the container definition then changes with the
-     * configuration, and "docker:up" is enough.
-     *
-     * Leave it off for a service that reloads its configuration by itself —
-     * the digest would restart it for nothing.
+     * config changed, so a server reading its configuration at boot would keep
+     * the old one. $recreateOnChange stamps a digest of the content in a label,
+     * which makes "docker:up" enough — leave it off for a service that reloads
+     * by itself, where the digest would restart it for nothing.
      */
     public function config(string $source, string $target, bool $recreateOnChange = false): self
     {
@@ -346,8 +333,7 @@ final class ServiceBuilder
     }
 
     /**
-     * The restart policy: "no", "always", "on-failure", "on-failure:10" or
-     * "unless-stopped".
+     * "no", "always", "on-failure", "on-failure:10" or "unless-stopped".
      */
     public function restart(string $policy): self
     {
@@ -357,8 +343,7 @@ final class ServiceBuilder
     }
 
     /**
-     * Set a resource limit, either as a single value ("nproc") or as a
-     * soft/hard pair ("nofile").
+     * A single value ("nproc") or a soft/hard pair ("nofile").
      *
      * @param array<string, int>|int $limit
      */
@@ -381,8 +366,8 @@ final class ServiceBuilder
     }
 
     /**
-     * Add a host to /etc/hosts inside the container. "host-gateway" resolves to
-     * the host itself, on Linux as well as on Docker Desktop.
+     * "host-gateway" resolves to the host itself, on Linux as well as on Docker
+     * Desktop.
      */
     public function extraHost(string $host, string $ip): self
     {
@@ -396,9 +381,9 @@ final class ServiceBuilder
     }
 
     /**
-     * The "deploy" section, merged with what was already set. Compose only
-     * honours a subset of it outside of Swarm — resource limits and
-     * reservations, which is how a GPU is requested.
+     * Merged with what was already set. Compose only honours a subset of it
+     * outside of Swarm — resource limits and reservations, which is how a GPU
+     * is requested.
      *
      * @param array<string, mixed> $deploy
      */
@@ -410,8 +395,6 @@ final class ServiceBuilder
     }
 
     /**
-     * The domains routed to this service by withHttpRouting().
-     *
      * @return list<string>
      */
     public function getRoutedDomains(): array
@@ -420,14 +403,12 @@ final class ServiceBuilder
     }
 
     /**
-     * Move this service onto other domains, keeping the routing it already
-     * declared.
+     * Move this service onto other domains, keeping the routing it declared.
      *
-     * A linked worktree serves the whole project under a subdomain of its own,
-     * and a domain spelled out in a service definition knows nothing about the
-     * checkout it was generated in — so the rewrite happens here, on the labels
-     * that were already emitted, instead of asking every service to derive its
-     * domains (see apply_worktree_domains()).
+     * A domain spelled out in a service definition knows nothing about the
+     * checkout it was generated in, so the rewrite happens here, on the labels
+     * already emitted, rather than in every service. See
+     * apply_worktree_domains().
      *
      * @param callable(string): string $rewrite
      */
@@ -457,8 +438,7 @@ final class ServiceBuilder
             $this->sites[$siteIndex]['domains'] = $domains;
 
             // In place, so the labels keep the order withHttpRouting() emitted
-            // them in — a "caddy_1" site block is only valid after its "caddy"
-            // one.
+            // them in: a "caddy_1" block is only valid after its "caddy" one.
             foreach ($this->labels as $index => $label) {
                 if (str_starts_with($label, $site['https'] . '=')) {
                     $this->labels[$index] = $site['https'] . '=' . implode(' ', $domains);
@@ -474,7 +454,7 @@ final class ServiceBuilder
     }
 
     /**
-     * The host ports this service publishes, as "<host>:<container>".
+     * As "<host>:<container>".
      *
      * @return list<string>
      */
@@ -489,8 +469,7 @@ final class ServiceBuilder
     }
 
     /**
-     * A digest of every config mounted with $recreateOnChange, so the container
-     * definition changes when the configuration does.
+     * So the container definition changes when the configuration does.
      *
      * @return list<string>
      */

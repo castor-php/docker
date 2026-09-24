@@ -27,16 +27,13 @@ use function Castor\run;
 use function Castor\yaml_parse;
 
 /**
- * The root domain a project falls back to when it declares none.
- *
  * Only the worktree code reads it: the rest of the plugin keeps its own
  * fallbacks, which predate this constant.
  */
 const DEFAULT_ROOT_DOMAIN = 'castor.local';
 
 /**
- * The ".git" of the checkout a directory belongs to: a directory in a regular
- * clone, a file in a linked worktree or in a submodule.
+ * A directory in a regular clone, a file in a linked worktree or a submodule.
  *
  * Walked up by hand rather than asked to git: this runs on every castor boot,
  * where a subprocess would be paid for by every single command.
@@ -63,12 +60,11 @@ function find_git_path(string $directory): ?string
 }
 
 /**
- * The linked git worktree a directory is checked out in: its name, and the main
- * checkout it hangs from. Null when the directory belongs to the main checkout.
+ * Its name and the main checkout it hangs from, null for the main checkout.
  *
  * A linked worktree has a ".git" file pointing at ".git/worktrees/<id>" of the
- * main checkout, where the main one has a ".git" directory — which is the whole
- * test. A submodule also has a ".git" file, but it points into ".git/modules".
+ * main checkout, where the main one has a ".git" directory. A submodule also
+ * has a ".git" file, but it points into ".git/modules".
  *
  * @return array{name: ?string, main: string}|null
  */
@@ -89,21 +85,15 @@ function read_worktree_link(string $directory): ?array
     return ['name' => worktree_slug(\dirname($gitPath), $main), 'main' => $main];
 }
 
-/**
- * The name of the linked git worktree a directory is checked out in, or null
- * when it belongs to the main checkout.
- */
 function detect_worktree(string $directory): ?string
 {
     return read_worktree_link($directory)['name'] ?? null;
 }
 
 /**
- * The name that tells a checkout apart, which is not git's own worktree id: git
- * derives that id from the directory it was given, so a layout nesting the
- * checkouts as "<name>/<repository>" produces "<repository>", "<repository>1"…
- * for every one of them. Hence the rule — the checkout directory, or its parent
- * when the checkout repeats the name of the main one.
+ * Not git's own worktree id: git derives it from the directory it was given, so
+ * a layout nesting the checkouts as "<name>/<repository>" produces
+ * "<repository>", "<repository>1"… for every one of them.
  */
 function worktree_slug(string $path, string $mainDirectory): ?string
 {
@@ -127,10 +117,8 @@ function slugify_worktree_name(string $name): ?string
 }
 
 /**
- * The worktree this checkout is, or null for the main one.
- *
- * Set on the context by initialize_project(), so a project that pins it — or
- * that turns the isolation off — is answered the same way everywhere.
+ * Set on the context by initialize_project(), so a project pinning it — or
+ * turning the isolation off — is answered the same way everywhere.
  */
 function get_worktree_name(?Context $c = null): ?string
 {
@@ -138,8 +126,8 @@ function get_worktree_name(?Context $c = null): ?string
 }
 
 /**
- * The root domain of the main checkout: the one the project declares, before a
- * worktree prefixes it with its own label.
+ * The root domain the project declares, before a worktree prefixes it with its
+ * own label.
  */
 function get_worktree_base_domain(?Context $c = null): string
 {
@@ -170,9 +158,6 @@ function get_base_project_name(?Context $c = null): string
     return $name;
 }
 
-/**
- * The compose project name, and the root domain, a given checkout runs under.
- */
 function worktree_project_name(?string $worktree, string $baseName): string
 {
     return null === $worktree ? $baseName : $baseName . '-' . $worktree;
@@ -184,16 +169,12 @@ function worktree_root_domain(?string $worktree, string $baseDomain): string
 }
 
 /**
- * The domain this checkout serves in place of the given one.
- *
- * A worktree answers under a label of its own inserted right before the root
- * domain, so "app.myproject.test" becomes "app.wt2.myproject.test" — the same
- * shape the plugin's own services get for free by deriving their domain from
- * "root_domain".
+ * The domain this checkout serves in place of the given one: a worktree inserts
+ * its own label right before the root domain, so "app.myproject.test" becomes
+ * "app.wt2.myproject.test".
  *
  * A domain that is neither the root domain nor a subdomain of it is left alone:
- * nothing says what it is supposed to become. Idempotent, so a project already
- * deriving its domains from the (prefixed) root domain is untouched.
+ * nothing says what it should become. Idempotent.
  */
 function worktree_domain(string $domain, ?Context $c = null): string
 {
@@ -223,12 +204,9 @@ function worktree_domain(string $domain, ?Context $c = null): string
 }
 
 /**
- * Move every routed domain of the project onto the worktree's own subdomain.
- *
  * Applied to the built compose file rather than left to each service: a domain
- * spelled out in a castor.php — "app.myproject.test" — knows nothing about the
- * checkout it is generated in, and would otherwise make two checkouts fight
- * over the same site in the global router.
+ * spelled out in a castor.php knows nothing about the checkout it is generated
+ * in, and would make two checkouts fight over the same site in the router.
  */
 function apply_worktree_domains(Context $c, ComposeBuilder $composeBuilder): void
 {
@@ -242,13 +220,9 @@ function apply_worktree_domains(Context $c, ComposeBuilder $composeBuilder): voi
 }
 
 /**
- * What a worktree still shares with the main checkout, despite running a stack
- * of its own: the domains that could not be moved under its own subdomain, and
- * the host ports a service publishes statically.
- *
- * Both are machine-wide, so the two stacks cannot have them at the same time —
- * and neither is something the plugin can rename on the project's behalf.
- * Reported by "docker:about" rather than on every run.
+ * What a worktree still shares with the main checkout: the domains that could
+ * not be moved under its own subdomain, and the host ports a service publishes
+ * statically. Both are machine-wide, and neither is the plugin's to rename.
  *
  * @return list<string>
  */
@@ -278,8 +252,7 @@ function get_worktree_conflicts(?Context $c = null): array
 }
 
 /**
- * Whether a domain is this checkout's own: its root domain, or a subdomain of
- * it. Every domain is, in the main checkout.
+ * Its root domain, or a subdomain of it. Every domain is, in the main checkout.
  */
 function is_worktree_domain(string $domain, ?Context $c = null): bool
 {
@@ -296,10 +269,8 @@ function is_worktree_domain(string $domain, ?Context $c = null): bool
 }
 
 /**
- * The host ports the project publishes statically, keyed by compose service.
- *
- * Read from the compose files, the ones the project writes itself included: a
- * "ports:" in compose.override.yaml collides just as much.
+ * Keyed by compose service, and read from every compose file: a "ports:" in
+ * compose.override.yaml collides just as much.
  *
  * @return array<string, list<string>>
  */
@@ -337,8 +308,7 @@ function get_project_published_ports(?Context $c = null): array
  * "--worktree <name>" on any task: castor re-runs itself in that checkout, so
  * the task acts on its stack, with its code and its dependencies.
  *
- * Registered on every command at once rather than declared task by task, and
- * read from the raw arguments because the boot happens before the input is
+ * Read from the raw arguments because the boot happens before the input is
  * parsed.
  */
 #[AsListener(event: AfterBootEvent::class)]
@@ -505,9 +475,8 @@ function worktree_delete(
     run(['git', '-C', $main, 'worktree', 'remove', '--force', $path], context: $bestEffort);
     run(['git', '-C', $main, 'worktree', 'prune'], context: $bestEffort);
 
-    // The containers write into the checkout (caches, build artifacts, the
-    // shared home directory), which can make "git worktree remove" leave
-    // debris behind.
+    // The containers write into the checkout, which can make "git worktree
+    // remove" leave debris behind.
     if (is_dir($path)) {
         fs()->remove($path);
     }
@@ -522,8 +491,7 @@ function worktree_delete(
 }
 
 /**
- * Every checkout of the repository, the main one first, named the way its
- * compose project and its domain are.
+ * The main one first, named the way its compose project and its domain are.
  *
  * @return list<array{name: ?string, path: string, branch: string}>
  */
@@ -551,8 +519,7 @@ function get_checkouts(): array
 }
 
 /**
- * The checkout a name stands for: its worktree name, or the branch checked out
- * in it.
+ * A name is either a worktree name or the branch checked out in it.
  *
  * @return array{name: ?string, path: string, branch: string}|null
  */
@@ -569,15 +536,12 @@ function find_worktree(string $name): ?array
     return null;
 }
 
-/**
- * The directory of the main checkout, the one the linked worktrees hang from.
- */
 function get_main_checkout_directory(?Context $c = null): string
 {
     $c ??= context();
 
-    // A worktree carries the answer in its ".git" file, which is what keeps this
-    // out of a subprocess on every boot — the shared home directory asks for it.
+    // A worktree carries the answer in its ".git" file, which keeps this out of
+    // a subprocess on every boot — the shared home directory asks for it.
     if (null !== ($link = read_worktree_link($c->workingDirectory))) {
         return $link['main'];
     }
@@ -592,12 +556,9 @@ function get_main_checkout_directory(?Context $c = null): string
 }
 
 /**
- * Where a service's shared home directory really lives.
- *
- * Bind-mounted from the checkout it is declared in, every worktree would get an
- * empty Composer, Cargo and npm cache, and pay for a cold build of its own. A
- * worktree therefore mounts the one of the main checkout, by absolute path, so
- * the caches are filled once for the whole repository.
+ * A worktree mounts the shared home of the main checkout, by absolute path, so
+ * the Composer, Cargo and npm caches are filled once for the whole repository
+ * instead of once per checkout.
  *
  * A directory the project already made absolute is left alone, and so is every
  * checkout when "worktree_shared_home" is turned off.
@@ -614,14 +575,11 @@ function shared_home_directory(string $directory, ?Context $c = null): string
 }
 
 /**
- * Where a worktree is checked out.
- *
  * "<parent of the main checkout>/worktrees/<repository>/<name>" by default,
  * which keeps the checkouts out of the main one and out of the way of the
  * editors. The "worktree_directory" context data overrides it: a relative path
- * is resolved against the parent of the main checkout, and a "{name}"
- * placeholder is where the name of the worktree goes — "worktrees/{name}/app"
- * for a layout repeating the repository name inside each worktree.
+ * is resolved against the parent of the main checkout, and "{name}" is where
+ * the name of the worktree goes.
  */
 function get_worktree_path(string $slug, ?Context $c = null): string
 {
@@ -643,8 +601,7 @@ function resolve_worktree_path(string $slug, string $mainDirectory, ?string $pat
 }
 
 /**
- * The status of every compose stack of the machine, keyed by the directory it
- * lives in.
+ * Keyed by the directory the stack lives in.
  *
  * @return array<string, string>
  */
@@ -665,8 +622,8 @@ function get_compose_stacks(): array
 }
 
 /**
- * What brings a freshly created worktree up: the project's own "start" task when
- * it has one, and the plugin's build-and-up otherwise.
+ * The project's own "start" task when it has one, the plugin's build-and-up
+ * otherwise.
  *
  * @return list<string>
  */
@@ -676,8 +633,8 @@ function worktree_start_task(): array
 }
 
 /**
- * Castor, run in another checkout: it reads its own castor.php there, so the
- * compose project and the domains are the ones of that worktree.
+ * Castor reads its own castor.php there, so the compose project and the domains
+ * are the ones of that worktree.
  */
 function in_worktree(string $path): Context
 {
@@ -687,8 +644,8 @@ function in_worktree(string $path): Context
 }
 
 /**
- * Whether the work in a checkout can be thrown away: uncommitted changes and
- * commits that were never pushed each need an explicit yes.
+ * Uncommitted changes and commits that were never pushed each need an explicit
+ * yes.
  */
 function is_worktree_disposable(string $path, string $branch): bool
 {
@@ -710,9 +667,8 @@ function is_worktree_disposable(string $path, string $branch): bool
 }
 
 /**
- * The "--worktree <name>" (or "--worktree=<name>") the application answers to,
- * and the arguments to forward without it. Everything after "--" belongs to the
- * task.
+ * The "--worktree <name>" (or "--worktree=<name>") and the arguments to forward
+ * without it. Everything after "--" belongs to the task.
  *
  * @param list<string> $arguments
  *

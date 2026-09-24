@@ -8,11 +8,8 @@ use Castor\Context;
 
 /**
  * Dispatched with the compose configuration as a plain array, right before it
- * is written to compose.generated.yaml.
- *
- * This is the escape hatch: the builder models what the plugin's services need,
- * this event reaches everything else — the compose keys it does not cover, the
- * "x-" extension fields, or a wholesale rewrite:
+ * is written to compose.generated.yaml — the escape hatch for the keys the
+ * builder does not model, the "x-" fields, or a wholesale rewrite:
  *
  *     #[AsListener(DockerComposeWriteEvent::class)]
  *     function raw_compose(DockerComposeWriteEvent $event): void
@@ -21,9 +18,9 @@ use Castor\Context;
  *         $event->compose['x-my-tooling'] = ['version' => 1];
  *     }
  *
- * Nothing validates what you put in: the array is dumped as-is, so a mistake
- * here surfaces as a docker compose error rather than a PHP one. Prefer
- * DockerComposeBuilderEvent when the builder can express the change.
+ * The array is dumped as-is, so a mistake surfaces as a docker compose error
+ * rather than a PHP one. Prefer DockerComposeBuilderEvent when the builder can
+ * express the change.
  */
 final class DockerComposeWriteEvent
 {

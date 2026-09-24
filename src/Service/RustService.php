@@ -25,22 +25,18 @@ use function Castor\watch;
 
 /**
  * Runs a Cargo application from the source directory mounted in the container:
- * "cargo build" happens inside the container and the resulting debug binary is
- * used as the container command.
+ * "cargo build" runs inside it and the debug binary becomes the container
+ * command.
  *
- * The registry and git caches live in the shared home directory, so every Rust
- * service of the project downloads a given crate only once. Build artifacts
- * stay in the project's own target/ directory and therefore survive container
- * recreation too.
+ * The registry and git caches live in the shared home directory, so a crate is
+ * downloaded once for the whole project, and the artifacts stay in the
+ * project's own target/ directory.
  *
- * One crate, one container: this is the single-application case. A monorepo
- * building several binaries from one toolchain wants RustBuilder and
- * BinaryRunService instead, which split the toolchain container from the
- * runtime ones.
+ * One crate, one container. A monorepo building several binaries from one
+ * toolchain wants RustBuilder and BinaryRunService instead.
  *
- * The paths still need not coincide: withDirectory() is what gets mounted,
- * withWorkingDirectory() is where cargo runs below it, and withBinaryPath() is
- * the binary the container starts.
+ * withDirectory() is what gets mounted, withWorkingDirectory() is where cargo
+ * runs below it, and withBinaryPath() is the binary the container starts.
  */
 class RustService implements ServiceInterface
 {
@@ -110,8 +106,8 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * Install a rustup component on the default toolchain. "clippy" and
-     * "rustfmt" are there by default, so the QA tasks work out of the box.
+     * "clippy" and "rustfmt" are there by default, so the QA tasks work out of
+     * the box.
      */
     public function addRustupComponent(string ...$components): static
     {
@@ -125,8 +121,7 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * Install an additional toolchain, e.g. "nightly" for a lint or a formatter
-     * that is not stable yet.
+     * E.g. "nightly", for a lint or a formatter that is not stable yet.
      *
      * @param list<string> $components
      */
@@ -138,9 +133,9 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * The compilation target triple. It is added to the build command and moves
-     * the default binary path to target/<triple>/debug/<name> — forgetting the
-     * second half is the classic musl pitfall.
+     * Added to the build command, and moves the default binary path to
+     * target/<triple>/debug/<name> — forgetting that second half is the classic
+     * musl pitfall.
      */
     public function withTarget(string $target): static
     {
@@ -150,9 +145,8 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * The binary the container runs, relative to the mounted directory.
-     * Defaults to target/debug/<name>, or target/<triple>/debug/<name> when a
-     * target is set.
+     * Relative to the mounted directory. Defaults to target/debug/<name>, or
+     * target/<triple>/debug/<name> when a target is set.
      */
     public function withBinaryPath(string $binaryPath): static
     {
@@ -162,8 +156,7 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * Replace the build command, "cargo build" by default (plus "--target
-     * <triple>" when withTarget() is used).
+     * "cargo build" by default, plus "--target <triple>" with withTarget().
      */
     public function withBuildCommand(string $buildCommand): static
     {
@@ -173,13 +166,11 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * What the container runs. Given a list, the arguments are appended to the
-     * binary — which is what you want to pass flags to your application:
+     * A list appends its arguments to the binary:
      *
      *     ->withRunCommand(['--listen', '0.0.0.0:18089'])
      *
-     * Given a string, it replaces the container command outright, binary
-     * included.
+     * A string replaces the container command outright, binary included.
      *
      * @param list<string>|string $runCommand
      */
@@ -230,9 +221,8 @@ class RustService implements ServiceInterface
                 ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
                 ->command($this->getContainerCommand())
                 ->environment('HOME', '/home/app')
-                // Keep the crate registry inside the shared home directory
-                // instead of the image, so it is reused across rebuilds and
-                // shared by every Rust service of the project.
+                // The crate registry in the shared home rather than the image,
+                // so it survives rebuilds and is shared project-wide.
                 ->environment('CARGO_HOME', '/home/app/.cargo')
         ;
 
@@ -293,8 +283,8 @@ class RustService implements ServiceInterface
                 $watchDirectory = str_starts_with($directory, '/') ? $directory : context()['root_dir'] . '/' . $directory;
 
                 watch($watchDirectory, function ($file, $event): void {
-                    // Build scripts generate Rust sources under target/, watching
-                    // them would make each build trigger the next one.
+                    // Build scripts generate sources under target/, so each
+                    // build would trigger the next one.
                     if (str_contains($file, '/target/')) {
                         return;
                     }
@@ -380,8 +370,6 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * Declare the build producing the Rust image.
-     *
      * Extra Debian packages are deliberately not modelled: extend the
      * "rust_base" block of the Dockerfile instead.
      */
@@ -414,9 +402,8 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * The directory to run the tasks in, or null to leave the working directory
-     * of the container alone — which is what a single-crate service wants, and
-     * keeps an override from compose.override.yaml effective.
+     * Null leaves the working directory of the container alone, which is what a
+     * single-crate service wants and keeps a compose.override.yaml effective.
      */
     protected function getTaskWorkingDirectory(): ?string
     {

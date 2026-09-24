@@ -24,9 +24,9 @@ trait HasSharedHomeDirectory
     }
 
     /**
-     * Pass the context the compose file is generated with to get the directory
-     * as it should be mounted: a git worktree shares the one of the main
-     * checkout, so its caches are not cold (see shared_home_directory()).
+     * With the context the compose file is generated with, the directory comes
+     * back as it should be mounted: a worktree shares the one of the main
+     * checkout so its caches are not cold, see shared_home_directory().
      */
     public function getSharedHomeDirectory(?Context $c = null): string
     {
