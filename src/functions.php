@@ -1766,9 +1766,45 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
     $event->addInstaller(new RustInstaller());
 }
 
+function task_name(string $function): string
+{
+    $descriptor = remember_task_descriptors()[$function] ?? null;
+
+    if (null === $descriptor) {
+        throw new \LogicException(\sprintf('"%s()" is not a task of this application.', $function));
+    }
+
+    $attribute = $descriptor->taskAttribute;
+
+    return $attribute->namespace ? $attribute->namespace . ':' . $attribute->name : $attribute->name;
+}
+
+/**
+ * Later listeners rename these same objects, so names stay up to date.
+ *
+ * @param list<TaskDescriptor> $descriptors
+ *
+ * @return array<string, TaskDescriptor>
+ */
+function remember_task_descriptors(array $descriptors = []): array
+{
+    /** @var array<string, TaskDescriptor> $known */
+    static $known = [];
+
+    foreach ($descriptors as $descriptor) {
+        if (!$descriptor->function->isClosure()) {
+            $known[$descriptor->function->getName()] = $descriptor;
+        }
+    }
+
+    return $known;
+}
+
 #[AsListener(FunctionsResolvedEvent::class)]
 function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
 {
+    remember_task_descriptors($functionsResolvedEvent->taskDescriptors);
+
     // FunctionsResolvedEvent is dispatched once per mount.
     static $done = false;
 

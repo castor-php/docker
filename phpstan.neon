@@ -16,7 +16,8 @@ parameters:
                 worktree?: ?string,
                 worktree_isolation?: bool,
                 worktree_directory?: string,
-                worktree_shared_home?: bool
+                worktree_shared_home?: bool,
+                worktree_start_task?: string|list<string>
             }
         '''
     paths:

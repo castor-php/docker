@@ -37,6 +37,7 @@ function default_context(): Context
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |
 | `worktree_shared_home` | Whether a git worktree mounts the `.home` of the main checkout, `true` by default |
+| `worktree_start_task` | The task `worktree:create --start` runs, your own `start` task or `docker:up --build` otherwise — see [git worktrees](going-further/worktrees.md) |
 
 ### Resolving your own domains from a container
 
