@@ -332,7 +332,7 @@ function run_task_in_worktree(AfterBootEvent $event): void
     $path = 'main' === $name ? get_main_checkout_directory() : (find_worktree($name)['path'] ?? null);
 
     if (null === $path) {
-        io()->error(\sprintf('Unknown worktree "%s". Run "castor worktree:list" to see them.', $name));
+        io()->error(\sprintf('Unknown worktree "%s". Run "castor %s" to see them.', $name, task_name('Castor\Docker\worktree_list')));
 
         exit(1);
     }
@@ -446,7 +446,7 @@ function worktree_delete(
     $checkout = find_worktree($name);
 
     if (null === $checkout) {
-        io()->error(\sprintf('Unknown worktree "%s". Run "castor worktree:list" to see them.', $name));
+        io()->error(\sprintf('Unknown worktree "%s". Run "castor %s" to see them.', $name, task_name('Castor\Docker\worktree_list')));
 
         return;
     }
@@ -469,7 +469,7 @@ function worktree_delete(
     $main = get_main_checkout_directory();
 
     io()->section(\sprintf('Destroying the stack of "%s"', $slug));
-    run([castor_binary(), 'docker:destroy', '--force'], context: in_worktree($path)->withAllowFailure());
+    run([castor_binary(), task_name('Castor\Docker\destroy'), '--force'], context: in_worktree($path)->withAllowFailure());
 
     io()->section(\sprintf('Removing the worktree "%s"', $slug));
     run(['git', '-C', $main, 'worktree', 'remove', '--force', $path], context: $bestEffort);
@@ -622,14 +622,19 @@ function get_compose_stacks(): array
 }
 
 /**
- * The project's own "start" task when it has one, the plugin's build-and-up
- * otherwise.
+ * "worktree_start_task" context data, else the project's "start", else docker:up.
  *
  * @return list<string>
  */
-function worktree_start_task(): array
+function worktree_start_task(?Context $c = null): array
 {
-    return app()->has('start') ? ['start'] : ['docker:up', '--build'];
+    $task = ($c ?? context())->data['worktree_start_task'] ?? null;
+
+    if (null !== $task) {
+        return (array) $task;
+    }
+
+    return app()->has('start') ? ['start'] : [task_name('Castor\Docker\up'), '--build'];
 }
 
 /**

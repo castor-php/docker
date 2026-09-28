@@ -69,7 +69,8 @@ everything else, so `castor worktree:create feat/new-thing` checks out
 and `--from` says where a branch that does not exist yet starts.
 
 `--start` runs your project's own `start` task when it has one, and
-`castor docker:up --build` otherwise.
+`castor docker:up --build` otherwise. The `worktree_start_task` context data
+names another task to run instead, `'demo:start'` for instance.
 
 `worktree:delete` asks before throwing away uncommitted changes or commits that
 were never pushed; `--force` skips the questions. The branch is always kept.
