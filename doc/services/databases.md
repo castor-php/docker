@@ -129,6 +129,10 @@ custom format and the tar one, and hands them to `pg_restore` rather than to
 The content of the database is replaced, not merged: the dump lands in a
 database that starts empty.
 
+Restoring a file asks for confirmation first, which `--force` skips; a dump
+piped into the task is restored straight away, the standard input carrying the
+dump rather than an answer.
+
 Postgres restores into a scratch database first, and swaps it with the current
 one once the dump is fully loaded. A dump that fails half-way — truncated by a
 download, or written for another schema — leaves the database as it was, and

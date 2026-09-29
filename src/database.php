@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Castor\Docker;
 
 use Castor\Attribute\AsArgument;
+use Castor\Attribute\AsOption;
 use Castor\Attribute\AsTask;
 use Castor\Docker\Service\DumpableServiceInterface;
+use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
@@ -47,9 +49,11 @@ function get_dump_tasks(DumpableServiceInterface $service): iterable
     yield [
         'task' => new AsTask('restore', $name, \sprintf('Replace the content of the %s database with a dump, read from a file or from the standard input', $name)),
         'function' => static fn(
-            #[AsArgument(description: 'The dump to restore, compressed or not ("-" or nothing for the standard input)')]
+            #[AsArgument(description: 'The dump to restore, compressed or not ("-" or nothing for the standard input)', autocomplete: 'Castor\Docker\autocomplete_dump_file')]
             ?string $file = null,
-        ): int => restore_database($service, $file) ? 0 : 1,
+            #[AsOption(description: 'Restore without confirmation', shortcut: 'f')]
+            bool $force = false,
+        ): int => restore_database($service, $file, $force) ? 0 : 1,
     ];
 }
 
@@ -71,6 +75,58 @@ function describe_dump_files(array $formats): array
             foreach (array_keys(DUMP_COMPRESSIONS) as $compression) {
                 $files[] = $format . '.' . $compression;
             }
+        }
+    }
+
+    return $files;
+}
+
+/**
+ * The service is guessed from the command namespace, else every database's
+ * formats are accepted.
+ *
+ * @return list<string>
+ */
+function autocomplete_dump_file(CompletionInput $input): array
+{
+    $command = $input->getFirstArgument();
+    $application = null === $command ? false : strstr($command, ':', true);
+    $formats = [];
+
+    foreach (collect_services() as $service) {
+        if ($service instanceof DumpableServiceInterface) {
+            if ($service->getName() === $application) {
+                $formats = $service->getDumpFormats();
+
+                break;
+            }
+
+            array_push($formats, ...$service->getDumpFormats());
+        }
+    }
+
+    $extensions = array_map(static fn(string $file): string => '.' . $file, describe_dump_files(array_values(array_unique($formats))));
+
+    $typed = $input->getCompletionValue();
+    $prefix = false === ($slash = strrpos($typed, '/')) ? '' : substr($typed, 0, $slash + 1);
+    $directory = '' === $prefix ? '.' : $prefix;
+    $entries = is_dir($directory) ? scandir($directory) : false;
+
+    if (false === $entries) {
+        return [];
+    }
+
+    $files = [];
+
+    foreach ($entries as $entry) {
+        if (str_starts_with($entry, '.')) {
+            continue;
+        }
+
+        if (is_dir($prefix . $entry)) {
+            $files[] = $prefix . $entry . '/';
+        } elseif (array_filter($extensions, static fn(string $extension): bool => str_ends_with(strtolower($entry), $extension))) {
+            $files[] = $prefix . $entry;
         }
     }
 
@@ -276,13 +332,14 @@ function dump_database(DumpableServiceInterface $service, ?string $file = null):
 }
 
 /**
- * From the standard input when there is no file (or "-").
+ * From the standard input when there is no file (or "-"). Only a file is
+ * confirmed: the standard input carries the dump, not an answer.
  *
  * The containers depending on the database are stopped for the duration: an
  * application would otherwise hold connections on a database being dropped, or
  * read one half restored, and a worker losing its connection exits for good.
  */
-function restore_database(DumpableServiceInterface $service, ?string $file = null): bool
+function restore_database(DumpableServiceInterface $service, ?string $file = null, bool $force = false): bool
 {
     $fromStdin = null === $file || '-' === $file;
     $environment = [];
@@ -300,6 +357,12 @@ function restore_database(DumpableServiceInterface $service, ?string $file = nul
     } else {
         if (!is_file($file)) {
             io()->error(\sprintf('The file "%s" does not exist.', $file));
+
+            return false;
+        }
+
+        if (!$force && !io()->confirm(\sprintf('This replaces the content of the %s database with %s. Continue?', $service->getName(), basename($file)), false)) {
+            io()->comment('Aborted.');
 
             return false;
         }
@@ -511,7 +574,7 @@ function copy_databases_to_worktree(array $services, string $path): void
 
             dump_database($service, $file);
 
-            $restore = run([castor_binary(), $name . ':restore', $file], context: in_worktree($path)->withAllowFailure());
+            $restore = run([castor_binary(), $name . ':restore', '--force', $file], context: in_worktree($path)->withAllowFailure());
 
             if (!$restore->isSuccessful()) {
                 io()->warning(\sprintf('The "%s" database could not be restored in the worktree, it starts empty.', $name));
