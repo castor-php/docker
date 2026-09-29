@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `{service}:restore` completes the path of the dump, and asks for confirmation before replacing the database with a file (`--force` to skip it).
+
 ## 0.8.1 - 2026-09-29
 
 ### Added
