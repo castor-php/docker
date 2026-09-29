@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.1 - 2026-09-29
+
+### Added
+
+* [`worktree_start_task`](going-further/worktrees.md) context data: the task `worktree:create --start` runs.
+
+### Fixed
+
+* Worktree tasks call the plugin tasks by their real name when the project renames them.
+
 ## 0.8.0 - 2026-09-25
 
 ### Added
