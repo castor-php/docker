@@ -5,6 +5,7 @@
 ### Added
 
 * On GitHub Actions, every build also reads and writes the [GitHub Actions cache](tasks.md#on-github-actions), and `castor docker:push` pushes to it.
+* `{service}:restore` completes the path of the dump, and asks for confirmation before replacing the database with a file (`--force` to skip it).
 
 ### Changed
 
