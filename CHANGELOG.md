@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* [`docker:build --parallel`](tasks.md#castor-dockerbuild) and the `build_parallel` context variable: each service builds on its own, in parallel, so services sharing a stage keep their build cache ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)). `docker:push` follows them too.
+
+### Removed
+
+* The GitHub Actions cache 0.9.0 added to every build on GitHub Actions. The registry cache misses it made up for come from a BuildKit race between caches describing the same stages, which a second cache only makes worse, and the `docker` driver of the runners failed the build exporting it. A service still takes any cache given to its `cacheFrom()`.
+
 ## 0.9.0 - 2026-10-06
 
 ### Added

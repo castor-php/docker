@@ -75,35 +75,6 @@ final class DockerPushTest extends TestCase
     }
 
     /**
-     * The GitHub Actions cache comes on top of the registry one, which the
-     * images still go to. The cache_to every build writes the GitHub one with
-     * gives way to the one exporting both.
-     */
-    public function testOnGithubActionsTheCacheIsAlsoPushedToGithub(): void
-    {
-        $castor = $this->castorOrSkip();
-
-        $push = $this->castor($castor, ['docker:push', '--dry-run'], [
-            'CASTOR_DOCKER_TEST_REGISTRY' => 'registry.invalid/ns',
-            'GITHUB_ACTIONS' => 'true',
-        ]);
-
-        static::assertTrue($push->isSuccessful(), "castor docker:push --dry-run failed:\n" . $push->getOutput() . $push->getErrorOutput());
-
-        $target = json_decode($push->getOutput(), true)['target']['cached'];
-
-        static::assertSame([
-            ['ref' => 'registry.invalid/ns/cached:cache', 'type' => 'registry'],
-            ['scope' => 'cached', 'type' => 'gha'],
-        ], $target['cache-from']);
-        static::assertSame([
-            ['mode' => 'max', 'ref' => 'registry.invalid/ns/cached:cache', 'type' => 'registry'],
-            ['ignore-error' => 'true', 'mode' => 'max', 'scope' => 'cached', 'type' => 'gha'],
-        ], $target['cache-to']);
-        static::assertSame(['registry.invalid/ns/cached:latest'], $target['tags']);
-    }
-
-    /**
      * The cache alone carries no label, so a registry reading one to attach a
      * package to a repository — ghcr.io — would file every push under nobody.
      * The image pushed next to the cache is what holds that label, and it goes

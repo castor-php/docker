@@ -33,6 +33,7 @@ function default_context(): Context
 | `resolve_domains_via_host` | Whether the containers resolve the project's own public domains, `true` by default — see [below](#resolving-your-own-domains-from-a-container) |
 | `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
 | `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
+| `build_parallel` | Whether the services are built on their own, in parallel, so services sharing a stage keep their build cache, `false` by default — see [`docker:build`](tasks.md#castor-dockerbuild) |
 | `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |

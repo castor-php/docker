@@ -14,35 +14,20 @@ final class BuildBuilderTest extends TestCase
         putenv('GITHUB_ACTIONS=');
     }
 
-    public function testARegistryCacheIsTheOnlyCacheOutsideOfGithubActions(): void
-    {
-        static::assertSame(
-            ['cache_from' => ['type=registry,ref=${REGISTRY:-}/app:cache']],
-            $this->buildWithRegistryCache(),
-        );
-    }
-
-    public function testOnGithubActionsEveryBuildReadsAndWritesTheGithubCache(): void
+    /**
+     * A second cache describing the same stages makes BuildKit race them and
+     * lose steps (moby/buildkit#6418): GitHub Actions gets no cache of its own.
+     */
+    public function testTheRegistryCacheIsTheOnlyCacheEvenOnGithubActions(): void
     {
         putenv('GITHUB_ACTIONS=true');
 
-        static::assertSame(
-            [
-                'cache_from' => ['type=registry,ref=${REGISTRY:-}/app:cache', 'type=gha,scope=app'],
-                'cache_to' => ['type=gha,scope=app,mode=max,ignore-error=true'],
-            ],
-            $this->buildWithRegistryCache(),
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function buildWithRegistryCache(): array
-    {
         $builder = new ComposeBuilder();
         $builder->service('app')->build()->withRegistryCache('app');
 
-        return $builder->toArray()['services']['app']['build'];
+        static::assertSame(
+            ['cache_from' => ['type=registry,ref=${REGISTRY:-}/app:cache']],
+            $builder->toArray()['services']['app']['build'],
+        );
     }
 }

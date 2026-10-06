@@ -13,6 +13,7 @@ parameters:
                 docker_profiles?: string[],
                 resolve_domains_via_host?: bool,
                 router_autostart?: bool,
+                build_parallel?: bool,
                 worktree?: ?string,
                 worktree_isolation?: bool,
                 worktree_directory?: string,
