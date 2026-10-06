@@ -8,6 +8,7 @@
 
 ### Fixed
 
+* `castor docker:build` and `castor docker:push` build each service on its own, in parallel: in a single bake session BuildKit randomly lost the build cache of all but one of the services sharing a stage ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)).
 * Builds on the `docker` buildx driver no longer fail on GitHub Actions: the GitHub Actions cache is only used when the builder can export a cache, the registry one otherwise.
 
 ## 0.9.0 - 2026-10-06

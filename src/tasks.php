@@ -19,6 +19,7 @@ use Castor\Docker\Service\ServiceInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Terminal;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -27,6 +28,7 @@ use function Castor\app;
 use function Castor\capture;
 use function Castor\context;
 use function Castor\io;
+use function Castor\parallel;
 use function Castor\variable;
 use function Castor\run;
 
@@ -56,16 +58,88 @@ function build(
         $command[] = "{$key}={$value}";
     }
 
-    if ($service) {
-        $command[] = $service;
-    }
-
     if (!$profiles) {
         $profiles = get_default_profiles();
         $profiles[] = 'builder';
     }
 
-    docker_compose($command, profiles: $profiles);
+    $services = $service ? [$service] : get_buildable_services($profiles);
+
+    if (\count($services) < 2) {
+        docker_compose([...$command, ...$services], profiles: $profiles);
+
+        return;
+    }
+
+    build_separately($command, $services, $profiles);
+}
+
+/**
+ * One build per service, run in parallel: in a single session BuildKit merges
+ * the stages services share, then races the caches of those services over them
+ * and randomly loses the steps of all but one (moby/buildkit#6418).
+ *
+ * @param list<string> $command
+ * @param list<string> $services
+ * @param list<string> $profiles
+ */
+function build_separately(array $command, array $services, array $profiles): void
+{
+    $c = context()->withQuiet()->withAllowFailure()->withTty(false)->withPty(false);
+
+    $processes = parallel(...array_map(
+        static fn(string $service): \Closure => static fn(): Process => docker_compose([...$command, $service], $c, $profiles, 'plain'),
+        $services,
+    ));
+
+    report_separate_builds($services, $processes);
+}
+
+/**
+ * @param list<string>  $services
+ * @param array<mixed>  $processes
+ */
+function report_separate_builds(array $services, array $processes): void
+{
+    $failed = [];
+
+    foreach ($services as $i => $service) {
+        $process = $processes[$i];
+
+        if (!$process instanceof Process) {
+            $failed[] = $service;
+
+            continue;
+        }
+
+        io()->section($service);
+        io()->write($process->getOutput() . $process->getErrorOutput(), false, OutputInterface::OUTPUT_RAW);
+
+        if (!$process->isSuccessful()) {
+            $failed[] = $service;
+        }
+    }
+
+    if ($failed) {
+        throw new \RuntimeException(\sprintf('The build of %s failed.', implode(', ', $failed)));
+    }
+}
+
+/**
+ * @param list<string> $profiles
+ *
+ * @return list<string>
+ */
+function get_buildable_services(array $profiles): array
+{
+    $config = json_decode(
+        docker_compose(['config', '--format', 'json'], context()->withQuiet(), profiles: $profiles)->getOutput(),
+        true,
+    );
+
+    $services = \is_array($config['services'] ?? null) ? $config['services'] : [];
+
+    return array_map('strval', array_keys(array_filter($services, static fn(mixed $config): bool => \is_array($config) && isset($config['build']))));
 }
 
 /**
@@ -730,16 +804,19 @@ function push(
     // apply: bake sees every service that has a "build".
     $command = ['docker', 'buildx', 'bake', '-f', $c->workingDirectory . '/compose.yaml'];
 
+    $options = [];
+
     foreach ($targets as $service => $cacheEntries) {
         $images = [];
+        $options[$service] = [];
 
         foreach ($cacheEntries as $cacheTo) {
             $cacheRef = get_cache_reference($cacheTo);
 
-            $command[] = '--set';
+            $options[$service][] = '--set';
             // A GitHub Actions cache only backs the registry one up: its
             // outage must not keep the images from being pushed.
-            $command[] = \sprintf('%s.cache-to=%s,mode=max%s', $service, $cacheTo, str_contains($cacheTo, 'type=gha') ? ',ignore-error=true' : '');
+            $options[$service][] = \sprintf('%s.cache-to=%s,mode=max%s', $service, $cacheTo, str_contains($cacheTo, 'type=gha') ? ',ignore-error=true' : '');
 
             // "type=gha" or "type=local" names no repository to publish an
             // image to.
@@ -763,32 +840,26 @@ function push(
         }
 
         foreach ($images as $image) {
-            $command[] = '--set';
-            $command[] = \sprintf('%s.tags=%s', $service, $image);
+            $options[$service][] = '--set';
+            $options[$service][] = \sprintf('%s.tags=%s', $service, $image);
         }
 
         // Per target, rather than a global "--push": the services whose cache
         // is not a registry one must not be pushed anywhere.
-        $command[] = '--set';
-        $command[] = \sprintf('%s.output=type=registry', $service);
+        $options[$service][] = '--set';
+        $options[$service][] = \sprintf('%s.output=type=registry', $service);
         if (null !== $source) {
-            $command[] = '--set';
-            $command[] = \sprintf('%s.labels.org.opencontainers.image.source=%s', $service, $source);
+            $options[$service][] = '--set';
+            $options[$service][] = \sprintf('%s.labels.org.opencontainers.image.source=%s', $service, $source);
         }
 
         if (null !== $revision) {
-            $command[] = '--set';
-            $command[] = \sprintf('%s.labels.org.opencontainers.image.revision=%s', $service, $revision);
+            $options[$service][] = '--set';
+            $options[$service][] = \sprintf('%s.labels.org.opencontainers.image.revision=%s', $service, $revision);
         }
     }
 
-    if ($dryRun) {
-        $command[] = '--print';
-    }
-
-    // Naming the targets keeps out the services that build without a cache:
-    // bake's default group is every buildable service of the project.
-    run([...$command, ...array_keys($targets)], context: $c->withEnvironment([
+    $c = $c->withEnvironment([
         // bake does not go through docker_compose(), so the variables the
         // generated compose file interpolates have to be given to it here.
         'COMPOSE_PROJECT_NAME' => get_project_name($c),
@@ -797,7 +868,26 @@ function push(
         // The build contexts live in the plugin, outside of the project
         // directory, which bake asks to confirm on every run otherwise.
         'BUILDX_BAKE_ENTITLEMENTS_FS' => '0',
-    ]));
+    ]);
+
+    // Naming the targets keeps out the services that build without a cache:
+    // bake's default group is every buildable service of the project.
+    if ($dryRun) {
+        run([...$command, ...array_merge(...array_values($options)), '--print', ...array_keys($targets)], context: $c);
+
+        return;
+    }
+
+    // One bake per target, for the reason build_separately() gives.
+    $quiet = $c->withQuiet()->withAllowFailure()->withTty(false)->withPty(false);
+    $services = array_keys($targets);
+
+    $processes = parallel(...array_map(
+        static fn(string $service): \Closure => static fn(): Process => run([...$command, ...$options[$service], '--progress', 'plain', $service], context: $quiet),
+        $services,
+    ));
+
+    report_separate_builds($services, $processes);
 }
 
 /**

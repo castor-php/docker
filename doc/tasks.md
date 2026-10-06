@@ -58,6 +58,12 @@ castor docker:build app                 # a single service
 castor docker:build --profiles builder  # restrict to a profile
 ```
 
+Each service builds on its own, all of them in parallel, and its log is
+printed once it is done. Built together, the services sharing a stage — the
+`php-base` of an application and of its builder — randomly lost the build
+cache of all but one of them ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)).
+`castor docker:push` builds its targets the same way.
+
 Alias: `castor build`.
 
 ### `castor docker:up`
