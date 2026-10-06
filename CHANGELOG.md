@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* Builds on the `docker` buildx driver no longer fail on GitHub Actions: the GitHub Actions cache is only written when the builder can export a cache.
+
 ## 0.9.0 - 2026-10-06
 
 ### Added

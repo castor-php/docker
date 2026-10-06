@@ -272,6 +272,11 @@ What a pull request writes stays with it: its next runs reuse it, the default
 branch never sees it. The layers it shares with the default branch are not
 stored twice.
 
+Builds only write it when the builder can export a cache: the `docker`
+driver, the default one of the runners, cannot without the containerd image
+store, and they then only read it. `docker/setup-buildx-action` sets up a
+builder that can, which `castor docker:push` needs anyway.
+
 Buildx reaches that cache with variables Actions only hands to JavaScript
 actions, so every job that builds has to expose them first, reading the cache
 needing them as much as writing it:
