@@ -77,11 +77,14 @@ function get_default_profiles(?Context $c = null): array
 }
 
 /**
+ * The command docker_compose() runs, and the context to run it in.
+ *
  * @param list<string> $subCommand
  * @param list<string> $profiles
- * @param ?string      $progress    "auto", "tty", "plain", "json" or "quiet", left to compose when null
+ *
+ * @return array{list<string>, Context}
  */
-function docker_compose(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): Process
+function docker_compose_command(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): array
 {
     $c ??= context();
     $profiles = $profiles ?: get_default_profiles($c);
@@ -119,6 +122,18 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     $command[] = $c->workingDirectory . '/compose.yaml';
 
     $command = array_merge($command, $subCommand);
+
+    return [$command, $c];
+}
+
+/**
+ * @param list<string> $subCommand
+ * @param list<string> $profiles
+ * @param ?string      $progress    "auto", "tty", "plain", "json" or "quiet", left to compose when null
+ */
+function docker_compose(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): Process
+{
+    [$command, $c] = docker_compose_command($subCommand, $c, $profiles, $progress);
 
     // The router is not a service of this file: it joins the project network
     // from the outside, so it is attached after "up" and detached before "down".
