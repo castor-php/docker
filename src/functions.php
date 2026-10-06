@@ -1551,7 +1551,13 @@ function generate_compose_file(Context $c, array $services): void
     // After the listeners, so a domain routed by one of them is resolvable too.
     add_project_extra_hosts($c, $composeBuilder);
 
-    $compose = drop_unsupported_cache_export($composeBuilder->toArray(), new HostSystemProbe($c));
+    $compose = $composeBuilder->toArray();
+
+    if (!is_build_cache_export_enabled($c)) {
+        $compose = drop_cache_export($compose);
+    }
+
+    $compose = drop_unsupported_cache_export($compose, new HostSystemProbe($c));
     $compose = dispatch(new DockerComposeWriteEvent($c, $compose))->compose;
 
     file_put_contents(
@@ -1561,8 +1567,46 @@ function generate_compose_file(Context $c, array $services): void
 }
 
 /**
+ * Off, the builds still read the build caches but write none: a pull request
+ * then reuses the cache of the default branch without filling the GitHub
+ * Actions quota with layers only it would use. The environment variable wins
+ * over the context, so a CI workflow can decide per branch.
+ */
+function is_build_cache_export_enabled(?Context $c = null): bool
+{
+    $env = $_SERVER['CASTOR_DOCKER_BUILD_CACHE_EXPORT'] ?? null;
+
+    if (\is_string($env) && '' !== $env) {
+        $value = filter_var($env, \FILTER_VALIDATE_BOOL, \FILTER_NULL_ON_FAILURE);
+
+        if (null !== $value) {
+            return $value;
+        }
+    }
+
+    $data = ($c ?? context())->data['build_cache_export'] ?? null;
+
+    return \is_bool($data) ? $data : true;
+}
+
+/**
+ * @param array<string, mixed> $compose
+ *
+ * @return array<string, mixed>
+ */
+function drop_cache_export(array $compose): array
+{
+    foreach (array_keys($compose['services'] ?? []) as $name) {
+        unset($compose['services'][$name]['build']['cache_to']);
+    }
+
+    return $compose;
+}
+
+/**
  * The "docker" driver exports no cache without the containerd image store, and
- * fails the whole build on a cache_to instead of skipping it.
+ * fails the whole build on a cache_to instead of skipping it. It cannot import
+ * a GitHub Actions cache either: every build would log an error for it.
  *
  * @param array<string, mixed> $compose
  *
@@ -1571,14 +1615,27 @@ function generate_compose_file(Context $c, array $services): void
 function drop_unsupported_cache_export(array $compose, SystemProbe $probe): array
 {
     $services = $compose['services'] ?? [];
-    $exporting = array_filter($services, static fn(array $service): bool => isset($service['build']['cache_to']));
+    $usingGha = array_filter($services, static fn(array $service): bool => isset($service['build']['cache_to'])
+        || array_filter($service['build']['cache_from'] ?? [], static fn(string $cache): bool => str_contains($cache, 'type=gha')));
 
-    if (!$exporting || builder_exports_cache($probe)) {
+    if (!$usingGha || builder_exports_cache($probe)) {
         return $compose;
     }
 
-    foreach (array_keys($exporting) as $name) {
-        unset($compose['services'][$name]['build']['cache_to']);
+    foreach (array_keys($usingGha) as $name) {
+        $build = &$compose['services'][$name]['build'];
+        unset($build['cache_to']);
+
+        $build['cache_from'] = array_values(array_filter(
+            $build['cache_from'] ?? [],
+            static fn(string $cache): bool => !str_contains($cache, 'type=gha'),
+        ));
+
+        if (!$build['cache_from']) {
+            unset($build['cache_from']);
+        }
+
+        unset($build);
     }
 
     return $compose;

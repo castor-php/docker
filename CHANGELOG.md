@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+* [`build_cache_export`](tasks.md#on-github-actions) context variable and `CASTOR_DOCKER_BUILD_CACHE_EXPORT`: the builds read the caches but write none, e.g. outside of the default branch.
+
 ### Fixed
 
-* Builds on the `docker` buildx driver no longer fail on GitHub Actions: the GitHub Actions cache is only written when the builder can export a cache.
+* Builds on the `docker` buildx driver no longer fail on GitHub Actions: the GitHub Actions cache is only used when the builder can export a cache, the registry one otherwise.
 
 ## 0.9.0 - 2026-10-06
 

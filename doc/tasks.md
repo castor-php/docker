@@ -272,10 +272,11 @@ What a pull request writes stays with it: its next runs reuse it, the default
 branch never sees it. The layers it shares with the default branch are not
 stored twice.
 
-Builds only write it when the builder can export a cache: the `docker`
-driver, the default one of the runners, cannot without the containerd image
-store, and they then only read it. `docker/setup-buildx-action` sets up a
-builder that can, which `castor docker:push` needs anyway.
+Builds only use it when the builder can export a cache: the `docker` driver,
+the default one of the runners, can neither write nor read it without the
+containerd image store, and they then use the registry cache alone.
+`docker/setup-buildx-action` sets up a builder that can, which
+`castor docker:push` needs anyway.
 
 Buildx reaches that cache with variables Actions only hands to JavaScript
 actions, so every job that builds has to expose them first, reading the cache
@@ -295,6 +296,18 @@ needing them as much as writing it:
 Without them buildx skips the cache silently, and the build only uses the
 registry. A matrix building several variants of the same service has to give
 each one its own cache name, or the jobs overwrite each other's cache.
+
+Exporting a cache can take longer than the build it saves. To write it from
+the default branch only, the pull requests reading it, turn the export off
+everywhere else with the `build_cache_export` context variable or
+`CASTOR_DOCKER_BUILD_CACHE_EXPORT`, which wins over it:
+
+```yaml
+env:
+  CASTOR_DOCKER_BUILD_CACHE_EXPORT: ${{ github.ref == 'refs/heads/main' }}
+```
+
+`castor docker:push` is not affected: it writes the caches it is asked to.
 
 #### Publishing to ghcr.io
 
