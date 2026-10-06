@@ -10,6 +10,7 @@
  *    "type=registry,ref=..." entry;
  *  - "shorthand", whose cache_from is the bare image reference compose also
  *    accepts, and buildx does not accept in a cache-to;
+ *  - "mirrored", whose cache lives in two registries at once;
  *  - "uncached", which builds but has nowhere to push a cache, and must stay
  *    out of what bake is asked to build.
  *
@@ -59,6 +60,15 @@ function add_builds(ComposeBuilder $builder, Context $context): void
                 ->arg('greeting', 'shorthand')
                 // The shorthand compose accepts, on purpose.
                 ->cacheFrom("{$registry}/shorthand:cache")
+            ->end()
+            ->command(['sleep', 'infinity'])
+        ->end()
+        ->service('mirrored')
+            ->build()
+                ->context(__DIR__ . '/app')
+                ->arg('greeting', 'mirrored')
+                ->withRegistryCache('mirrored')
+                ->cacheFrom("type=registry,ref={$registry}/mirror:cache")
             ->end()
             ->command(['sleep', 'infinity'])
         ->end()

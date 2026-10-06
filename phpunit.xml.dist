@@ -6,6 +6,11 @@
          cacheDirectory=".phpunit.cache"
          failOnRisky="true"
 >
+    <php>
+        <!-- Adds a GitHub Actions cache to the generated compose files. -->
+        <env name="GITHUB_ACTIONS" value="" force="true"/>
+    </php>
+
     <testsuites>
         <testsuite name="unit">
             <directory>tests/Unit</directory>

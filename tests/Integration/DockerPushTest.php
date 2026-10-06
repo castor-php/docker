@@ -12,9 +12,9 @@ use Symfony\Component\Process\Process;
  * Nothing but a real registry says whether the cache export "docker:push" asks
  * bake for actually happened, so this starts a throwaway one and pushes to it.
  *
- * tests/fixtures/push-project declares the three cases the task has to tell
- * apart: a full "type=registry,ref=..." cache, the bare reference compose also
- * accepts, and a service that builds with no cache at all.
+ * tests/fixtures/push-project declares the cases the task has to tell apart: a
+ * full "type=registry,ref=..." cache, the bare reference compose also accepts,
+ * a cache in two registries, and a service that builds with no cache at all.
  *
  * Requires a castor binary (CASTOR_BINARY env var, or "castor" in PATH) and a
  * running Docker daemon.
@@ -47,7 +47,7 @@ final class DockerPushTest extends TestCase
         $targets = $plan['group']['default']['targets'];
         sort($targets);
 
-        static::assertSame(['cached', 'shorthand'], $targets, '"uncached" builds but has no cache to push, it has no business being built here.');
+        static::assertSame(['cached', 'mirrored', 'shorthand'], $targets, '"uncached" builds but has no cache to push, it has no business being built here.');
 
         // The bare reference of "shorthand" is what compose accepts and buildx
         // does not: unspelled, this is where the whole push would fail.
@@ -55,6 +55,52 @@ final class DockerPushTest extends TestCase
             [['mode' => 'max', 'ref' => 'registry.invalid/ns/shorthand:cache', 'type' => 'registry']],
             $plan['target']['shorthand']['cache-to'],
         );
+    }
+
+    public function testEveryCacheOfAServiceIsPushed(): void
+    {
+        $castor = $this->castorOrSkip();
+
+        $push = $this->castor($castor, ['docker:push', '--dry-run'], ['CASTOR_DOCKER_TEST_REGISTRY' => 'registry.invalid/ns']);
+
+        static::assertTrue($push->isSuccessful(), "castor docker:push --dry-run failed:\n" . $push->getOutput() . $push->getErrorOutput());
+
+        $target = json_decode($push->getOutput(), true)['target']['mirrored'];
+
+        static::assertSame([
+            ['mode' => 'max', 'ref' => 'registry.invalid/ns/mirrored:cache', 'type' => 'registry'],
+            ['mode' => 'max', 'ref' => 'registry.invalid/ns/mirror:cache', 'type' => 'registry'],
+        ], $target['cache-to']);
+        static::assertSame(['registry.invalid/ns/mirrored:latest', 'registry.invalid/ns/mirror:latest'], $target['tags']);
+    }
+
+    /**
+     * The GitHub Actions cache comes on top of the registry one, which the
+     * images still go to. The cache_to every build writes the GitHub one with
+     * gives way to the one exporting both.
+     */
+    public function testOnGithubActionsTheCacheIsAlsoPushedToGithub(): void
+    {
+        $castor = $this->castorOrSkip();
+
+        $push = $this->castor($castor, ['docker:push', '--dry-run'], [
+            'CASTOR_DOCKER_TEST_REGISTRY' => 'registry.invalid/ns',
+            'GITHUB_ACTIONS' => 'true',
+        ]);
+
+        static::assertTrue($push->isSuccessful(), "castor docker:push --dry-run failed:\n" . $push->getOutput() . $push->getErrorOutput());
+
+        $target = json_decode($push->getOutput(), true)['target']['cached'];
+
+        static::assertSame([
+            ['ref' => 'registry.invalid/ns/cached:cache', 'type' => 'registry'],
+            ['scope' => 'cached', 'type' => 'gha'],
+        ], $target['cache-from']);
+        static::assertSame([
+            ['mode' => 'max', 'ref' => 'registry.invalid/ns/cached:cache', 'type' => 'registry'],
+            ['ignore-error' => 'true', 'mode' => 'max', 'scope' => 'cached', 'type' => 'gha'],
+        ], $target['cache-to']);
+        static::assertSame(['registry.invalid/ns/cached:latest'], $target['tags']);
     }
 
     /**
@@ -147,7 +193,7 @@ final class DockerPushTest extends TestCase
                     unlink($config);
                 }
 
-                foreach (['cached', 'shorthand'] as $service) {
+                foreach (['cached', 'shorthand', 'mirrored', 'mirror'] as $service) {
                     $tags = json_decode((string) file_get_contents("{$api}{$namespace}/{$service}/tags/list"), true);
 
                     static::assertContains('cache', $tags['tags'] ?? [], "docker:push pushed no cache for \"{$service}\".");

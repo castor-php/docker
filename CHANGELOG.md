@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* On GitHub Actions, every build also reads and writes the [GitHub Actions cache](tasks.md#on-github-actions), and `castor docker:push` pushes to it.
+
+### Changed
+
+* `castor docker:push` pushes to every cache a service lists in its `cache_from`, not only the first one.
+
 ## 0.8.1 - 2026-09-29
 
 ### Added

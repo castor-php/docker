@@ -26,6 +26,8 @@ final class BuildBuilder
     private array $additionalContexts = [];
     /** @var array<string> */
     private array $cacheFrom = [];
+    /** @var array<string> */
+    private array $cacheTo = [];
 
     public function __construct(private readonly ServiceBuilder $serviceBuilder) {}
 
@@ -38,6 +40,7 @@ final class BuildBuilder
         $new->args = $this->args;
         $new->additionalContexts = $this->additionalContexts;
         $new->cacheFrom = $this->cacheFrom;
+        $new->cacheTo = $this->cacheTo;
 
         return $new;
     }
@@ -98,6 +101,7 @@ final class BuildBuilder
     public function noCacheFrom(): self
     {
         $this->cacheFrom = [];
+        $this->cacheTo = [];
 
         return $this;
     }
@@ -105,6 +109,16 @@ final class BuildBuilder
     public function withRegistryCache(string $image): self
     {
         $this->cacheFrom = ['type=registry,ref=${REGISTRY:-}/' . $image . ':cache'];
+        $this->cacheTo = [];
+
+        // BuildKit silently misses layers of a registry cache on CI
+        // (jolicode/docker-starter#430), the GitHub Actions one backs it up.
+        // Every build writes it: GitHub keeps what a pull request writes to
+        // that pull request, whose next runs reuse it.
+        if ('true' === getenv('GITHUB_ACTIONS')) {
+            $this->cacheFrom[] = 'type=gha,scope=' . $image;
+            $this->cacheTo = ['type=gha,scope=' . $image . ',mode=max,ignore-error=true'];
+        }
 
         return $this;
     }
@@ -143,6 +157,10 @@ final class BuildBuilder
 
         if (!empty($this->cacheFrom)) {
             $build['cache_from'] = $this->cacheFrom;
+        }
+
+        if (!empty($this->cacheTo)) {
+            $build['cache_to'] = $this->cacheTo;
         }
 
         return $build;
