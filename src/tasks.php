@@ -697,14 +697,14 @@ function push(
     }
 
     // Only a service declaring a cache_from has somewhere to push its build
-    // cache back to.
+    // cache back to, and it goes back to every one of them.
     $targets = [];
 
     foreach (get_services() as $service => $config) {
-        $cacheFrom = $config['build']['cache_from'][0] ?? null;
+        $cacheFrom = $config['build']['cache_from'] ?? [];
 
-        if (null !== $cacheFrom) {
-            $targets[$service] = normalize_cache_entry($cacheFrom);
+        if ($cacheFrom) {
+            $targets[$service] = array_map(normalize_cache_entry(...), $cacheFrom);
         }
     }
 
@@ -730,26 +730,43 @@ function push(
     // apply: bake sees every service that has a "build".
     $command = ['docker', 'buildx', 'bake', '-f', $c->workingDirectory . '/compose.yaml'];
 
-    foreach ($targets as $service => $cacheTo) {
-        $command[] = '--set';
-        $command[] = \sprintf('%s.cache-to=%s,mode=max', $service, $cacheTo);
+    foreach ($targets as $service => $cacheEntries) {
+        $images = [];
 
-        $cacheRef = get_cache_reference($cacheTo);
+        foreach ($cacheEntries as $cacheTo) {
+            $cacheRef = get_cache_reference($cacheTo);
 
-        // "type=gha" or "type=local" names no repository to publish an image
-        // to, so that service pushes its cache and nothing else.
-        if (null === $cacheRef) {
+            $command[] = '--set';
+            // A GitHub Actions cache only backs the registry one up: its
+            // outage must not keep the images from being pushed.
+            $command[] = \sprintf('%s.cache-to=%s,mode=max%s', $service, $cacheTo, str_contains($cacheTo, 'type=gha') ? ',ignore-error=true' : '');
+
+            // "type=gha" or "type=local" names no repository to publish an
+            // image to.
+            if (null === $cacheRef) {
+                continue;
+            }
+
+            $image = get_image_reference($cacheRef, $tag);
+
+            if ($image === $cacheRef) {
+                throw new \RuntimeException(\sprintf('Pushing "%s" under the tag "%s" would overwrite the build cache of "%s". Pick another --tag.', $image, $tag, $service));
+            }
+
+            $images[] = $image;
+        }
+
+        // A service whose caches all live outside of a registry pushes its
+        // cache and nothing else.
+        if (!$images) {
             continue;
         }
 
-        $image = get_image_reference($cacheRef, $tag);
-
-        if ($image === $cacheRef) {
-            throw new \RuntimeException(\sprintf('Pushing "%s" under the tag "%s" would overwrite the build cache of "%s". Pick another --tag.', $image, $tag, $service));
+        foreach ($images as $image) {
+            $command[] = '--set';
+            $command[] = \sprintf('%s.tags=%s', $service, $image);
         }
 
-        $command[] = '--set';
-        $command[] = \sprintf('%s.tags=%s', $service, $image);
         // Per target, rather than a global "--push": the services whose cache
         // is not a registry one must not be pushed anywhere.
         $command[] = '--set';

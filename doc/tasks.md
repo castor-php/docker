@@ -246,7 +246,9 @@ built, and `docker buildx bake` reads the compose file itself, so what it builds
 is exactly what `castor docker:build` builds.
 
 Each service lands in one repository, holding its cache under the `cache` tag
-and its image under `latest` — `--tag` publishes it under another name. The
+and its image under `latest` — `--tag` publishes it under another name. A
+service listing several caches in its `cache_from` pushes to all of them, and
+its image to each registry among them. The
 image carries `org.opencontainers.image.source`, which is what
 [attaches the package to your repository](#publishing-to-ghcr-io).
 
@@ -257,6 +259,37 @@ castor docker:push
 castor docker:push --tag "$(git rev-parse --short HEAD)"
 castor docker:push --dry-run
 ```
+
+#### On GitHub Actions
+
+When `GITHUB_ACTIONS` is set, every registry cache gets a
+[GitHub Actions cache](https://docs.docker.com/build/cache/backends/gha/) next
+to it, scoped by the cache name: every build reads both and writes the GitHub
+one, `castor docker:push` writes both. BuildKit sometimes misses layers of a
+registry cache without a word, the second one makes up for it.
+
+What a pull request writes stays with it: its next runs reuse it, the default
+branch never sees it. The layers it shares with the default branch are not
+stored twice.
+
+Buildx reaches that cache with variables Actions only hands to JavaScript
+actions, so every job that builds has to expose them first, reading the cache
+needing them as much as writing it:
+
+```yaml
+- uses: actions/github-script@v9
+  with:
+    script: |
+      core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN)
+      core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL)
+      core.exportVariable('ACTIONS_CACHE_SERVICE_V2', process.env.ACTIONS_CACHE_SERVICE_V2 || 'true')
+
+- run: castor docker:build
+```
+
+Without them buildx skips the cache silently, and the build only uses the
+registry. A matrix building several variants of the same service has to give
+each one its own cache name, or the jobs overwrite each other's cache.
 
 #### Publishing to ghcr.io
 
