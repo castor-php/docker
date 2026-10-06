@@ -33,7 +33,7 @@ function default_context(): Context
 | `resolve_domains_via_host` | Whether the containers resolve the project's own public domains, `true` by default — see [below](#resolving-your-own-domains-from-a-container) |
 | `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
 | `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
-| `build_cache_export` | Whether the builds write their cache, `true` by default — see [on GitHub Actions](tasks.md#on-github-actions) |
+| `build_parallel` | Whether the services are built on their own, in parallel, so services sharing a stage keep their build cache, `false` by default — see [`docker:build`](tasks.md#castor-dockerbuild) |
 | `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |
@@ -175,5 +175,4 @@ And it reads these from your own environment:
 | Variable | Role |
 |----------|------|
 | `CASTOR_DOCKER_ROUTER_AUTOSTART` | Turns the router autostart on or off for a single command, over the `router_autostart` context variable |
-| `CASTOR_DOCKER_BUILD_CACHE_EXPORT` | Turns the export of the build caches on or off, over the `build_cache_export` context variable |
 | `DOCKER_SOCKET_PATH` | The Docker socket the router watches, before `DOCKER_HOST` and `/var/run/docker.sock` — see [the socket it watches](services/router.md#the-docker-socket-it-watches) |

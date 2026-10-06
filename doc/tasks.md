@@ -58,11 +58,18 @@ castor docker:build app                 # a single service
 castor docker:build --profiles builder  # restrict to a profile
 ```
 
-Each service builds on its own, all of them in parallel, and its log is
-printed once it is done. Built together, the services sharing a stage — the
-`php-base` of an application and of its builder — randomly lost the build
-cache of all but one of them ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)).
-`castor docker:push` builds its targets the same way.
+`--parallel` builds each service on its own, all of them in parallel, and
+prints the log of each one once it is done. Built together, services sharing a
+stage — an application and its builder sharing `php-base` — race their build
+caches, and BuildKit randomly rebuilds the steps of all but one of them
+([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)). Turn it on
+for a whole project with the `build_parallel` context variable: `castor docker:up
+--build` and `castor docker:push` follow it too, `--no-parallel` turns it off
+for a single command.
+
+```bash
+castor docker:build --parallel
+```
 
 Alias: `castor build`.
 
@@ -265,55 +272,6 @@ castor docker:push
 castor docker:push --tag "$(git rev-parse --short HEAD)"
 castor docker:push --dry-run
 ```
-
-#### On GitHub Actions
-
-When `GITHUB_ACTIONS` is set, every registry cache gets a
-[GitHub Actions cache](https://docs.docker.com/build/cache/backends/gha/) next
-to it, scoped by the cache name: every build reads both and writes the GitHub
-one, `castor docker:push` writes both. BuildKit sometimes misses layers of a
-registry cache without a word, the second one makes up for it.
-
-What a pull request writes stays with it: its next runs reuse it, the default
-branch never sees it. The layers it shares with the default branch are not
-stored twice.
-
-Builds only use it when the builder can export a cache: the `docker` driver,
-the default one of the runners, can neither write nor read it without the
-containerd image store, and they then use the registry cache alone.
-`docker/setup-buildx-action` sets up a builder that can, which
-`castor docker:push` needs anyway.
-
-Buildx reaches that cache with variables Actions only hands to JavaScript
-actions, so every job that builds has to expose them first, reading the cache
-needing them as much as writing it:
-
-```yaml
-- uses: actions/github-script@v9
-  with:
-    script: |
-      core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN)
-      core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL)
-      core.exportVariable('ACTIONS_CACHE_SERVICE_V2', process.env.ACTIONS_CACHE_SERVICE_V2 || 'true')
-
-- run: castor docker:build
-```
-
-Without them buildx skips the cache silently, and the build only uses the
-registry. A matrix building several variants of the same service has to give
-each one its own cache name, or the jobs overwrite each other's cache.
-
-Exporting a cache can take longer than the build it saves. To write it from
-the default branch only, the pull requests reading it, turn the export off
-everywhere else with the `build_cache_export` context variable or
-`CASTOR_DOCKER_BUILD_CACHE_EXPORT`, which wins over it:
-
-```yaml
-env:
-  CASTOR_DOCKER_BUILD_CACHE_EXPORT: ${{ github.ref == 'refs/heads/main' }}
-```
-
-`castor docker:push` is not affected: it writes the caches it is asked to.
 
 #### Publishing to ghcr.io
 

@@ -4,12 +4,11 @@
 
 ### Added
 
-* [`build_cache_export`](tasks.md#on-github-actions) context variable and `CASTOR_DOCKER_BUILD_CACHE_EXPORT`: the builds read the caches but write none, e.g. outside of the default branch.
+* [`docker:build --parallel`](tasks.md#castor-dockerbuild) and the `build_parallel` context variable: each service builds on its own, in parallel, so services sharing a stage keep their build cache ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)). `docker:push` follows them too.
 
-### Fixed
+### Removed
 
-* `castor docker:build` and `castor docker:push` build each service on its own, in parallel: in a single bake session BuildKit randomly lost the build cache of all but one of the services sharing a stage ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)).
-* Builds on the `docker` buildx driver no longer fail on GitHub Actions: the GitHub Actions cache is only used when the builder can export a cache, the registry one otherwise.
+* The GitHub Actions cache 0.9.0 added to every build on GitHub Actions. The registry cache misses it made up for come from a BuildKit race between caches describing the same stages, which a second cache only makes worse, and the `docker` driver of the runners failed the build exporting it. A service still takes any cache given to its `cacheFrom()`.
 
 ## 0.9.0 - 2026-10-06
 

@@ -8,6 +8,7 @@ use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsOption;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
+use Castor\Context;
 use Castor\Console\Output\VerbosityLevel;
 use Castor\Docker\Doctor\Doctor;
 use Castor\Docker\Doctor\HostSystemProbe;
@@ -41,6 +42,8 @@ function build(
     ?string $service = null,
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
+    #[AsOption(description: 'Build each service on its own, in parallel, so services sharing a stage keep their build cache', mode: InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE)]
+    ?bool $parallel = null,
 ): void {
     io()->title('Building infrastructure');
 
@@ -63,15 +66,23 @@ function build(
         $profiles[] = 'builder';
     }
 
-    $services = $service ? [$service] : get_buildable_services($profiles);
+    $services = $service || !is_build_parallel($parallel) ? [] : get_buildable_services($profiles);
 
     if (\count($services) < 2) {
-        docker_compose([...$command, ...$services], profiles: $profiles);
+        docker_compose($service ? [...$command, $service] : $command, profiles: $profiles);
 
         return;
     }
 
     build_separately($command, $services, $profiles);
+}
+
+/**
+ * Off by default: the logs of the services only show once each one is built.
+ */
+function is_build_parallel(?bool $option = null, ?Context $c = null): bool
+{
+    return $option ?? (($c ?? context())->data['build_parallel'] ?? false);
 }
 
 /**
@@ -763,6 +774,8 @@ function push(
     bool $dryRun = false,
     #[AsOption(description: 'The tag the images are published under')]
     string $tag = 'latest',
+    #[AsOption(description: 'Build each target on its own, in parallel, so targets sharing a stage keep their build cache', mode: InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE)]
+    ?bool $parallel = null,
 ): void {
     $registry = variable('registry');
 
@@ -814,9 +827,7 @@ function push(
             $cacheRef = get_cache_reference($cacheTo);
 
             $options[$service][] = '--set';
-            // A GitHub Actions cache only backs the registry one up: its
-            // outage must not keep the images from being pushed.
-            $options[$service][] = \sprintf('%s.cache-to=%s,mode=max%s', $service, $cacheTo, str_contains($cacheTo, 'type=gha') ? ',ignore-error=true' : '');
+            $options[$service][] = \sprintf('%s.cache-to=%s,mode=max', $service, $cacheTo);
 
             // "type=gha" or "type=local" names no repository to publish an
             // image to.
@@ -872,8 +883,8 @@ function push(
 
     // Naming the targets keeps out the services that build without a cache:
     // bake's default group is every buildable service of the project.
-    if ($dryRun) {
-        run([...$command, ...array_merge(...array_values($options)), '--print', ...array_keys($targets)], context: $c);
+    if ($dryRun || !is_build_parallel($parallel)) {
+        run([...$command, ...array_merge(...array_values($options)), ...($dryRun ? ['--print'] : []), ...array_keys($targets)], context: $c);
 
         return;
     }
