@@ -58,8 +58,10 @@ castor docker:build app                 # a single service
 castor docker:build --profiles builder  # restrict to a profile
 ```
 
-`--parallel` builds each service on its own, all of them in parallel, and
-prints the log of each one once it is done. Built together, services sharing a
+`--parallel` builds each service on its own, all of them in parallel. A
+terminal shows one line per service with the step it is at, and the full log of
+the builds that failed once they are all done; anywhere else, a CI log or a
+pipe, every line streams as it comes, prefixed by its service. Built together, services sharing a
 stage — an application and its builder sharing `php-base` — race their build
 caches, and BuildKit randomly rebuilds the steps of all but one of them
 ([moby/buildkit#6418](https://github.com/moby/buildkit/issues/6418)). Turn it on

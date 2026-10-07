@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* The parallel builds show their progress live: one line per service in a terminal, every line prefixed by its service anywhere else.
+
 ## 0.10.0 - 2026-10-06
 
 ### Added
