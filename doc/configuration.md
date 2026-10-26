@@ -25,7 +25,7 @@ function default_context(): Context
 |----------|------|
 | `root_domain` | Root domain used by the services exposing a UI (`redis.{root_domain}`, `mailpit.{root_domain}`, …) |
 | `registry` | Registry the build cache is pushed to and pulled from |
-| `repository` | Repository `castor docker:push` labels the images with, so the registry attaches the packages to it — deduced from `GITHUB_REPOSITORY` or the `origin` remote otherwise, see [`docker:push`](tasks.md#publishing-to-ghcr-io) |
+| `repository` | Repository `castor docker:push` labels the images with, so the registry attaches the packages to it — deduced from `GITHUB_REPOSITORY` or the `origin` remote otherwise, see [`docker:push`](tasks.md#publishing-to-ghcrio) |
 | `project_name` | Compose project name — wins over the `name:` of `compose.yaml`, see [running two checkouts side by side](#running-two-checkouts-side-by-side) |
 | `user_id` | UID the containers run as, defaults to your own |
 | `twig_dockerfile_frontend` | Overrides the pinned [twig-dockerfile frontend](going-further/custom-dockerfile.md#pinning-the-frontend) |
