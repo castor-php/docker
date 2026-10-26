@@ -1,4 +1,5 @@
 ---
+render_macros: true
 title: Docker environments for PHP, driven from PHP
 description: A Castor plugin that generates your Docker Compose stack and the tasks to drive it — applications, databases, router and HTTPS included.
 ---
@@ -17,7 +18,7 @@ description: A Castor plugin that generates your Docker Compose stack and the ta
 
 ## 🚀 TL;DR
 
-{% include-markdown "../README.md" start="<!-- start index -->" end="<!-- end index -->" %}
+{{ markdown("README.md", start="<!-- start index -->", end="<!-- end index -->") }}
 
 ## Want more?
 
