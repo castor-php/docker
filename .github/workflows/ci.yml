@@ -66,6 +66,21 @@ jobs:
       - name: PHP CS Fixer
         run: castor qa:cs --dry-run
 
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Castor
+        uses: castor-php/setup-castor@2a495b8c91f00be6768ad8a040ba8634c797d386 # v1.1.0
+
+      - name: Build the documentation website
+        run: castor docs:build
+
   zizmor:
     name: GitHub Actions security analysis
     runs-on: ubuntu-latest
