@@ -19,7 +19,7 @@ final class ComposeProgressTest extends TestCase
 {
     private function context(VerbosityLevel $level): Context
     {
-        return (new Context())->withVerbosityLevel($level);
+        return (new Context(workingDirectory: __DIR__))->withVerbosityLevel($level);
     }
 
     public function testTheAnnouncementsAreSilencedAtNormalVerbosity(): void

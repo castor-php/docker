@@ -42,7 +42,7 @@ final class RouterAutostartTest extends TestCase
         /** @var array{router_autostart?: bool} $data */
         $data = null === $autostart ? [] : ['router_autostart' => $autostart];
 
-        return new Context($data);
+        return new Context($data, workingDirectory: __DIR__);
     }
 
     /**

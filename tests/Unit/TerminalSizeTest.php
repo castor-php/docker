@@ -20,7 +20,7 @@ final class TerminalSizeTest extends TestCase
     {
         static::assertSame(
             ['COLUMNS' => '203', 'LINES' => '51'],
-            get_terminal_size_environment(new Context(), [203, 51]),
+            get_terminal_size_environment(new Context(workingDirectory: __DIR__), [203, 51]),
         );
     }
 
@@ -30,7 +30,7 @@ final class TerminalSizeTest extends TestCase
      */
     public function testATerminalPassedThroughIsLeftAlone(): void
     {
-        static::assertSame([], get_terminal_size_environment((new Context())->withTty(), [203, 51]));
+        static::assertSame([], get_terminal_size_environment((new Context(workingDirectory: __DIR__))->withTty(), [203, 51]));
     }
 
     /**
@@ -43,6 +43,6 @@ final class TerminalSizeTest extends TestCase
             static::markTestSkipped('The size is read from the terminal this test suite is itself writing to.');
         }
 
-        static::assertSame([], get_terminal_size_environment(new Context(), null));
+        static::assertSame([], get_terminal_size_environment(new Context(workingDirectory: __DIR__), null));
     }
 }
