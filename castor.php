@@ -11,7 +11,7 @@ use function Castor\PHPQa\php_cs_fixer;
 
 defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
 
-import(__DIR__ . '/tools/mkdocs/castor.php');
+import(__DIR__ . '/tools/doc/castor.php');
 
 #[AsTask(description: 'Run PHPStan', namespace: 'qa', name: 'phpstan', aliases: ['phpstan'])]
 function qa_phpstan(bool $generateBaseline = false): int

@@ -142,11 +142,11 @@ multiple applications and services.
 
 ## Contributing
 
-The documentation lives in [`doc/`](./doc/) and is built with MkDocs:
+The documentation lives in [`doc/`](./doc/) and is built with [Zensical](https://zensical.org/):
 
 ```bash
 castor docs:serve   # http://127.0.0.1:8000, rebuilds on change
-castor docs:build   # build the static site in tools/mkdocs/site
+castor docs:build   # build the static site in tools/doc/site
 ```
 
 Quality tooling for the plugin itself:

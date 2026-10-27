@@ -19,7 +19,7 @@ permissions: {}
 
 jobs:
   build:
-    name: Build documentation website with MkDocs
+    name: Build documentation website with Zensical
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,13 +40,13 @@ jobs:
           # Turn Pages on if it is not already, instead of failing
           enablement: true
 
-      - name: Build site with mkdocs
+      - name: Build the documentation website
         run: castor docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: ./tools/mkdocs/site
+          path: ./tools/doc/site
 
   deploy:
     name: Deploy to GitHub Pages

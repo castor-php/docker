@@ -265,7 +265,7 @@ and its image under `latest` — `--tag` publishes it under another name. A
 service listing several caches in its `cache_from` pushes to all of them, and
 its image to each registry among them. The
 image carries `org.opencontainers.image.source`, which is what
-[attaches the package to your repository](#publishing-to-ghcr-io).
+[attaches the package to your repository](#publishing-to-ghcrio).
 
 `--dry-run` prints the build plan bake resolved, without running it.
 

@@ -13,9 +13,9 @@ use function Castor\http_download;
 use function Castor\io;
 use function Castor\run;
 
-const IMAGE_NAME = 'castor-docker-mkdocs';
+const IMAGE_NAME = 'castor-docker-doc';
 
-#[AsTask(description: 'Build the MkDocs Docker image', namespace: 'docs', name: 'image')]
+#[AsTask(description: 'Build the documentation Docker image', namespace: 'docs', name: 'image')]
 function image(bool $force = false): void
 {
     if (!$force && has_image()) {
@@ -24,7 +24,7 @@ function image(bool $force = false): void
         return;
     }
 
-    io()->title('Building the MkDocs Docker image');
+    io()->title('Building the documentation Docker image');
 
     run(['docker', 'build', '-t', IMAGE_NAME, __DIR__]);
 }
@@ -32,10 +32,10 @@ function image(bool $force = false): void
 #[AsTask(description: 'Fetch the JoliCode theme assets used by the documentation', namespace: 'docs', name: 'assets')]
 function assets(): void
 {
-    io()->title('Fetching external assets for the MkDocs documentation');
+    io()->title('Fetching external assets for the documentation');
 
     http_download(
-        'https://raw.githubusercontent.com/jolicode/oss-theme/refs/heads/main/MkDocs/extra.css',
+        'https://raw.githubusercontent.com/jolicode/oss-theme/refs/heads/main/Zensical/extra.css',
         root() . '/doc/assets/stylesheets/jolicode.css',
     );
     http_download(
@@ -64,9 +64,9 @@ function build(): void
 {
     assets();
 
-    io()->title('Building the MkDocs documentation');
+    io()->title('Building the documentation');
 
-    do_run(['mkdocs', 'build']);
+    do_run(['zensical', 'build', '--strict']);
 
     io()->success(\sprintf('Documentation built in %s/site.', __DIR__));
 }
@@ -76,11 +76,11 @@ function serve(int $port = 8000): void
 {
     assets();
 
-    io()->title('Serving the MkDocs documentation');
+    io()->title('Serving the documentation');
     io()->writeln(\sprintf('  <info>http://127.0.0.1:%d</info>', $port));
 
     do_run(
-        ['mkdocs', 'serve', '--livereload', '--dev-addr', '0.0.0.0:8000'],
+        ['zensical', 'serve', '--dev-addr', '0.0.0.0:8000'],
         ports: [\sprintf('%d:8000', $port)],
     );
 }
@@ -117,16 +117,15 @@ function do_run(array $command, array $ports = []): Process
     $arguments = [
         'docker', 'run', '--rm', '--init',
         '--user', "{$userId}:{$groupId}",
-        // The image installs MkDocs system-wide, but the social plugin wants a
-        // writable home for its font cache.
+        // The social plugin wants a writable home for its font cache.
         '--env', 'HOME=/tmp',
-        '--volume', \sprintf('%s:/mkdocs:cached', __DIR__),
+        '--volume', \sprintf('%s:/doc:cached', __DIR__),
         // Mounted next to the docs so pages can include them, see the
-        // "include-markdown" directives in doc/.
-        '--volume', \sprintf('%s:/mkdocs/doc:cached', root() . '/doc'),
-        '--volume', \sprintf('%s:/mkdocs/README.md:cached', root() . '/README.md'),
-        '--volume', \sprintf('%s:/mkdocs/CHANGELOG.md:cached', root() . '/CHANGELOG.md'),
-        '--volume', \sprintf('%s:/mkdocs/example:cached', root() . '/example'),
+        // markdown() macros in doc/.
+        '--volume', \sprintf('%s:/doc/doc:cached', root() . '/doc'),
+        '--volume', \sprintf('%s:/doc/README.md:cached', root() . '/README.md'),
+        '--volume', \sprintf('%s:/doc/CHANGELOG.md:cached', root() . '/CHANGELOG.md'),
+        '--volume', \sprintf('%s:/doc/example:cached', root() . '/example'),
     ];
 
     foreach ($ports as $port) {
