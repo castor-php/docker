@@ -10,8 +10,6 @@ use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Console\Output\VerbosityLevel;
-use Castor\Docker\Build\BoardBuildReporter;
-use Castor\Docker\Build\StreamedBuildReporter;
 use Castor\Docker\Doctor\Doctor;
 use Castor\Docker\Doctor\HostSystemProbe;
 use Castor\Docker\Installer\Ast\ServiceStatementBuilder;
@@ -22,7 +20,6 @@ use Castor\Docker\Service\ServiceInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Terminal;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Process;
@@ -31,7 +28,7 @@ use function Castor\app;
 use function Castor\capture;
 use function Castor\context;
 use function Castor\io;
-use function Castor\output;
+use function Castor\parallel;
 use function Castor\variable;
 use function Castor\run;
 
@@ -98,90 +95,22 @@ function build_separately(array $command, array $services, array $profiles): voi
     $builds = [];
 
     foreach ($services as $service) {
-        [$compose, $c] = docker_compose_command([...$command, $service], profiles: $profiles, progress: 'plain');
-        $builds[$service] = new Process($compose, $c->workingDirectory, $c->environment, null, null);
+        $builds[$service] = static fn(): Process => docker_compose([...$command, $service], profiles: $profiles, progress: 'plain');
     }
 
     run_builds_in_parallel($builds);
 }
 
 /**
- * Polls the processes itself rather than through castor's parallel(), which
- * sleeps once per process on every round: the more services, the slower the
- * output would refresh.
+ * Each build is a job of castor's parallel(): a block per service with its last
+ * lines in a terminal, every line prefixed by its service anywhere else, and
+ * the full log of the failed ones once they are all done.
  *
- * @param non-empty-array<string, Process> $builds
+ * @param non-empty-array<string, \Closure(): Process> $builds
  */
 function run_builds_in_parallel(array $builds): void
 {
-    $services = array_keys($builds);
-    $output = output();
-    $reporter = $output instanceof ConsoleOutputInterface && $output->isDecorated() && stream_isatty(\STDOUT)
-        ? new BoardBuildReporter($output->section(), $output, $services)
-        : new StreamedBuildReporter($output, $services);
-
-    /** @var array<string, array<string, string>> $buffers one per stream, a line may arrive in several chunks */
-    $buffers = [];
-
-    $emit = static function (string $service, string $line) use ($reporter): void {
-        // BuildKit separates its steps with blank lines, which only add noise
-        // once interleaved with other builds.
-        if ('' !== $line = rtrim($line)) {
-            $reporter->line($service, $line);
-        }
-    };
-
-    foreach ($builds as $service => $process) {
-        $process->start(static function (string $type, string $bytes) use ($service, &$buffers, $emit): void {
-            $buffer = ($buffers[$service][$type] ?? '') . $bytes;
-
-            while (false !== $end = strpos($buffer, "\n")) {
-                $emit($service, substr($buffer, 0, $end));
-                $buffer = substr($buffer, $end + 1);
-            }
-
-            $buffers[$service][$type] = $buffer;
-        });
-    }
-
-    $running = $builds;
-    $failed = [];
-
-    try {
-        while ($running) {
-            foreach ($running as $service => $process) {
-                // Reading the status is also what feeds the output callback.
-                if ($process->isRunning()) {
-                    continue;
-                }
-
-                unset($running[$service]);
-
-                foreach ($buffers[$service] ?? [] as $rest) {
-                    $emit($service, $rest);
-                }
-
-                $reporter->finish($service, $process->isSuccessful());
-
-                if (!$process->isSuccessful()) {
-                    $failed[] = $service;
-                }
-            }
-
-            $reporter->tick();
-            usleep(10_000);
-        }
-    } finally {
-        foreach ($running as $process) {
-            $process->stop();
-        }
-
-        $reporter->end();
-    }
-
-    if ($failed) {
-        throw new \RuntimeException(\sprintf('The build of %s failed.', implode(', ', $failed)));
-    }
+    parallel(...$builds);
 }
 
 /**
@@ -941,7 +870,7 @@ function push(
     $builds = [];
 
     foreach (array_keys($targets) as $service) {
-        $builds[$service] = new Process([...$command, ...$options[$service], '--progress', 'plain', $service], $c->workingDirectory, $c->environment, null, null);
+        $builds[$service] = static fn(): Process => run([...$command, ...$options[$service], '--progress', 'plain', $service], context: $c);
     }
 
     run_builds_in_parallel($builds);

@@ -59,7 +59,7 @@ castor docker:build --profiles builder  # restrict to a profile
 ```
 
 `--parallel` builds each service on its own, all of them in parallel. A
-terminal shows one line per service with the step it is at, and the full log of
+terminal shows one block per service with its last lines, and the full log of
 the builds that failed once they are all done; anywhere else, a CI log or a
 pipe, every line streams as it comes, prefixed by its service. Built together, services sharing a
 stage — an application and its builder sharing `php-base` — race their build

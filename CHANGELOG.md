@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* The plugin requires Castor 1.9.
+* The parallel builds are shown as jobs of Castor's `parallel()`: one block per service with its last lines in a terminal, instead of one line with the step it is at.
+
 ## 0.10.1 - 2026-10-07
 
 ### Changed
