@@ -58,15 +58,6 @@ trait HasDirectory
     }
 
     /**
-     * The working directory as seen from the host: what the tasks running
-     * outside of a container (the PHP QA tools, for instance) should use.
-     */
-    protected function getHostWorkingDirectory(): string
-    {
-        return $this->joinPath($this->getDirectory(), $this->workingDirectory);
-    }
-
-    /**
      * Absolute: a withDirectory() left out or relative is relative to the
      * project, which only the context knows about.
      */
