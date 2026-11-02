@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+* `SymfonyService::withPhpTwigCsFixerVersion()` is renamed `withTwigCsFixerVersion()`.
+* A service linked to a database always waits for its healthcheck.
+
+### Removed
+
+* `withDatabaseService()` and `withMailerService()`, deprecated since 0.8: use `link()`.
+* `DatabaseServiceInterface::hasHealthCheck()`: every database has a healthcheck.
+* The "Enabled in cache" line of `docker:router:status`, which autostart made meaningless.
+
 ### Fixed
 
 * The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.
