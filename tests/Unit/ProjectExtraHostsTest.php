@@ -57,7 +57,6 @@ final class ProjectExtraHostsTest extends TestCase
             ->service('app')
                 ->extraHost('host.docker.internal', 'host-gateway')
                 ->withHttpRouting('app.demo.test', 80)
-            ->end()
         ;
 
         add_project_extra_hosts($this->context(), $builder);
@@ -76,7 +75,7 @@ final class ProjectExtraHostsTest extends TestCase
     {
         $builder = new ComposeBuilder();
         $builder
-            ->service('app')->withHttpRouting(['app.demo.test', 'localhost', 'app'], 80)->end()
+            ->service('app')->withHttpRouting(['app.demo.test', 'localhost', 'app'], 80)
         ;
 
         add_project_extra_hosts($this->context(), $builder);
@@ -87,7 +86,7 @@ final class ProjectExtraHostsTest extends TestCase
     public function testNothingIsAddedWhenEveryDomainIsDotless(): void
     {
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('localhost', 80)->end();
+        $builder->service('app')->withHttpRouting('localhost', 80);
 
         add_project_extra_hosts($this->context(), $builder);
 
@@ -107,7 +106,7 @@ final class ProjectExtraHostsTest extends TestCase
     public function testItCanBeTurnedOffFromTheContext(): void
     {
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('app.demo.test', 80)->end();
+        $builder->service('app')->withHttpRouting('app.demo.test', 80);
 
         add_project_extra_hosts($this->context(false), $builder);
 
@@ -117,7 +116,7 @@ final class ProjectExtraHostsTest extends TestCase
     public function testItIsOnByDefault(): void
     {
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('app.demo.test', 80)->end();
+        $builder->service('app')->withHttpRouting('app.demo.test', 80);
 
         add_project_extra_hosts($this->context(true), $builder);
 

@@ -11,7 +11,9 @@ use Castor\Docker\Installer\MeilisearchInstaller;
 use Castor\Docker\Installer\MercureInstaller;
 use Castor\Docker\Installer\RustFSInstaller;
 use Castor\Docker\Installer\RustInstaller;
+use Castor\Docker\Installer\ServiceInstaller;
 use Castor\Docker\Installer\SymfonyInstaller;
+use Castor\Docker\Service\RustFSService;
 use PHPUnit\Framework\TestCase;
 
 final class InstallerTest extends TestCase
@@ -31,7 +33,10 @@ final class InstallerTest extends TestCase
 
         PHP;
 
-    private function install(object $installer, array $answers, string $source = self::LISTENER): string
+    /**
+     * @param array<string, mixed> $answers
+     */
+    private function install(ServiceInstaller $installer, array $answers, string $source = self::LISTENER): string
     {
         $editor = new ListenerEditor($source);
         $builder = new ServiceStatementBuilder($editor->getEventVariable());
@@ -96,7 +101,9 @@ final class InstallerTest extends TestCase
             "\$event->addService((new RustFSService())->withVersion('1.0.0')->withBucket('uploads')->withBucket('media'));",
             $result,
         );
-        static::assertSame(['uploads', 'media'], array_keys((new RustFSInstaller())->createInstance(['version' => '1.0.0', 'buckets' => 'uploads, media'])->getBuckets()));
+        $service = (new RustFSInstaller())->createInstance(['version' => '1.0.0', 'buckets' => 'uploads, media']);
+        static::assertInstanceOf(RustFSService::class, $service);
+        static::assertSame(['uploads', 'media'], array_keys($service->getBuckets()));
     }
 
     public function testMeilisearchAndMercureInstallers(): void

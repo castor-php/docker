@@ -119,7 +119,6 @@ final class ComposeBuilderTest extends TestCase
                 // Already mounted by "app": the same directory is only returned once.
                 ->volume('.home', '/home/app', 'cached')
                 ->volume('/var/run/docker.sock', '/var/run/docker.sock')
-            ->end()
         ;
 
         static::assertSame(
