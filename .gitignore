@@ -3,6 +3,7 @@ vendor
 
 .castor.stub.php
 .php-cs-fixer.cache
+.twig-cs-fixer.cache
 .phpunit.cache
 
 # Downloaded by "castor docs:assets"
