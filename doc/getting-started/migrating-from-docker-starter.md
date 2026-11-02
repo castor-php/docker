@@ -192,7 +192,7 @@ Pin the versions your `tools/*/composer.json` used, on the service:
 (new SymfonyService('app'))
     ->withPhpStanVersion('^2.0')
     ->withPhpCsFixerVersion('^3.0')
-    ->withPhpTwigCsFixerVersion('^3.0')
+    ->withTwigCsFixerVersion('^3.0')
     ->addPhpStanExtraDependency('phpstan/phpstan-symfony', '^2.0')
 ```
 
