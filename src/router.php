@@ -12,7 +12,6 @@ use Symfony\Component\Process\ExecutableFinder;
 use function Castor\capture;
 use function Castor\context;
 use function Castor\fs;
-use function Castor\get_cache;
 use function Castor\io;
 use function Castor\run;
 use function Castor\yaml_dump;
@@ -443,10 +442,6 @@ function start_router(): array
     // router is already up at that time.
     $networks = connect_router_to_running_projects();
 
-    $routerCache = get_cache()->getItem('infrastructure.router.enabled');
-    $routerCache->set(true);
-    get_cache()->save($routerCache);
-
     return $networks;
 }
 
@@ -467,10 +462,6 @@ function stop_router(): bool
     close_all_tunnels();
 
     run(['docker', 'compose', '-f', $composeFile, 'down']);
-
-    $routerCache = get_cache()->getItem('infrastructure.router.enabled');
-    $routerCache->set(false);
-    get_cache()->save($routerCache);
 
     return true;
 }
@@ -756,15 +747,12 @@ function describe_router_configuration(): string
 function router_status(): void
 {
     $isRunning = is_router_running();
-    $cacheItem = get_cache()->getItem('infrastructure.router.enabled');
-    $isEnabled = $cacheItem->isHit() && $cacheItem->get() === true;
     $served = $isRunning ? get_routed_projects() : [];
 
     io()->title('Castor Docker Router Status');
 
     io()->definitionList(
         ['Status' => $isRunning ? '<fg=green>Running</>' : '<fg=red>Stopped</>'],
-        ['Enabled in cache' => $isEnabled ? '<fg=green>Yes</>' : '<fg=yellow>No</>'],
         ['Autostart' => is_router_autostart_enabled() ? '<fg=green>On</>' : '<fg=yellow>Off</>'],
         ['Compose file' => file_exists(get_router_compose_file()) ? get_router_compose_file() : '<fg=red>Not found</>'],
         ['Container name' => get_router_name()],
