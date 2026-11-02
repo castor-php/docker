@@ -39,7 +39,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
     public function testTheOriginalHostIsForwardedByDefault(): void
     {
         $configuration = $this->configuration(
-            (new RedirectionioAgentService())->addReverseProxy('app.demo.test', 'app')
+            new RedirectionioAgentService()->addReverseProxy('app.demo.test', 'app')
         );
 
         static::assertTrue($configuration['reverse_proxy']['virtual_hosts'][0]['forward']['preserve_host']);
@@ -54,8 +54,8 @@ final class RedirectionioAgentTest extends SnapshotTestCase
     public function testThePortIsReadFromTheTargetService(): void
     {
         $configuration = $this->configuration(
-            (new RedirectionioAgentService())
-                ->addReverseProxy('front.demo.test', (new NodeService('front'))->withPort(5173))
+            new RedirectionioAgentService()
+                ->addReverseProxy('front.demo.test', new NodeService('front')->withPort(5173))
                 ->addReverseProxy('legacy.demo.test', 'legacy')
         );
 
@@ -66,8 +66,8 @@ final class RedirectionioAgentTest extends SnapshotTestCase
     public function testAnExplicitPortStillWins(): void
     {
         $configuration = $this->configuration(
-            (new RedirectionioAgentService())
-                ->addReverseProxy('front.demo.test', (new NodeService('front'))->withPort(5173), port: 8080)
+            new RedirectionioAgentService()
+                ->addReverseProxy('front.demo.test', new NodeService('front')->withPort(5173), port: 8080)
         );
 
         static::assertSame('front:8080', $configuration['reverse_proxy']['virtual_hosts'][0]['forward']['address']);
@@ -76,7 +76,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
     public function testPreserveHostCanBeTurnedOffGlobally(): void
     {
         $configuration = $this->configuration(
-            (new RedirectionioAgentService())
+            new RedirectionioAgentService()
                 ->withPreserveHost(false)
                 ->addReverseProxy('app.demo.test', 'app')
         );
@@ -87,7 +87,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
     public function testPreserveHostCanBeOverriddenPerDomain(): void
     {
         $configuration = $this->configuration(
-            (new RedirectionioAgentService())
+            new RedirectionioAgentService()
                 ->addReverseProxy('app.demo.test', 'app')
                 ->addReverseProxy('legacy.demo.test', 'legacy', preserveHost: false)
         );
@@ -104,7 +104,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
      */
     public function testDebugIsOffByDefault(): void
     {
-        $compose = (new RedirectionioAgentService())
+        $compose = new RedirectionioAgentService()
             ->updateCompose($this->fixedContext(), new ComposeBuilder())
             ->toArray()
         ;
@@ -115,7 +115,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
 
     public function testDebugAddsTheFlagToTheAgentCommand(): void
     {
-        $compose = (new RedirectionioAgentService())
+        $compose = new RedirectionioAgentService()
             ->withDebug()
             ->updateCompose($this->fixedContext(), new ComposeBuilder())
             ->toArray()
@@ -133,7 +133,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
      */
     public function testDebugDoesNotTouchTheConfiguration(): void
     {
-        $agent = (new RedirectionioAgentService())->withApiHost('https://api.demo.test')->withApiTimeout(120);
+        $agent = new RedirectionioAgentService()->withApiHost('https://api.demo.test')->withApiTimeout(120);
 
         $without = $this->configuration(clone $agent);
         $with = $this->configuration($agent->withDebug());
@@ -148,7 +148,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
      */
     public function testTheConfigurationIsDigestedIntoALabel(): void
     {
-        $compose = (new RedirectionioAgentService())
+        $compose = new RedirectionioAgentService()
             ->addReverseProxy('app.demo.test', 'app')
             ->updateCompose($this->fixedContext(), new ComposeBuilder())
             ->toArray()
@@ -162,7 +162,7 @@ final class RedirectionioAgentTest extends SnapshotTestCase
 
     public function testTestModeAndLogging(): void
     {
-        $agent = $this->configuration((new RedirectionioAgentService())->withLogging(false)->withTestMode());
+        $agent = $this->configuration(new RedirectionioAgentService()->withLogging(false)->withTestMode());
 
         static::assertSame($agent['instance']['test_mode'], true);
         static::assertSame($agent['instance']['logging'], false);

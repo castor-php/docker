@@ -31,12 +31,12 @@ final class NodeServiceTest extends SnapshotTestCase
 
         static::assertSame(
             ['pnpm', 'run', 'dev'],
-            $this->definition((new NodeService('front'))->withPackageManager(PackageManager::Pnpm))['command'],
+            $this->definition(new NodeService('front')->withPackageManager(PackageManager::Pnpm))['command'],
         );
 
         static::assertSame(
             ['yarn', 'run', 'start'],
-            $this->definition((new NodeService('front'))->withPackageManager(PackageManager::Yarn)->withScript('start'))['command'],
+            $this->definition(new NodeService('front')->withPackageManager(PackageManager::Yarn)->withScript('start'))['command'],
         );
     }
 
@@ -49,12 +49,12 @@ final class NodeServiceTest extends SnapshotTestCase
     {
         static::assertSame(
             ['node', 'server.js'],
-            $this->definition((new NodeService('front'))->withRunCommand(['node', 'server.js']))['command'],
+            $this->definition(new NodeService('front')->withRunCommand(['node', 'server.js']))['command'],
         );
 
         static::assertSame(
             'npm run dev -- --host 0.0.0.0',
-            $this->definition((new NodeService('front'))->withRunCommand('npm run dev -- --host 0.0.0.0'))['command'],
+            $this->definition(new NodeService('front')->withRunCommand('npm run dev -- --host 0.0.0.0'))['command'],
         );
     }
 
@@ -65,7 +65,7 @@ final class NodeServiceTest extends SnapshotTestCase
     public function testThePortIsAnnouncedToTheDevServerAndToTheRouter(): void
     {
         $definition = $this->definition(
-            (new NodeService('front'))->withPort(5173)->withDomain('front.demo.test')
+            new NodeService('front')->withPort(5173)->withDomain('front.demo.test')
         );
 
         static::assertSame('5173', $definition['environment']['PORT']);
@@ -82,7 +82,7 @@ final class NodeServiceTest extends SnapshotTestCase
     {
         static::assertArrayNotHasKey('CHOKIDAR_USEPOLLING', $this->definition(new NodeService('front'))['environment']);
 
-        $environment = $this->definition((new NodeService('front'))->withPolling())['environment'];
+        $environment = $this->definition(new NodeService('front')->withPolling())['environment'];
 
         static::assertSame('true', $environment['CHOKIDAR_USEPOLLING']);
         static::assertSame('true', $environment['WATCHPACK_POLLING']);
@@ -95,7 +95,7 @@ final class NodeServiceTest extends SnapshotTestCase
     public function testTheProjectEnvironmentWinsOverTheDefaults(): void
     {
         $definition = $this->definition(
-            (new NodeService('front'))->withPort(3000)->withEnvironment('PORT', '4000')
+            new NodeService('front')->withPort(3000)->withEnvironment('PORT', '4000')
         );
 
         static::assertSame('4000', $definition['environment']['PORT']);
@@ -108,7 +108,7 @@ final class NodeServiceTest extends SnapshotTestCase
     public function testTheWorkingDirectoryFollowsThePackage(): void
     {
         $definition = $this->definition(
-            (new NodeService('front'))->withDirectory('/project')->withWorkingDirectory('apps/front')
+            new NodeService('front')->withDirectory('/project')->withWorkingDirectory('apps/front')
         );
 
         static::assertSame('/app/apps/front', $definition['working_dir']);

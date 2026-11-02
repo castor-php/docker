@@ -1766,7 +1766,7 @@ function task_name(string $function): string
             throw new \LogicException(\sprintf('"%s()" is not a task.', $function));
         }
 
-        $attribute->name = $attribute->name ?: (new AsciiSlugger())->slug($reflection->getShortName())->toString();
+        $attribute->name = $attribute->name ?: new AsciiSlugger()->slug($reflection->getShortName())->toString();
     }
 
     return $attribute->namespace ? $attribute->namespace . ':' . $attribute->name : $attribute->name;

@@ -66,7 +66,7 @@ final class NodeInstaller extends AbstractServiceInstaller
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = (new NodeService((string) $answers['name']))
+        $service = new NodeService((string) $answers['name'])
             ->withDirectory(context()->workingDirectory . '/' . $answers['directory'])
             ->withVersion((string) $answers['version'])
             ->withPackageManager($this->packageManager($answers))

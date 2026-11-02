@@ -101,7 +101,7 @@ final class InstallerTest extends TestCase
             "\$event->addService((new RustFSService())->withVersion('1.0.0')->withBucket('uploads')->withBucket('media'));",
             $result,
         );
-        $service = (new RustFSInstaller())->createInstance(['version' => '1.0.0', 'buckets' => 'uploads, media']);
+        $service = new RustFSInstaller()->createInstance(['version' => '1.0.0', 'buckets' => 'uploads, media']);
         static::assertInstanceOf(RustFSService::class, $service);
         static::assertSame(['uploads', 'media'], array_keys($service->getBuckets()));
     }

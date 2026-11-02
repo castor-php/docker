@@ -25,7 +25,7 @@ final class FreshProjectTest extends TestCase
 
     public function testAProjectWithoutContextIsInitialized(): void
     {
-        $castor = getenv('CASTOR_BINARY') ?: (new ExecutableFinder())->find('castor');
+        $castor = getenv('CASTOR_BINARY') ?: new ExecutableFinder()->find('castor');
 
         if (!$castor) {
             static::markTestSkipped('No castor binary found: install castor or set CASTOR_BINARY.');

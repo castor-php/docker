@@ -30,7 +30,7 @@ final class TerminalSizeTest extends TestCase
      */
     public function testATerminalPassedThroughIsLeftAlone(): void
     {
-        static::assertSame([], get_terminal_size_environment((new Context(workingDirectory: __DIR__))->withTty(), [203, 51]));
+        static::assertSame([], get_terminal_size_environment(new Context(workingDirectory: __DIR__)->withTty(), [203, 51]));
     }
 
     /**

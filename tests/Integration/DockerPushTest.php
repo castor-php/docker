@@ -180,13 +180,13 @@ final class DockerPushTest extends TestCase
 
     private function castorOrSkip(): string
     {
-        $castor = getenv('CASTOR_BINARY') ?: (new ExecutableFinder())->find('castor');
+        $castor = getenv('CASTOR_BINARY') ?: new ExecutableFinder()->find('castor');
 
         if (!$castor) {
             static::markTestSkipped('No castor binary found: install castor or set CASTOR_BINARY.');
         }
 
-        if (!(new ExecutableFinder())->find('docker')) {
+        if (!new ExecutableFinder()->find('docker')) {
             static::markTestSkipped('No docker binary found.');
         }
 

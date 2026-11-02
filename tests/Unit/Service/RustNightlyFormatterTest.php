@@ -80,7 +80,7 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
      */
     public function testTheToolchainReachesTheBuildArguments(): void
     {
-        $compose = (new RustBuilder('rust-builder'))
+        $compose = new RustBuilder('rust-builder')
             ->withDirectory('/project')
             ->withNightlyFormatter()
             ->updateCompose($this->fixedContext(), new ComposeBuilder())

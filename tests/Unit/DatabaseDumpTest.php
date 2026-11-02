@@ -187,7 +187,7 @@ final class DatabaseDumpTest extends TestCase
     private function requireTools(string ...$tools): void
     {
         foreach ($tools as $tool) {
-            if (null === (new ExecutableFinder())->find($tool)) {
+            if (null === new ExecutableFinder()->find($tool)) {
                 static::markTestSkipped(\sprintf('"%s" is not installed.', $tool));
             }
         }

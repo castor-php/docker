@@ -11,7 +11,7 @@ final class ComposeBuilderTest extends TestCase
 {
     public function testEmptyCompose(): void
     {
-        static::assertSame(['services' => [], 'volumes' => []], (new ComposeBuilder())->toArray());
+        static::assertSame(['services' => [], 'volumes' => []], new ComposeBuilder()->toArray());
     }
 
     public function testServiceIsReusedByName(): void

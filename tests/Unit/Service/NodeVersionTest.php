@@ -30,7 +30,7 @@ final class NodeVersionTest extends SnapshotTestCase
     public function testTheVersionReachesTheStageInstallingNode(): void
     {
         static::assertSame('22.x', $this->nodeVersionOf(
-            (new PHPService('app'))->withNodeVersion('22'),
+            new PHPService('app')->withNodeVersion('22'),
         ));
     }
 
@@ -41,7 +41,7 @@ final class NodeVersionTest extends SnapshotTestCase
     public function testOnlyTheMajorIsKept(): void
     {
         foreach (['22', '22.x', 'v22', 'v22.11.0', '22.11.0'] as $given) {
-            static::assertSame('22.x', (new PHPService('app'))->withNodeVersion($given)->getNodeVersion(), $given);
+            static::assertSame('22.x', new PHPService('app')->withNodeVersion($given)->getNodeVersion(), $given);
         }
     }
 
@@ -49,7 +49,7 @@ final class NodeVersionTest extends SnapshotTestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new PHPService('app'))->withNodeVersion('lts/jod');
+        new PHPService('app')->withNodeVersion('lts/jod');
     }
 
     /**
@@ -71,7 +71,7 @@ final class NodeVersionTest extends SnapshotTestCase
      */
     public function testTheApplicationStageIsNotGivenTheVersion(): void
     {
-        $compose = $this->build((new PHPService('app'))->withNodeVersion('22'));
+        $compose = $this->build(new PHPService('app')->withNodeVersion('22'));
 
         static::assertArrayNotHasKey('node_version', $compose['services']['app']['build']['args']);
     }

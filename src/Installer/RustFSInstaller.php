@@ -41,7 +41,7 @@ final class RustFSInstaller extends AbstractServiceInstaller
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = (new RustFSService())->withVersion((string) $answers['version']);
+        $service = new RustFSService()->withVersion((string) $answers['version']);
 
         foreach (self::parseBuckets($answers) as $bucket) {
             $service->withBucket($bucket);

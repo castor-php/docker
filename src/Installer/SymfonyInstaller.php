@@ -59,7 +59,7 @@ final class SymfonyInstaller extends AbstractServiceInstaller implements NeedsDa
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = (new SymfonyService((string) $answers['name']))
+        $service = new SymfonyService((string) $answers['name'])
             ->withDirectory(context()->workingDirectory . '/' . $answers['directory'])
             ->withVersion((string) $answers['version'])
             ->withMode(PhpMode::from((string) $answers['mode']))
