@@ -18,7 +18,6 @@ use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
 use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
-use function Castor\context;
 
 class MariaDBService implements DatabaseServiceInterface, DumpableServiceInterface
 {
@@ -116,10 +115,5 @@ class MariaDBService implements DatabaseServiceInterface, DumpableServiceInterfa
             'serverVersion' => $isComplete ? 'mariadb-' . $version : null,
             'charset' => 'utf8mb4',
         ]));
-    }
-
-    public function hasHealthCheck(): bool
-    {
-        return true;
     }
 }

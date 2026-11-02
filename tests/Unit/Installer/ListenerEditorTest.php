@@ -194,7 +194,7 @@ final class ListenerEditorTest extends TestCase
             {
                 $postgres = new PostgresService();
                 $event->addService($postgres);
-                $event->addService((new SymfonyService(name: 'app'))->withDatabaseService($postgres));
+                $event->addService((new SymfonyService(name: 'app'))->link($postgres));
             }
 
             PHP;

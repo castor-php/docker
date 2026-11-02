@@ -7,7 +7,6 @@ namespace Castor\Docker\Tests\Unit\Service;
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\GoService;
-use Castor\Docker\Service\MailpitService;
 use Castor\Docker\Service\MeilisearchService;
 use Castor\Docker\Service\MercureService;
 use Castor\Docker\Service\PHPService;
@@ -15,7 +14,6 @@ use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
 use Castor\Docker\Service\RustFSService;
 use Castor\Docker\Service\ServiceInterface;
-use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 
 final class ServiceLinkTest extends TestCase
@@ -47,31 +45,6 @@ final class ServiceLinkTest extends TestCase
         }
 
         return $builder->toArray();
-    }
-
-    /**
-     * The deprecated methods still replace the previous database instead of
-     * adding a second one, until they are removed in 1.0.
-     */
-    #[IgnoreDeprecations]
-    public function testWithDatabaseServiceReplacesThePreviousOne(): void
-    {
-        $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withDatabaseService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
-        $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withMailerService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
-
-        $app = (new PHPService('app'))
-            ->withDirectory('/project/app')
-            ->withDatabaseService(new PostgresService())
-            ->withDatabaseService((new PostgresService())->withName('analytics'))
-            ->withMailerService(new MailpitService())
-        ;
-
-        static::assertSame(['analytics', 'mailpit'], array_keys($app->getLinks()));
-
-        $compose = $this->build($this->context(), $app);
-
-        static::assertStringContainsString('@analytics:5432/', $compose['services']['app']['environment']['DATABASE_URL']);
-        static::assertSame('smtp://mailpit:1025', $compose['services']['app-builder']['environment']['MAILER_DSN']);
     }
 
     public function testTwoLinksProvidingTheSameVariableAreRefused(): void

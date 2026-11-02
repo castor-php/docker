@@ -34,10 +34,6 @@ class PHPService implements ServiceInterface
     use HasSharedHomeDirectory;
     use HasVersion;
 
-    private ?DatabaseServiceInterface $databaseService = null;
-
-    private ?MailpitService $mailerService = null;
-
     /** @var array<string, string> */
     private array $phpStanExtraDependencies = [];
 
@@ -367,38 +363,6 @@ class PHPService implements ServiceInterface
         }
 
         return $this->name . '-builder';
-    }
-
-    /**
-     * @deprecated since 0.8, removed in 1.0: use link() instead
-     */
-    public function withDatabaseService(DatabaseServiceInterface $databaseService): static
-    {
-        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
-
-        if ($this->databaseService) {
-            $this->unlink($this->databaseService);
-        }
-
-        $this->databaseService = $databaseService;
-
-        return $this->link($databaseService);
-    }
-
-    /**
-     * @deprecated since 0.8, removed in 1.0: use link() instead
-     */
-    public function withMailerService(MailpitService $mailerService): static
-    {
-        @trigger_error(\sprintf('%s() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.', __METHOD__), \E_USER_DEPRECATED);
-
-        if ($this->mailerService) {
-            $this->unlink($this->mailerService);
-        }
-
-        $this->mailerService = $mailerService;
-
-        return $this->link($mailerService);
     }
 
     public function addPhpStanExtraDependency(string $package, string $version): static

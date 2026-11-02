@@ -9,6 +9,7 @@ use Symfony\Component\Process\ExecutableFinder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\get_docker_socket_path;
+use function Castor\Docker\get_host_uid;
 use function Castor\Docker\get_project_bind_mounts;
 use function Castor\Docker\get_project_containers;
 use function Castor\Docker\get_project_published_ports;
@@ -306,7 +307,7 @@ final class HostSystemProbe implements SystemProbe
 
     public function currentUserId(): int
     {
-        return \function_exists('posix_geteuid') ? posix_geteuid() : (int) getmyuid();
+        return get_host_uid();
     }
 
     public function fileOwner(string $path): ?int
