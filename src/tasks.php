@@ -180,7 +180,7 @@ function stop(
     #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
 ): void {
-    if (!$service || !$profiles) {
+    if (!$service && !$profiles) {
         io()->title('Stopping infrastructure');
     }
 
