@@ -51,8 +51,8 @@ class BinaryRunService implements ServiceInterface
     /** The compose restart policy, left to docker's default when null. */
     protected ?string $restart = null;
 
-    /** @var list<string> */
-    protected array $runCommand = [];
+    /** @var list<string>|string */
+    protected array|string $runCommand = [];
 
     /** The application of the builder this binary comes from, for the build task. */
     protected ?string $appName = null;
@@ -117,13 +117,17 @@ class BinaryRunService implements ServiceInterface
     }
 
     /**
-     * The arguments passed to the binary.
+     * A list appends its arguments to the binary:
      *
-     * @param list<string>|string $arguments
+     *     ->withRunCommand(['--listen', '0.0.0.0:8080'])
+     *
+     * A string replaces the container command outright, binary included.
+     *
+     * @param list<string>|string $runCommand
      */
-    public function withRunCommand(array|string $arguments): static
+    public function withRunCommand(array|string $runCommand): static
     {
-        $this->runCommand = \is_string($arguments) ? [$arguments] : $arguments;
+        $this->runCommand = $runCommand;
 
         return $this;
     }
@@ -160,7 +164,7 @@ class BinaryRunService implements ServiceInterface
                 ->volume($this->getMountedDirectory(), $mountPoint, 'cached')
                 ->profile('default')
                 ->workingDir($this->getContainerWorkingDirectory($mountPoint))
-                ->command([$this->joinPath($mountPoint, $this->binaryPath), ...$this->runCommand])
+                ->command(\is_string($this->runCommand) ? $this->runCommand : [$this->joinPath($mountPoint, $this->binaryPath), ...$this->runCommand])
         ;
 
         if (null !== $this->restart) {
@@ -220,10 +224,7 @@ class BinaryRunService implements ServiceInterface
         return [
             'task' => new AsTask('watch', $this->name, 'Watch for changes and rebuild then restart the ' . $this->name . ' application'),
             'function' => function (): void {
-                $directory = $this->getWatchedDirectory();
-                $watchDirectory = str_starts_with($directory, '/') ? $directory : context()['root_dir'] . '/' . $directory;
-
-                watch($watchDirectory, function ($file, $event): void {
+                watch($this->getWatchedDirectory(context()), function ($file, $event): void {
                     // Build scripts generate sources under target/, so each
                     // build would trigger the next one.
                     if (str_contains($file, '/target/')) {
@@ -293,9 +294,14 @@ class BinaryRunService implements ServiceInterface
         return $this->getDirectory();
     }
 
-    protected function getWatchedDirectory(): string
+    protected function getWatchedDirectory(Context $context): string
     {
         $directory = $this->getMountedDirectory();
+
+        if (!str_starts_with($directory, '/')) {
+            $directory = $this->joinPath($context->workingDirectory, $directory);
+        }
+
         $app = $this->builder?->getAppDirectory($this->getAppName());
 
         // The whole mount would be the repository root of a monorepo, so narrow
