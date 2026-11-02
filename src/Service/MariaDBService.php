@@ -14,7 +14,7 @@ use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
-use function Castor\Docker\docker_compose;
+use function Castor\Docker\docker_compose_exec;
 use function Castor\Docker\expose_service_port;
 use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
@@ -81,7 +81,7 @@ class MariaDBService implements DatabaseServiceInterface, DumpableServiceInterfa
         yield [
             'task' => new AsTask('client', $this->getName(), 'Open a mariadb session on the database'),
             'function' => function (): void {
-                docker_compose(['exec', $this->getName(), 'mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], c: interactive_context());
+                docker_compose_exec(['mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], $this->getName(), interactive_context());
             },
         ];
 

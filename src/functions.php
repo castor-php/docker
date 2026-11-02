@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Castor\Docker;
 
 use Castor\Attribute\AsListener;
+use Castor\Attribute\AsTask;
 use Castor\Console\Output\VerbosityLevel;
 use Castor\Context;
 use Castor\Descriptor\TaskDescriptor;
@@ -44,6 +45,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Terminal;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ExceptionInterface;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
@@ -95,7 +97,7 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
             // stays the single source of truth for everything derived from it.
             'COMPOSE_PROJECT_NAME' => $projectName,
             'PROJECT_NAME' => $projectName,
-            'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? 'local.test',
+            'PROJECT_ROOT_DOMAIN' => $c->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN,
             'REGISTRY' => variable('registry'),
         ])
     ;
@@ -1766,15 +1768,24 @@ function register_builtin_installers(RegisterServiceInstallerEvent $event): void
     $event->addInstaller(new RustInstaller());
 }
 
+/**
+ * The name castor gives the task, which a mount may have prefixed. Before the
+ * tasks are resolved, the one of its attribute.
+ */
 function task_name(string $function): string
 {
-    $descriptor = remember_task_descriptors()[$function] ?? null;
+    $attribute = (remember_task_descriptors()[$function] ?? null)?->taskAttribute;
 
-    if (null === $descriptor) {
-        throw new \LogicException(\sprintf('"%s()" is not a task of this application.', $function));
+    if (null === $attribute) {
+        $reflection = new \ReflectionFunction($function);
+        $attribute = ($reflection->getAttributes(AsTask::class)[0] ?? null)?->newInstance();
+
+        if (null === $attribute) {
+            throw new \LogicException(\sprintf('"%s()" is not a task.', $function));
+        }
+
+        $attribute->name = $attribute->name ?: (new AsciiSlugger())->slug($reflection->getShortName())->toString();
     }
-
-    $attribute = $descriptor->taskAttribute;
 
     return $attribute->namespace ? $attribute->namespace . ':' . $attribute->name : $attribute->name;
 }

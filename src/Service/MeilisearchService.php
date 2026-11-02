@@ -13,6 +13,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
+use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
+
 /**
  * Meilisearch, with its search preview dashboard.
  *
@@ -82,7 +84,7 @@ class MeilisearchService implements LinkableServiceInterface
 
     public function getDomain(Context $context): string
     {
-        return $this->getName() . '.' . ($context->data['root_domain'] ?? 'castor.local');
+        return $this->getName() . '.' . ($context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN);
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder

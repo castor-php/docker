@@ -345,7 +345,7 @@ function run_task_in_worktree(AfterBootEvent $event): void
     exit(run([castor_binary(), ...$arguments], context: in_worktree($path)->withAllowFailure())->getExitCode());
 }
 
-#[AsTask(name: 'list', namespace: 'worktree', description: 'Lists the checkouts of this repository and the state of their stack', aliases: ['worktrees'])]
+#[AsTask(name: 'list', namespace: 'worktree', description: 'List the checkouts of this repository and the state of their stack', aliases: ['worktrees'])]
 function worktree_list(): void
 {
     $c = context();
@@ -368,7 +368,7 @@ function worktree_list(): void
     io()->comment('Run any task in another checkout with <comment>castor --worktree=<name> <task></comment>.');
 }
 
-#[AsTask(name: 'create', namespace: 'worktree', description: 'Creates a worktree, which is a stack of its own')]
+#[AsTask(name: 'create', namespace: 'worktree', description: 'Create a worktree, which is a stack of its own')]
 function worktree_create(
     #[AsArgument(description: 'Name of the worktree: its directory, its compose project and its subdomain')]
     string $name,
@@ -436,7 +436,7 @@ function worktree_create(
     }
 }
 
-#[AsTask(name: 'delete', namespace: 'worktree', description: 'Deletes a worktree and the stack that goes with it')]
+#[AsTask(name: 'delete', namespace: 'worktree', description: 'Delete a worktree and the stack that goes with it')]
 function worktree_delete(
     #[AsArgument(description: 'Name of the worktree, or the branch checked out in it', autocomplete: 'Castor\Docker\autocomplete_worktree_name')]
     string $name,

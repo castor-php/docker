@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Castor\Docker;
 
+use Castor\Attribute\AsOption;
 use Castor\Attribute\AsTask;
 use Castor\Context;
 use Composer\InstalledVersions;
@@ -337,7 +338,7 @@ function warn_if_router_outdated(?string $consequence = null): void
             get_plugin_version(),
         ),
         $consequence,
-        'Run "castor docker:router:restart" to apply the new one. It briefly interrupts every project it serves.',
+        'Run "castor ' . task_name('Castor\Docker\router_restart') . '" to apply the new one. It briefly interrupts every project it serves.',
     ]));
 }
 
@@ -510,7 +511,7 @@ function autostart_router(?Context $c = null): void
         // The project itself can still come up: only its domains will not
         // answer.
         io()->warning('Could not start the global router: ' . $e->getMessage());
-        io()->note('Start it yourself with "castor docker:router:enable".');
+        io()->note('Start it yourself with "castor ' . task_name('Castor\Docker\router_enable') . '".');
     }
 }
 
@@ -714,7 +715,7 @@ function router_enable(): void
     io()->note([
         'The router is now running globally at http://localhost:80 and https://localhost:443',
         'All projects using castor-docker will automatically connect to this router',
-        'Use "castor docker:router:disable" to stop the router',
+        'Use "castor ' . task_name('Castor\Docker\router_disable') . '" to stop the router',
     ]);
 }
 
@@ -730,10 +731,10 @@ function router_disable(): void
     }
 
     io()->success('Router disabled');
-    io()->note('Use "castor docker:router:enable" to start it again');
+    io()->note('Use "castor ' . task_name('Castor\Docker\router_enable') . '" to start it again');
 
     if (is_router_autostart_enabled()) {
-        io()->note('The next "castor docker:up" of a project routing a domain will start it again. Set "router_autostart" to false, or CASTOR_DOCKER_ROUTER_AUTOSTART=0, to keep it down.');
+        io()->note('The next "castor ' . task_name('Castor\Docker\up') . '" of a project routing a domain will start it again. Set "router_autostart" to false, or CASTOR_DOCKER_ROUTER_AUTOSTART=0, to keep it down.');
     }
 }
 
@@ -748,7 +749,7 @@ function describe_router_configuration(): string
     return match (compare_router_configuration($labels['version'], $labels['checksum']) <=> 0) {
         0 => \sprintf('<fg=green>Up to date, from castor-php/docker %s</>', $version),
         1 => \sprintf('<fg=green>From castor-php/docker %s, newer than the %s of this project</>', $version, get_plugin_version()),
-        -1 => \sprintf('<fg=yellow>From castor-php/docker %s, older than the %s of this project: run "castor docker:router:restart"</>', $version, get_plugin_version()),
+        -1 => \sprintf('<fg=yellow>From castor-php/docker %s, older than the %s of this project: run "castor ' . task_name('Castor\Docker\router_restart') . '"</>', $version, get_plugin_version()),
     };
 }
 
@@ -778,16 +779,18 @@ function router_status(): void
         io()->success('Router is running');
     } else {
         io()->warning('Router is not running');
-        io()->note('Use "castor docker:router:enable" to start it');
+        io()->note('Use "castor ' . task_name('Castor\Docker\router_enable') . '" to start it');
     }
 }
 
-#[AsTask(name: 'logs', namespace: 'docker:router', description: 'Show logs from the global Caddy router')]
-function router_logs(bool $follow = false): void
-{
+#[AsTask(name: 'logs', namespace: 'docker:router', description: 'Show the logs of the global Caddy router')]
+function router_logs(
+    #[AsOption(description: 'Keep following the new logs')]
+    bool $follow = false,
+): void {
     if (!is_router_running()) {
         io()->error('Router is not running');
-        io()->note('Use "castor docker:router:enable" to start it');
+        io()->note('Use "castor ' . task_name('Castor\Docker\router_enable') . '" to start it');
         return;
     }
 

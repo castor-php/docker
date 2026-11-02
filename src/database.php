@@ -282,7 +282,7 @@ function dump_database(DumpableServiceInterface $service, ?string $file = null):
         // Starting it may start the router too, which says so on the standard
         // output — in the middle of the dump.
         if (array_diff($service->getDumpServices(), get_running_service_names())) {
-            $io->error(\sprintf('The %1$s database is not running: start it first, with castor docker:up %1$s.', $service->getName()));
+            $io->error(\sprintf('The %1$s database is not running: start it first, with castor ' . task_name('Castor\Docker\up') . ' %1$s.', $service->getName()));
 
             return false;
         }

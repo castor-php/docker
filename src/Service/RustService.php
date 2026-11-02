@@ -345,7 +345,7 @@ class RustService implements ServiceInterface
     protected function clippyTask(): array
     {
         return [
-            'task' => new AsTask('clippy', $this->name . ':qa', 'Runs Clippy'),
+            'task' => new AsTask('clippy', $this->name . ':qa', 'Run Clippy'),
             'function' => function (#[AsRawTokens] array $args): void {
                 io()->section('Running Clippy...');
 
@@ -360,7 +360,7 @@ class RustService implements ServiceInterface
     protected function fmtTask(): array
     {
         return [
-            'task' => new AsTask('fmt', $this->name . ':qa', 'Fixes Coding Style'),
+            'task' => new AsTask('fmt', $this->name . ':qa', 'Fix the coding style'),
             'function' => function (#[AsRawTokens] array $args): void {
                 io()->section('Running rustfmt...');
 
