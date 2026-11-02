@@ -16,6 +16,7 @@ use function Castor\Docker\get_router_name;
 use function Castor\Docker\get_worktree_base_domain;
 use function Castor\Docker\get_worktree_name;
 use function Castor\Docker\get_plugin_version;
+use function Castor\Docker\is_compose_generation_enabled;
 use function Castor\Docker\is_worktree_domain;
 use function Castor\Docker\worktree_root_domain;
 
@@ -451,6 +452,10 @@ final class Doctor
 
     private function checkComposeFiles(): Check
     {
+        if (!is_compose_generation_enabled($this->context)) {
+            return Check::skipped('Compose files', 'The project generates no compose file: "generate_compose_files" is false.');
+        }
+
         if (null === $this->composeVersion()) {
             return Check::skipped('Compose files', 'Needs Docker Compose.');
         }

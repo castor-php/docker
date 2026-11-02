@@ -604,6 +604,7 @@ function service_install(
 
     $installer = $installers[$name];
     $c = context();
+    assert_compose_generation_enabled($c);
 
     $options = InstallerOptions::parse($installer, $tokens, $applicationOptions);
 
@@ -657,6 +658,7 @@ function service_remove(
     ?string $file = null,
 ): void {
     $c = context();
+    assert_compose_generation_enabled($c);
     $services = collect_services();
 
     /** @var array<string, ServiceInterface> $registered */
@@ -754,6 +756,8 @@ function push(
     #[AsOption(description: 'Build each target on its own, in parallel, so targets sharing a stage keep their build cache', mode: InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE)]
     ?bool $parallel = null,
 ): void {
+    assert_compose_generation_enabled();
+
     $registry = variable('registry');
 
     if (!$registry) {

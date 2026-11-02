@@ -34,6 +34,7 @@ function default_context(): Context
 | `docker_profiles` | The compose profiles every task activates by default, `['default']` otherwise |
 | `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
 | `build_parallel` | Whether the services are built on their own, in parallel, so services sharing a stage keep their build cache, `false` by default — see [`docker:build`](tasks.md#castor-dockerbuild) |
+| `generate_compose_files` | Whether the plugin writes `compose.yaml`, `compose.generated.yaml`, `compose.override.yaml` and the bind-mounted directories, `true` by default — see [below](#using-another-docker-stack) |
 | `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |
@@ -96,6 +97,24 @@ The context wins over the `name:` of `compose.yaml`, and the plugin exports
 would build in one project while the plugin looked for containers, networks and
 images in another.
 
+### Using another Docker stack
+
+A project whose containers come from another Docker stack — its own compose
+files elsewhere, a tool generating them — can still use the tasks the services
+bring, without the plugin writing its own compose files next to `castor.php` on
+every run:
+
+```php
+return new Context([
+    'generate_compose_files' => false,
+]);
+```
+
+The services are still collected and their tasks registered; nothing is written,
+and the tasks running the plugin's stack (`docker:up`, `docker:build`,
+`docker:push`, `docker:service:install`, …) stop with an error saying so.
+`docker:doctor` skips its compose files check.
+
 ### Default profiles
 
 `docker:up`, `docker:build` and the rest activate the `default` profile unless
@@ -110,7 +129,8 @@ return new Context([
 
 ## Generated files
 
-The plugin generates and manages these files next to your `castor.php`:
+The plugin generates and manages these files next to your `castor.php`, unless
+[`generate_compose_files`](#using-another-docker-stack) is `false`:
 
 ### `compose.yaml`
 

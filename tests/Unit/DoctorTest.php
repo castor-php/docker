@@ -250,6 +250,13 @@ final class DoctorTest extends TestCase
         self::assertCheck(Status::Error, 'Compose files', $this->doctor()->checkProject(), "'restartt' not allowed", 'compose.override.yaml');
     }
 
+    public function testComposeFilesOfAnotherStackAreNotChecked(): void
+    {
+        $this->probe->composeConfigError = 'open /project/compose.yaml: no such file or directory';
+
+        self::assertCheck(Status::Skipped, 'Compose files', $this->doctor(['generate_compose_files' => false])->checkProject(), 'generate_compose_files');
+    }
+
     /**
      * "Containers will not start", in the troubleshooting page.
      */

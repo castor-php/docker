@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* The [`generate_compose_files`](configuration.md#using-another-docker-stack) context variable: set to `false`, the plugin writes no `compose.yaml`, `compose.generated.yaml`, `compose.override.yaml` nor bind-mounted directory, for a project whose containers come from another Docker stack. The services still bring their tasks; the tasks running the plugin's stack stop with an error.
+
 ## 0.11.0 - 2026-10-27
 
 ### Changed
