@@ -1285,7 +1285,7 @@ function initialize_project(Context $context): Context
         }
     }
 
-    $userId = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
+    $userId = get_host_uid();
 
     // The context wins over the "name" of compose.yaml, which is the only way
     // a second checkout of the same repository can run beside the first.
@@ -1838,4 +1838,17 @@ function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
                 YAML
         );
     }
+}
+
+/**
+ * The user running castor, whom the files written by the containers belong to.
+ */
+function get_host_uid(): int
+{
+    return \function_exists('posix_geteuid') ? posix_geteuid() : (int) getmyuid();
+}
+
+function get_host_gid(): int
+{
+    return \function_exists('posix_getegid') ? posix_getegid() : (int) getmygid();
 }
