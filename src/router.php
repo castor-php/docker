@@ -550,7 +550,7 @@ function install_certificate_authority(): void
     $certsDir = get_router_certs_directory();
     $caddyDir = $certsDir . '/caddy';
 
-    $mkcert = (new ExecutableFinder())->find('mkcert');
+    $mkcert = new ExecutableFinder()->find('mkcert');
 
     if (!$mkcert) {
         io()->comment('mkcert is not installed: the router will use its own local CA (browsers will show a security warning). Install mkcert (https://github.com/FiloSottile/mkcert) for locally-trusted certificates.');

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Castor\Attribute\AsTask;
 
-use function Castor\context;
 use function Castor\import;
 use function Castor\PHPQa\phpstan;
 use function Castor\PHPQa\php_cs_fixer;
@@ -14,15 +13,9 @@ defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
 import(__DIR__ . '/tools/doc/castor.php');
 
 #[AsTask(description: 'Run PHPStan', namespace: 'qa', name: 'phpstan', aliases: ['phpstan'])]
-function qa_phpstan(bool $generateBaseline = false): int
+function qa_phpstan(): int
 {
-    $args = ['analyze', context()->workingDirectory . '/src'];
-
-    if ($generateBaseline) {
-        $args[] = '-b';
-    }
-
-    return phpstan(arguments: $args, version: '2.1.32')->getExitCode();
+    return phpstan(arguments: ['analyze', '--memory-limit=1G'], version: '2.1.32')->getExitCode();
 }
 
 #[AsTask(description: 'Fix CS', namespace: 'qa', name: 'cs', aliases: ['cs'])]

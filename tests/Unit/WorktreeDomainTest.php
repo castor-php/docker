@@ -93,7 +93,7 @@ final class WorktreeDomainTest extends TestCase
     {
         $c = $this->context('wt2');
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting(['myproject.test', 'app.myproject.test'], 80, allowHttpAccess: true)->end();
+        $builder->service('app')->withHttpRouting(['myproject.test', 'app.myproject.test'], 80, allowHttpAccess: true);
 
         apply_worktree_domains($c, $builder);
 
@@ -114,7 +114,7 @@ final class WorktreeDomainTest extends TestCase
         $builder->service('rustfs')
             ->withHttpRouting('rustfs.myproject.test', 9000)
             ->withHttpRouting('rustfs-console.myproject.test', 9001, allowHttpAccess: true)
-        ->end();
+        ;
 
         apply_worktree_domains($this->context('wt2'), $builder);
 
@@ -133,7 +133,7 @@ final class WorktreeDomainTest extends TestCase
     public function testTheRewriteKeepsTheLabelsInOrder(): void
     {
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('app.myproject.test', 80, allowHttpAccess: true)->end();
+        $builder->service('app')->withHttpRouting('app.myproject.test', 80, allowHttpAccess: true);
 
         $before = $builder->toArray()['services']['app']['labels'];
         apply_worktree_domains($this->context('wt2'), $builder);
@@ -148,7 +148,7 @@ final class WorktreeDomainTest extends TestCase
     public function testTheMainCheckoutKeepsItsLabelsByteForByte(): void
     {
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('app.myproject.test', 80, allowHttpAccess: true)->end();
+        $builder->service('app')->withHttpRouting('app.myproject.test', 80, allowHttpAccess: true);
 
         $before = $builder->toArray();
         apply_worktree_domains($this->context(null), $builder);
@@ -164,7 +164,7 @@ final class WorktreeDomainTest extends TestCase
     {
         $c = $this->context('wt2');
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting('api.myproject.test', 80)->end();
+        $builder->service('app')->withHttpRouting('api.myproject.test', 80);
 
         apply_worktree_domains($c, $builder);
         add_project_extra_hosts($c, $builder);
@@ -183,7 +183,7 @@ final class WorktreeDomainTest extends TestCase
     {
         $c = $this->context('wt2');
         $builder = new ComposeBuilder();
-        $builder->service('app')->withHttpRouting(['myproject.test', 'wt2.myproject.test'], 80)->end();
+        $builder->service('app')->withHttpRouting(['myproject.test', 'wt2.myproject.test'], 80);
 
         apply_worktree_domains($c, $builder);
 

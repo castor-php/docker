@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+* The plugin requires PHP 8.4.1, which Castor 1.9 already requires.
+
 ### Fixed
 
 * The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.

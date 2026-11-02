@@ -51,7 +51,7 @@ final class RustInstaller extends AbstractServiceInstaller
 
     public function createInstance(array $answers): ServiceInterface
     {
-        $service = (new RustService((string) $answers['name']))
+        $service = new RustService((string) $answers['name'])
             ->withDirectory(context()->workingDirectory . '/' . $answers['directory'])
             ->withVersion((string) $answers['version'])
             ->withPort((int) $answers['port'])

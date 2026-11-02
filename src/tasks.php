@@ -515,9 +515,9 @@ function doctor(): int
     $counts = ['error' => 0, 'warning' => 0];
     // What the icon and the label leave of the terminal, so a long fix wraps
     // inside its cell instead of across the table.
-    $width = max(40, (new Terminal())->getWidth() - 26);
+    $width = max(40, new Terminal()->getWidth() - 26);
 
-    foreach ((new Doctor($c, new HostSystemProbe($c)))->run() as $section => $checks) {
+    foreach (new Doctor($c, new HostSystemProbe($c))->run() as $section => $checks) {
         io()->section($section);
 
         $rows = [];
