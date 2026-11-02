@@ -6,8 +6,6 @@ namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
-use Castor\Context;
-use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\docker_exit_code;
 
@@ -15,15 +13,10 @@ class SymfonyService extends PHPService
 {
     private string $twigCsFixerVersion = '*';
 
-    public function withPhpTwigCsFixerVersion(string $version): static
+    public function withTwigCsFixerVersion(string $version): static
     {
         $this->twigCsFixerVersion = $version;
         return $this;
-    }
-
-    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
-    {
-        return parent::updateCompose($context, $builder);
     }
 
     public function getTasks(): iterable
