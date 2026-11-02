@@ -528,10 +528,7 @@ function run_database_container(
  */
 function get_host_owner(): string
 {
-    $uid = \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
-    $gid = \function_exists('posix_getegid') ? posix_getegid() : getmygid();
-
-    return $uid . ':' . $gid;
+    return get_host_uid() . ':' . get_host_gid();
 }
 
 /**
