@@ -7,6 +7,7 @@ namespace Castor\Docker\Tests\Unit;
 use Castor\Context;
 use PHPUnit\Framework\TestCase;
 
+use function Castor\Docker\get_project_domains;
 use function Castor\Docker\get_project_urls;
 
 /**
@@ -129,5 +130,28 @@ final class ProjectUrlsTest extends TestCase
         $this->write('compose.override.yaml', "services:\n    app:\n        labels:\n            - caddy=app.project.test\n");
 
         static::assertSame(['app' => ['https://app.project.test']], get_project_urls($this->context()));
+    }
+
+    /**
+     * The router joins the project network under every domain it serves, from
+     * any compose file, once each and without the wildcards docker refuses.
+     */
+    public function testTheDomainsAreThoseOfEveryComposeFile(): void
+    {
+        $this->write('compose.generated.yaml', <<<'YAML'
+            services:
+                app:
+                    labels:
+                        - 'caddy=app.project.test *.project.test'
+                        - caddy_1=http://app.project.test
+            YAML);
+        $this->write('compose.override.yaml', <<<'YAML'
+            services:
+                mailpit:
+                    labels:
+                        caddy: mail.project.test
+            YAML);
+
+        static::assertSame(['app.project.test', 'mail.project.test'], get_project_domains($this->context()));
     }
 }
