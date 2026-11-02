@@ -61,6 +61,18 @@ use function Castor\variable;
 use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
+function is_compose_generation_enabled(?Context $c = null): bool
+{
+    return false !== (($c ?? context())->data['generate_compose_files'] ?? true);
+}
+
+function assert_compose_generation_enabled(?Context $c = null): void
+{
+    if (!is_compose_generation_enabled($c)) {
+        throw new \RuntimeException('This project generates no compose file ("generate_compose_files" is false in its context): its containers come from another Docker stack, run them with it.');
+    }
+}
+
 /**
  * Read from the "docker_profiles" context data, so a project with more than the
  * two built-in profiles does not have to pass --profiles to every task.
@@ -86,6 +98,7 @@ function get_default_profiles(?Context $c = null): array
 function docker_compose(array $subCommand, ?Context $c = null, array $profiles = [], ?string $progress = null): Process
 {
     $c ??= context();
+    assert_compose_generation_enabled($c);
     $profiles = $profiles ?: get_default_profiles($c);
 
     $projectName = get_project_name($c);
@@ -1250,7 +1263,7 @@ function initialize_project(Context $context): Context
     $composeFile = $context->workingDirectory . '/compose.yaml';
     $projectName = basename($context->workingDirectory);
 
-    if (!file_exists($composeFile)) {
+    if (!file_exists($composeFile) && is_compose_generation_enabled($context)) {
         // On stderr, to keep the output of the task itself, like the bake plan
         // of "docker:push --dry-run", parsable.
         $io = io()->getErrorStyle();
@@ -1276,7 +1289,7 @@ function initialize_project(Context $context): Context
                 # Here you can also add your own services.
                 YAML
         );
-    } elseif ($content = file_get_contents($composeFile)) {
+    } elseif (file_exists($composeFile) && ($content = file_get_contents($composeFile))) {
 
         $baseCompose = yaml_parse($content);
 
@@ -1826,6 +1839,11 @@ function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
     }
 
     $c = initialize_project(context());
+
+    if (!is_compose_generation_enabled($c)) {
+        return;
+    }
+
     generate_compose_file($c, $services);
 
     $overrideFile = $c->workingDirectory . '/compose.override.yaml';
