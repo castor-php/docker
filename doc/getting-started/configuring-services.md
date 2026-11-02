@@ -31,7 +31,7 @@ behaviour. Use them in your own services to get the same API for free.
 | `HasDirectory` | `withDirectory()`, `getDirectory()`, `withWorkingDirectory()`, `getWorkingDirectory()` | every service mounting sources |
 | `HasSharedHomeDirectory` | `withSharedHomeDirectory()`, `getSharedHomeDirectory()` | `PHPService`, `GoService`, `RustService`, `NodeService`, the builders |
 | `HasDockerfile` | `withDockerfile()`, `getDockerfile()` | `PHPService`, `GoService`, `RustService`, `NodeService`, the builders |
-| `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | `BinaryRunService`, `NodeService` |
+| `HasEnvironment` | `withEnvironment()`, `getEnvironment()`, `applyEnvironment()` | every application service |
 | `HasName` | `withName()`, `getName()` | every service naming itself |
 | `HasLinks` | `link()`, `getLinks()`, `applyLinks()` | every application service |
 | `HasMysqlConfiguration` | `withSetting()`, `withSettings()`, `withConfiguration()`, `withConfigurationFile()` | `MySQLService`, `MariaDBService` |

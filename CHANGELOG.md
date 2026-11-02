@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+* `withEnvironment()` on `PHPService`, `GoService` and `RustService`, like on `NodeService` and `BinaryRunService`. A PHP application gets the variables in its builder and its workers too.
+* `GoService` has the `test`, `go` and `bash` tasks of `RustService`.
+
 ### Changed
 
 * The messages naming a task to run use its real name, prefixed when the plugin is mounted under a namespace.
@@ -11,6 +16,9 @@
 * The plugin requires PHP 8.4.1, which Castor 1.9 already requires.
 * `SymfonyService::withPhpTwigCsFixerVersion()` is renamed `withTwigCsFixerVersion()`.
 * A service linked to a database always waits for its healthcheck.
+* `GoService` expects the application on port 8080, like `RustService` and `BinaryRunService`. Use `withPort(80)` to keep the old one.
+* `BinaryRunService::withRunCommand()` given a string replaces the container command, like on the other services, instead of passing it as the only argument of the binary.
+* The `watch` task of a Go service also reacts to `go.mod` and `go.sum`.
 
 ### Removed
 
@@ -25,6 +33,7 @@
 * `docker:stop` only prints its title when it stops the whole infrastructure, like `docker:up`.
 * `docker:push --dry-run` prints a bake plan that can be parsed even on the run that creates `compose.yaml`: the notice and the project name question go to stderr.
 * The example of the README uses the methods that exist.
+* The `watch` tasks of the Go, Rust, Node and binary services failed when `withDirectory()` was relative.
 
 ## 0.11.0 - 2026-10-27
 
