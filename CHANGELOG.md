@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.
+
 ## 0.11.0 - 2026-10-27
 
 ### Changed

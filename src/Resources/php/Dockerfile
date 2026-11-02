@@ -117,7 +117,9 @@ COPY frontend/etc/nginx/environments /etc/nginx/environments
 
 RUN rm -rf /etc/service/
 COPY frontend/etc/service/. /etc/service/
-RUN chmod 777 /etc/service/*/supervise/
+# The run scripts lose their executable bit when the plugin is installed from a zip archive
+RUN chmod 777 /etc/service/*/supervise/ \
+    && chmod 755 /etc/service/*/run
 
 RUN phpenmod app-default \
     && phpenmod app-fpm
