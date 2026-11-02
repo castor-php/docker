@@ -16,7 +16,6 @@ use function Castor\Docker\docker_compose;
 use function Castor\Docker\expose_service_port;
 use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
-use function Castor\context;
 
 class PostgresService implements DatabaseServiceInterface, DumpableServiceInterface
 {
@@ -191,10 +190,5 @@ class PostgresService implements DatabaseServiceInterface, DumpableServiceInterf
             'serverVersion' => $this->getVersionNumber(),
             'charset' => 'utf8',
         ]));
-    }
-
-    public function hasHealthCheck(): bool
-    {
-        return true;
     }
 }
