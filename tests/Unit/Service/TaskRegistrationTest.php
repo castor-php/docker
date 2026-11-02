@@ -116,13 +116,13 @@ final class TaskRegistrationTest extends TestCase
 
     public function testGoServiceTasks(): void
     {
-        static::assertSame(['api:build', 'api:restart', 'api:watch'], $this->taskNames(new GoService('api')));
+        static::assertSame(['api:build', 'api:restart', 'api:watch', 'api:bash', 'api:test', 'api:go'], $this->taskNames(new GoService('api')));
     }
 
     public function testRustServiceTasks(): void
     {
         static::assertSame(
-            ['api:build', 'api:restart', 'api:watch', 'api:test', 'api:cargo', 'api:bash', 'api:qa:clippy', 'api:qa:fmt'],
+            ['api:build', 'api:restart', 'api:watch', 'api:bash', 'api:test', 'api:cargo', 'api:qa:clippy', 'api:qa:fmt'],
             $this->taskNames(new RustService('api')),
         );
     }
@@ -130,7 +130,7 @@ final class TaskRegistrationTest extends TestCase
     public function testNodeServiceTasks(): void
     {
         static::assertSame(
-            ['front:install', 'front:build', 'front:restart', 'front:watch', 'front:npm', 'front:bash'],
+            ['front:install', 'front:build', 'front:restart', 'front:watch', 'front:bash', 'front:npm'],
             $this->taskNames(new NodeService('front')),
         );
     }

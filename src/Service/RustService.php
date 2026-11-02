@@ -6,22 +6,9 @@ namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
-use Castor\Context;
-use Castor\Docker\Service\Behaviour\HasDirectory;
-use Castor\Docker\Service\Behaviour\HasDockerfile;
-use Castor\Docker\Service\Behaviour\HasHttpRouting;
-use Castor\Docker\Service\Behaviour\HasLinks;
-use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
-use Castor\Docker\Service\Behaviour\HasVersion;
-use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\Builder\ServiceBuilder;
 
-use function Castor\context;
-use function Castor\Docker\docker_compose;
-use function Castor\Docker\docker_compose_run;
-use function Castor\Docker\interactive_context;
 use function Castor\io;
-use function Castor\watch;
 
 /**
  * Runs a Cargo application from the source directory mounted in the container:
@@ -38,17 +25,8 @@ use function Castor\watch;
  * withDirectory() is what gets mounted, withWorkingDirectory() is where cargo
  * runs below it, and withBinaryPath() is the binary the container starts.
  */
-class RustService implements ServiceInterface
+class RustService extends AbstractSourceService
 {
-    use HasDirectory;
-    use HasDockerfile;
-    use HasHttpRouting;
-    use HasLinks;
-    use HasSharedHomeDirectory;
-    use HasVersion;
-
-    protected const MOUNT_POINT = '/app';
-
     /** @var list<string> */
     protected array $rustupComponents = ['clippy', 'rustfmt'];
 
@@ -61,15 +39,6 @@ class RustService implements ServiceInterface
     protected ?string $binaryPath = null;
 
     protected ?string $target = null;
-
-    protected ?string $buildCommand = null;
-
-    /** @var null|list<string>|string */
-    protected array|string|null $runCommand = null;
-
-    public function __construct(
-        protected readonly string $name,
-    ) {}
 
     protected function getDefaultVersion(): string
     {
@@ -84,11 +53,6 @@ class RustService implements ServiceInterface
     protected function getDefaultPort(): int
     {
         return 8080;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
     }
 
     /**
@@ -155,32 +119,6 @@ class RustService implements ServiceInterface
         return $this;
     }
 
-    /**
-     * "cargo build" by default, plus "--target <triple>" with withTarget().
-     */
-    public function withBuildCommand(string $buildCommand): static
-    {
-        $this->buildCommand = $buildCommand;
-
-        return $this;
-    }
-
-    /**
-     * A list appends its arguments to the binary:
-     *
-     *     ->withRunCommand(['--listen', '0.0.0.0:18089'])
-     *
-     * A string replaces the container command outright, binary included.
-     *
-     * @param list<string>|string $runCommand
-     */
-    public function withRunCommand(array|string $runCommand): static
-    {
-        $this->runCommand = $runCommand;
-
-        return $this;
-    }
-
     public function getBinaryPath(): string
     {
         if ($this->binaryPath !== null) {
@@ -193,9 +131,8 @@ class RustService implements ServiceInterface
     }
 
     /**
-     * Tokens unless the project gave its own command, which may use a shell.
-     *
-     * @return string|list<string>
+     * "cargo build" by default, plus "--target <triple>" with withTarget(),
+     * unless withBuildCommand() replaces it.
      */
     public function getBuildCommand(): string|array
     {
@@ -208,96 +145,46 @@ class RustService implements ServiceInterface
             : ['cargo', 'build'];
     }
 
-    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
-    {
-        $userId = $context->data['user_id'] ?? 1000;
-
-        $appService = $builder
-            ->service($this->name)
-                ->user("{$userId}:{$userId}")
-                ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
-                ->profile('default')
-                ->workingDir($this->getContainerWorkingDirectory(static::MOUNT_POINT))
-                ->command($this->getContainerCommand())
-                ->environment('HOME', '/home/app')
-                // The crate registry in the shared home rather than the image,
-                // so it survives rebuilds and is shared project-wide.
-                ->environment('CARGO_HOME', '/home/app/.cargo')
-        ;
-
-        $this->applyLinks($context, $appService);
-        $this->applyBuild($appService, $context);
-        $this->applyHttpRouting($appService);
-
-        return $builder;
-    }
-
     public function getTasks(): iterable
     {
-        yield $this->buildTask();
-        yield $this->restartTask();
-        yield $this->watchTask();
+        yield from parent::getTasks();
         yield $this->testTask();
-        yield $this->cargoTask();
-        yield $this->bashTask();
+        yield $this->toolTask('cargo');
         yield $this->clippyTask();
         yield $this->fmtTask();
     }
 
-    /**
-     * @return array{task: AsTask, function: \Closure}
-     */
-    protected function buildTask(): array
+    protected function configureService(ServiceBuilder $service): void
+    {
+        // The crate registry in the shared home rather than the image, so it
+        // survives rebuilds and is shared project-wide.
+        $service->environment('CARGO_HOME', '/home/app/.cargo');
+    }
+
+    protected function getDefaultCommand(): string
+    {
+        return $this->joinPath(static::MOUNT_POINT, $this->getBinaryPath());
+    }
+
+    protected function getBuildArgs(): array
     {
         return [
-            'task' => new AsTask('build', $this->name, 'Build the ' . $this->name . ' application'),
-            'function' => function (): void {
-                $this->runInBuilder($this->getBuildCommand());
-            },
+            'rust_version' => $this->getVersion(),
+            'rust_components' => json_encode($this->rustupComponents, \JSON_THROW_ON_ERROR),
+            'rust_targets' => json_encode($this->rustupTargets, \JSON_THROW_ON_ERROR),
+            'rust_toolchains' => json_encode($this->rustupToolchains, \JSON_THROW_ON_ERROR),
         ];
     }
 
-    /**
-     * @return array{task: AsTask, function: \Closure}
-     */
-    protected function restartTask(): array
+    protected function isWatched(string $file): bool
     {
-        return [
-            'task' => new AsTask('restart', $this->name, 'Restart the ' . $this->name . ' service'),
-            'function' => function (): void {
-                docker_compose(['restart', $this->name]);
-            },
-        ];
-    }
+        // Build scripts generate sources under target/, so each build would
+        // trigger the next one.
+        if (str_contains($file, '/target/')) {
+            return false;
+        }
 
-    /**
-     * @return array{task: AsTask, function: \Closure}
-     */
-    protected function watchTask(): array
-    {
-        return [
-            'task' => new AsTask('watch', $this->name, 'Watch for changes and rebuild then restart the ' . $this->name . ' application'),
-            'function' => function (): void {
-                $directory = $this->getDirectory();
-                $watchDirectory = str_starts_with($directory, '/') ? $directory : context()['root_dir'] . '/' . $directory;
-
-                watch($watchDirectory, function ($file, $event): void {
-                    // Build scripts generate sources under target/, so each
-                    // build would trigger the next one.
-                    if (str_contains($file, '/target/')) {
-                        return;
-                    }
-
-                    if (!str_ends_with($file, '.rs') && !str_ends_with($file, 'Cargo.toml') && !str_ends_with($file, 'Cargo.lock')) {
-                        return;
-                    }
-
-                    $this->runInBuilder($this->getBuildCommand());
-                    docker_compose(['restart', $this->name]);
-                });
-            },
-        ];
+        return str_ends_with($file, '.rs') || str_ends_with($file, 'Cargo.toml') || str_ends_with($file, 'Cargo.lock');
     }
 
     /**
@@ -309,32 +196,6 @@ class RustService implements ServiceInterface
             'task' => new AsTask('test', $this->name, 'Run the test suite of the ' . $this->name . ' application'),
             'function' => function (#[AsRawTokens] array $args): void {
                 $this->runInBuilder(['cargo', 'test', ...$args]);
-            },
-        ];
-    }
-
-    /**
-     * @return array{task: AsTask, function: \Closure}
-     */
-    protected function cargoTask(): array
-    {
-        return [
-            'task' => new AsTask('cargo', $this->name, 'Run cargo for this service'),
-            'function' => function (#[AsRawTokens] array $args): void {
-                $this->runInBuilder(['cargo', ...$args]);
-            },
-        ];
-    }
-
-    /**
-     * @return array{task: AsTask, function: \Closure}
-     */
-    protected function bashTask(): array
-    {
-        return [
-            'task' => new AsTask('bash', $this->name, 'Run a bash shell inside the Rust container'),
-            'function' => function (): void {
-                $this->runInBuilder(['bash'], interactive_context());
             },
         ];
     }
@@ -367,68 +228,5 @@ class RustService implements ServiceInterface
                 $this->runInBuilder(['cargo', 'fmt', ...$args]);
             },
         ];
-    }
-
-    /**
-     * Extra Debian packages are deliberately not modelled: extend the
-     * "rust_base" block of the Dockerfile instead.
-     */
-    protected function applyBuild(ServiceBuilder $service, Context $context): void
-    {
-        $service
-            ->build(__DIR__ . '/../Resources/rust')
-                ->useTwigFrontend($context)
-                ->dockerfile($this->getDockerfile())
-                ->target('runtime')
-                ->withRegistryCache($this->name)
-                ->arg('rust_version', $this->getVersion())
-                ->arg('rust_components', json_encode($this->rustupComponents, \JSON_THROW_ON_ERROR))
-                ->arg('rust_targets', json_encode($this->rustupTargets, \JSON_THROW_ON_ERROR))
-                ->arg('rust_toolchains', json_encode($this->rustupToolchains, \JSON_THROW_ON_ERROR))
-        ;
-    }
-
-    /**
-     * @param string|array<int, string> $command
-     */
-    protected function runInBuilder(string|array $command, ?Context $c = null): void
-    {
-        docker_compose_run(
-            $command,
-            service: $this->name,
-            c: $c,
-            workDir: $this->getTaskWorkingDirectory(),
-        );
-    }
-
-    /**
-     * Null leaves the working directory of the container alone, which is what a
-     * single-crate service wants and keeps a compose.override.yaml effective.
-     */
-    protected function getTaskWorkingDirectory(): ?string
-    {
-        if ('.' === $this->workingDirectory) {
-            return null;
-        }
-
-        return $this->getContainerWorkingDirectory(static::MOUNT_POINT);
-    }
-
-    /**
-     * @return list<string>|string
-     */
-    protected function getContainerCommand(): array|string
-    {
-        $binary = $this->joinPath(static::MOUNT_POINT, $this->getBinaryPath());
-
-        if (\is_string($this->runCommand)) {
-            return $this->runCommand;
-        }
-
-        if (\is_array($this->runCommand)) {
-            return [$binary, ...$this->runCommand];
-        }
-
-        return $binary;
     }
 }

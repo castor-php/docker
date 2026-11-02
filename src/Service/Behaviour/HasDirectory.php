@@ -70,7 +70,7 @@ trait HasDirectory
      * Absolute: a withDirectory() left out or relative is relative to the
      * project, which only the context knows about.
      */
-    protected function getAbsoluteHostWorkingDirectory(Context $context): string
+    protected function getAbsoluteHostDirectory(Context $context): string
     {
         $directory = $this->getDirectory();
 
@@ -78,7 +78,12 @@ trait HasDirectory
             $directory = $this->joinPath($context->workingDirectory, $directory);
         }
 
-        return $this->joinPath($directory, $this->workingDirectory);
+        return $directory;
+    }
+
+    protected function getAbsoluteHostWorkingDirectory(Context $context): string
+    {
+        return $this->joinPath($this->getAbsoluteHostDirectory($context), $this->workingDirectory);
     }
 
     /**
