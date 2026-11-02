@@ -5,6 +5,10 @@
 ### Fixed
 
 * The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.
+* The router answers on the domains declared in `compose.yaml` or `compose.override.yaml`, and with map-form labels, and `worktree:create` checks them for conflicts.
+* `docker:stop` only prints its title when it stops the whole infrastructure, like `docker:up`.
+* `docker:push --dry-run` prints a bake plan that can be parsed even on the run that creates `compose.yaml`: the notice and the project name question go to stderr.
+* The example of the README uses the methods that exist.
 
 ## 0.11.0 - 2026-10-27
 

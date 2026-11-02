@@ -29,7 +29,7 @@ jobs:
         run: vendor/bin/phpunit --testsuite unit
 
       - name: Integration tests
-        run: vendor/bin/phpunit --testsuite integration
+        run: vendor/bin/phpunit --testsuite integration --fail-on-skipped
 
   phpstan:
     runs-on: ubuntu-latest

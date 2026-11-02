@@ -274,41 +274,20 @@ function autocomplete_worker_name(CompletionInput $input): array
 }
 
 /**
- * Every domain routed to a container of this project.
- *
- * Taken from the "caddy" labels rather than from the services, so a domain
- * declared straight on the builder counts too.
+ * Every domain routed to a container of this project, from the URLs it serves.
  *
  * @return list<string>
  */
 function get_project_domains(?Context $c = null): array
 {
-    $c ??= context();
-    $composeFile = $c->workingDirectory . '/compose.generated.yaml';
-
-    if (!file_exists($composeFile) || !($content = file_get_contents($composeFile))) {
-        return [];
-    }
-
-    $compose = yaml_parse($content);
     $domains = [];
 
-    foreach ($compose['services'] ?? [] as $service) {
-        foreach ($service['labels'] ?? [] as $label) {
-            // "caddy=a.test b.test", "caddy_1=http://a.test" for withHttpAccess().
-            if (!\is_string($label) || 1 !== preg_match('/^caddy(?:_\d+)?=(.+)$/', $label, $matches)) {
-                continue;
-            }
+    foreach (get_project_urls($c) as $urls) {
+        foreach ($urls as $url) {
+            $domain = (string) preg_replace('#^https?://#', '', $url);
 
-            foreach (preg_split('/\s+/', trim($matches[1])) ?: [] as $domain) {
-                $domain = (string) preg_replace('#^https?://#', '', $domain);
-
-                // A wildcard or a matcher would make the whole
-                // "docker network connect" fail.
-                if (1 !== preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/', $domain)) {
-                    continue;
-                }
-
+            // A wildcard would make the whole "docker network connect" fail.
+            if (!str_starts_with($domain, '*.')) {
                 $domains[$domain] = true;
             }
         }
@@ -1270,13 +1249,16 @@ function initialize_project(Context $context): Context
     $projectName = basename($context->workingDirectory);
 
     if (!file_exists($composeFile)) {
-        io()->title('Initializing Docker Compose file for the context');
+        // On stderr, to keep the output of the task itself, like the bake plan
+        // of "docker:push --dry-run", parsable.
+        $io = io()->getErrorStyle();
+        $io->title('Initializing Docker Compose file for the context');
 
         $input = input();
 
         // Never block on a question while the shell is completing a command.
         if ($input->isInteractive() && '_complete' !== $input->getFirstArgument()) {
-            $projectName = io()->ask('Enter your docker compose project name', $projectName);
+            $projectName = $io->ask('Enter your docker compose project name', $projectName);
         }
 
         file_put_contents(
