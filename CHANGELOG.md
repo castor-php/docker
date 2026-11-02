@@ -8,6 +8,7 @@
 * `PROJECT_ROOT_DOMAIN` defaults to `castor.local`, like every other default domain, instead of `local.test`.
 * The `client` tasks of the databases pass the terminal size, like the other commands run in a container.
 * Every task description is in the imperative, and every option has a description.
+* The plugin requires PHP 8.4.1, which Castor 1.9 already requires.
 
 ### Fixed
 
