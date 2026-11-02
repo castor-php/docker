@@ -2,9 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+* `withEnvironment()` on `PHPService`, `GoService` and `RustService`, like on `NodeService` and `BinaryRunService`. A PHP application gets the variables in its builder and its workers too.
+* `GoService` has the `test`, `go` and `bash` tasks of `RustService`.
+
+### Changed
+
+* `GoService` expects the application on port 8080, like `RustService` and `BinaryRunService`. Use `withPort(80)` to keep the old one.
+* `BinaryRunService::withRunCommand()` given a string replaces the container command, like on the other services, instead of passing it as the only argument of the binary.
+* The `watch` task of a Go service also reacts to `go.mod` and `go.sum`.
+
 ### Fixed
 
 * The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.
+* The `watch` tasks of the Go, Rust, Node and binary services failed when `withDirectory()` was relative.
 
 ## 0.11.0 - 2026-10-27
 

@@ -182,6 +182,9 @@ binary, a Go one, or anything else.
     ->withPort(8080)
 ```
 
+`withRunCommand()` works as on `RustService`: a **list** appends the arguments
+to the binary, a **string** replaces the container command outright.
+
 Nothing watches a binary that exits — because a dependency was not up yet,
 because it panicked — so without a restart policy it stays down until someone
 notices. `withRestart()` defaults to `on-failure`, which brings it back without
