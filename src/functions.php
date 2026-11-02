@@ -1249,13 +1249,16 @@ function initialize_project(Context $context): Context
     $projectName = basename($context->workingDirectory);
 
     if (!file_exists($composeFile)) {
-        io()->title('Initializing Docker Compose file for the context');
+        // On stderr, to keep the output of the task itself, like the bake plan
+        // of "docker:push --dry-run", parsable.
+        $io = io()->getErrorStyle();
+        $io->title('Initializing Docker Compose file for the context');
 
         $input = input();
 
         // Never block on a question while the shell is completing a command.
         if ($input->isInteractive() && '_complete' !== $input->getFirstArgument()) {
-            $projectName = io()->ask('Enter your docker compose project name', $projectName);
+            $projectName = $io->ask('Enter your docker compose project name', $projectName);
         }
 
         file_put_contents(
