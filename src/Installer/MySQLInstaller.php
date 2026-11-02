@@ -23,7 +23,7 @@ final class MySQLInstaller extends AbstractServiceInstaller implements DatabaseS
     public function getInputs(): array
     {
         return [
-            new Input('version', 'MySQL version', InputType::Text, (new MySQLService())->getVersion()),
+            new Input('version', 'MySQL version', InputType::Text, new MySQLService()->getVersion()),
         ];
     }
 
@@ -35,6 +35,6 @@ final class MySQLInstaller extends AbstractServiceInstaller implements DatabaseS
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return (new MySQLService())->withVersion((string) $answers['version']);
+        return new MySQLService()->withVersion((string) $answers['version']);
     }
 }

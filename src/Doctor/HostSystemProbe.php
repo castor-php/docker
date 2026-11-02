@@ -448,7 +448,7 @@ final class HostSystemProbe implements SystemProbe
      */
     private function find(string $command, array $directories = []): ?string
     {
-        return (new ExecutableFinder())->find($command, null, $directories);
+        return new ExecutableFinder()->find($command, null, $directories);
     }
 
     /**

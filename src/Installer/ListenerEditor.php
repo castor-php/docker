@@ -54,7 +54,7 @@ final class ListenerEditor
 
     public function __construct(string $source)
     {
-        $parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $parser = new ParserFactory()->createForNewestSupportedVersion();
         $this->oldStmts = $parser->parse($source) ?? [];
         $this->oldTokens = $parser->getTokens();
 
@@ -284,7 +284,7 @@ final class ListenerEditor
 
     public function getSource(): string
     {
-        return (new PrettyPrinter\Standard())->printFormatPreserving($this->newStmts, $this->oldStmts, $this->oldTokens);
+        return new PrettyPrinter\Standard()->printFormatPreserving($this->newStmts, $this->oldStmts, $this->oldTokens);
     }
 
     private function chainBaseNew(Expr $expr): ?New_
@@ -354,7 +354,7 @@ final class ListenerEditor
     {
         $names = [];
 
-        foreach ((new NodeFinder())->findInstanceOf($node, Name::class) as $name) {
+        foreach (new NodeFinder()->findInstanceOf($node, Name::class) as $name) {
             $names[$name->getLast()] = true;
         }
 

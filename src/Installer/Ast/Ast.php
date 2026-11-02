@@ -20,7 +20,7 @@ final class Ast
      */
     public static function raw(string $expression): Expr
     {
-        $parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $parser = new ParserFactory()->createForNewestSupportedVersion();
         $statements = $parser->parse('<?php ' . $expression . ';');
 
         if (($statements[0] ?? null) instanceof Expression) {

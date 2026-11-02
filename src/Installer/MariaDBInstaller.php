@@ -23,7 +23,7 @@ final class MariaDBInstaller extends AbstractServiceInstaller implements Databas
     public function getInputs(): array
     {
         return [
-            new Input('version', 'MariaDB version', InputType::Text, (new MariaDBService())->getVersion()),
+            new Input('version', 'MariaDB version', InputType::Text, new MariaDBService()->getVersion()),
         ];
     }
 
@@ -35,6 +35,6 @@ final class MariaDBInstaller extends AbstractServiceInstaller implements Databas
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return (new MariaDBService())->withVersion((string) $answers['version']);
+        return new MariaDBService()->withVersion((string) $answers['version']);
     }
 }

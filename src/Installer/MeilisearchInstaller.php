@@ -35,6 +35,6 @@ final class MeilisearchInstaller extends AbstractServiceInstaller
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return (new MeilisearchService())->withVersion((string) $answers['version']);
+        return new MeilisearchService()->withVersion((string) $answers['version']);
     }
 }
