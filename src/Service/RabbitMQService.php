@@ -13,6 +13,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
+use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
+
 class RabbitMQService implements ServiceInterface
 {
     use HasName;
@@ -30,7 +32,7 @@ class RabbitMQService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $rootDomain = $context->data['root_domain'] ?? 'castor.local';
+        $rootDomain = $context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN;
 
         $name = $this->getName();
 

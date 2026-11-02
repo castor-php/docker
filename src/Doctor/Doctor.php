@@ -17,6 +17,7 @@ use function Castor\Docker\get_worktree_base_domain;
 use function Castor\Docker\get_worktree_name;
 use function Castor\Docker\get_plugin_version;
 use function Castor\Docker\is_worktree_domain;
+use function Castor\Docker\task_name;
 use function Castor\Docker\worktree_root_domain;
 
 /**
@@ -126,9 +127,9 @@ final class Doctor
         if (null === $router) {
             $checks[] = match (true) {
                 !$routes => Check::ok('Router', 'Stopped, and not needed: this project routes no domain.'),
-                $this->isProjectRunning() => Check::error('Router', 'Stopped while the project runs: none of its URLs answers.', 'Start it: castor docker:router:enable'),
-                $this->probe->routerAutostart() => Check::ok('Router', 'Stopped, castor docker:up starts it along with the project.'),
-                default => Check::warning('Router', 'Stopped, and its autostart is off: castor docker:up leaves it stopped.', 'Start it: castor docker:router:enable'),
+                $this->isProjectRunning() => Check::error('Router', 'Stopped while the project runs: none of its URLs answers.', 'Start it: castor ' . task_name('Castor\Docker\router_enable')),
+                $this->probe->routerAutostart() => Check::ok('Router', 'Stopped, castor ' . task_name('Castor\Docker\up') . ' starts it along with the project.'),
+                default => Check::warning('Router', 'Stopped, and its autostart is off: castor ' . task_name('Castor\Docker\up') . ' leaves it stopped.', 'Start it: castor ' . task_name('Castor\Docker\router_enable')),
             };
         } elseif (compare_router_configuration($router['version'], $router['checksum'], $this->pluginVersion) >= 0) {
             $checks[] = Check::ok('Router', \sprintf('Running, created by castor-php/docker %s, as recent as this project needs.', $router['version'] ?? '(version unknown)'));
@@ -137,7 +138,7 @@ final class Doctor
             $checks[] = Check::warning(
                 'Router',
                 \sprintf('Running an older configuration than the %s of this project, created by castor-php/docker %s.', $this->pluginVersion ?? get_plugin_version(), $router['version'] ?? '(version unknown)'),
-                'Apply this one: castor docker:router:restart — it briefly interrupts every project the router serves.',
+                'Apply this one: castor ' . task_name('Castor\Docker\router_restart') . ' — it briefly interrupts every project the router serves.',
             );
         }
 
@@ -151,7 +152,7 @@ final class Doctor
 
             $checks[] = \in_array($network, $router['networks'], true)
                 ? Check::ok('Network', \sprintf('The router joined %s.', $network))
-                : Check::error('Network', \sprintf('The router has not joined %s: it cannot reach the containers of the project.', $network), 'Make it join the running projects: castor docker:router:enable');
+                : Check::error('Network', \sprintf('The router has not joined %s: it cannot reach the containers of the project.', $network), 'Make it join the running projects: castor ' . task_name('Castor\Docker\router_enable'));
         }
 
         return $checks;
@@ -198,7 +199,7 @@ final class Doctor
             return [Check::warning(
                 'mkcert',
                 'mkcert is not installed: the router signs with a CA of its own, which no browser trusts.',
-                'Install mkcert (https://github.com/FiloSottile/mkcert), run mkcert -install, then castor docker:router:enable',
+                'Install mkcert (https://github.com/FiloSottile/mkcert), run mkcert -install, then castor ' . task_name('Castor\Docker\router_enable'),
             )];
         }
 
@@ -206,7 +207,7 @@ final class Doctor
         $hash = $this->probe->fileHash($ca);
 
         if (null === $hash) {
-            return [Check::warning('mkcert', \sprintf('mkcert has no CA in %s yet.', $caRoot), 'Create it and trust it: mkcert -install, then castor docker:router:enable')];
+            return [Check::warning('mkcert', \sprintf('mkcert has no CA in %s yet.', $caRoot), 'Create it and trust it: mkcert -install, then castor ' . task_name('Castor\Docker\router_enable'))];
         }
 
         $checks = [Check::ok('mkcert', \sprintf('The mkcert CA is in %s.', $caRoot))];
@@ -214,7 +215,7 @@ final class Doctor
         // The Caddyfile imports the CA at startup, so a running router has to
         // be restarted to pick up a new copy.
         $copy = $this->probe->fileHash(get_router_certs_directory() . '/rootCA.pem');
-        $apply = null !== $this->router() ? 'castor docker:router:restart' : 'castor docker:router:enable';
+        $apply = null !== $this->router() ? 'castor ' . task_name('Castor\Docker\router_restart') : 'castor ' . task_name('Castor\Docker\router_enable');
 
         if (null === $copy || null === $this->probe->fileHash(get_router_certs_directory() . '/caddy/ca.caddy')) {
             $checks[] = Check::warning('Router CA', 'The router has no copy of the mkcert CA: it signs with a CA of its own, which no browser trusts.', 'Copy it: ' . $apply);
@@ -393,12 +394,12 @@ final class Doctor
 
         if (null === $version) {
             return $buildsWithBuildx
-                ? Check::error('Buildx', \sprintf('Buildx is not installed, and Compose %s builds through it: castor docker:build fails.', $compose), $fix)
-                : Check::warning('Buildx', 'Buildx is not installed: castor docker:push builds with "docker buildx bake".', $fix);
+                ? Check::error('Buildx', \sprintf('Buildx is not installed, and Compose %s builds through it: castor ' . task_name('Castor\Docker\build') . ' fails.', $compose), $fix)
+                : Check::warning('Buildx', 'Buildx is not installed: castor ' . task_name('Castor\Docker\push') . ' builds with "docker buildx bake".', $fix);
         }
 
         if ($buildsWithBuildx && version_compare($version, self::BUILDX, '<')) {
-            return Check::error('Buildx', \sprintf('Buildx %s is too old: Compose %s builds through Buildx %s or later, so castor docker:build fails.', $version, $compose, self::BUILDX), $fix);
+            return Check::error('Buildx', \sprintf('Buildx %s is too old: Compose %s builds through Buildx %s or later, so castor ' . task_name('Castor\Docker\build') . ' fails.', $version, $compose, self::BUILDX), $fix);
         }
 
         // Only a project pushing its build cache cares: the "docker" driver
@@ -408,7 +409,7 @@ final class Doctor
         if (\is_string($registry) && '' !== $registry && 'docker' === $this->probe->buildxDriver() && false === ($this->dockerInfo()['containerdStore'] ?? null)) {
             return Check::warning(
                 'Buildx',
-                \sprintf('Buildx %s, but its builder uses the "docker" driver, which cannot export the build cache castor docker:push pushes without the containerd image store.', $version),
+                \sprintf('Buildx %s, but its builder uses the "docker" driver, which cannot export the build cache castor ' . task_name('Castor\Docker\push') . ' pushes without the containerd image store.', $version),
                 'Create a builder that can, once: docker buildx create --use --driver docker-container',
             );
         }
@@ -480,14 +481,14 @@ final class Doctor
         $containers = $this->projectContainers();
 
         if (!$containers) {
-            return [Check::ok('Containers', 'None created yet: castor docker:up starts them.')];
+            return [Check::ok('Containers', 'None created yet: castor ' . task_name('Castor\Docker\up') . ' starts them.')];
         }
 
         $checks = [];
 
         foreach ($containers as $container) {
             $service = $container['service'];
-            $fix = 'See why: castor docker:logs ' . $service;
+            $fix = 'See why: castor ' . task_name('Castor\Docker\logs') . ' ' . $service;
 
             if ('restarting' === $container['state']) {
                 $checks[] = Check::error('Containers', \sprintf('%s keeps restarting (%s).', $service, $container['status']), $fix);
@@ -578,13 +579,13 @@ final class Doctor
     {
         $socket = $this->probe->routerSocketPath();
         $endpoint = $this->endpointSocket();
-        $fix = \sprintf('Give it the socket of the daemon your projects run on — export DOCKER_SOCKET_PATH=%s — then castor docker:router:enable', $endpoint ?? '<socket>');
+        $fix = \sprintf('Give it the socket of the daemon your projects run on — export DOCKER_SOCKET_PATH=%s — then castor ' . task_name('Castor\Docker\router_enable'), $endpoint ?? '<socket>');
 
         if (null !== $router && null !== $router['socket'] && $router['socket'] !== $socket) {
             return Check::warning(
                 'Docker socket',
                 \sprintf('The router watches %s, but castor would now give it %s.', $router['socket'], $socket),
-                \sprintf('Recreate it on %s: castor docker:router:enable — or export DOCKER_SOCKET_PATH=%s if the one it watches is right.', $socket, $router['socket']),
+                \sprintf('Recreate it on %s: castor ' . task_name('Castor\Docker\router_enable') . ' — or export DOCKER_SOCKET_PATH=%s if the one it watches is right.', $socket, $router['socket']),
             );
         }
 

@@ -31,7 +31,7 @@ class SymfonyService extends PHPService
         yield from parent::getTasks();
 
         yield [
-            'task' => new AsTask('cache-clear', $this->name, 'Clears the application cache'),
+            'task' => new AsTask('cache-clear', $this->name, 'Clear the application cache'),
             'function' => function (bool $warm = true): void {
                 $this->runInBuilder(['rm', '-rf', 'var/cache']);
 
@@ -42,21 +42,21 @@ class SymfonyService extends PHPService
         ];
 
         yield [
-            'task' => new AsTask('cache-warmup', $this->name, 'Warms the application cache'),
+            'task' => new AsTask('cache-warmup', $this->name, 'Warm up the application cache'),
             'function' => function (): void {
                 $this->runInBuilder(['php', 'bin/console', 'cache:warm']);
             },
         ];
 
         yield [
-            'task' => new AsTask('fixtures', $this->name . ':db', 'Loads fixtures'),
+            'task' => new AsTask('fixtures', $this->name . ':db', 'Load the fixtures'),
             'function' => function (): void {
                 $this->runInBuilder(['php', 'bin/console', 'doctrine:fixture:load']);
             },
         ];
 
         yield [
-            'task' => new AsTask('migrate', $this->name . ':db', 'Migrates database schema'),
+            'task' => new AsTask('migrate', $this->name . ':db', 'Migrate the database schema'),
             'function' => function (): void {
                 $this->runInBuilder(['php', 'bin/console', 'doctrine:database:create', '--if-not-exists']);
                 $this->runInBuilder(['php', 'bin/console', 'doctrine:migration:migrate', '-n', '--allow-no-migration', '--all-or-nothing']);
@@ -75,7 +75,7 @@ class SymfonyService extends PHPService
         ];
 
         yield [
-            'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fixes Twig Coding Style'),
+            'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fix the Twig coding style'),
             'function' => fn(bool $dryRun = false): int => $this->runQaTool(
                 'twig-cs-fixer',
                 ['vincentlanglet/twig-cs-fixer' => $this->twigCsFixerVersion],

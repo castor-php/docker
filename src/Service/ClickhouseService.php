@@ -11,11 +11,13 @@ use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
-use function Castor\Docker\docker_compose;
+use function Castor\Docker\docker_compose_exec;
 use function Castor\Docker\expose_service_port;
 use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
 use function Castor\context;
+
+use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
 class ClickhouseService implements DumpableServiceInterface
 {
@@ -81,7 +83,7 @@ class ClickhouseService implements DumpableServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $rootDomain = $context->data['root_domain'] ?? 'castor.local';
+        $rootDomain = $context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN;
 
         $name = $this->getName();
         $keeper = $this->getKeeperName();
@@ -127,7 +129,7 @@ class ClickhouseService implements DumpableServiceInterface
         yield [
             'task' => new AsTask('client', $this->getName(), 'Open a clickhouse-client session on the database'),
             'function' => function (): void {
-                docker_compose(['exec', $this->getName(), 'clickhouse-client', '-d', $this->database], c: interactive_context());
+                docker_compose_exec(['clickhouse-client', '-d', $this->database], $this->getName(), interactive_context());
             },
         ];
 

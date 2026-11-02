@@ -35,11 +35,11 @@ use function Castor\run;
 /**
  * @param list<string> $profiles
  */
-#[AsTask(description: 'Builds the infrastructure', aliases: ['build'], namespace: 'docker')]
+#[AsTask(description: 'Build the infrastructure', aliases: ['build'], namespace: 'docker')]
 function build(
     #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
+    #[AsOption(description: 'The compose profiles to act on, the default ones when omitted', mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
     #[AsOption(description: 'Build each service on its own, in parallel, so services sharing a stage keep their build cache', mode: InputOption::VALUE_NONE | InputOption::VALUE_NEGATABLE)]
     ?bool $parallel = null,
@@ -133,12 +133,13 @@ function get_buildable_services(array $profiles): array
 /**
  * @param list<string> $profiles
  */
-#[AsTask(description: 'Builds and starts the infrastructure', aliases: ['up'], namespace: 'docker')]
+#[AsTask(description: 'Build and start the infrastructure', aliases: ['up'], namespace: 'docker')]
 function up(
     #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
+    #[AsOption(description: 'The compose profiles to act on, the default ones when omitted', mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
+    #[AsOption(description: 'Build the infrastructure first')]
     bool $build = false,
 ): void {
     if ($build) {
@@ -159,7 +160,7 @@ function up(
         docker_compose($command, profiles: $profiles);
     } catch (ExceptionInterface $e) {
         io()->error('An error occured while starting the infrastructure.');
-        io()->note('Did you forget to run "castor docker:build"?');
+        io()->note('Did you forget to run "castor ' . task_name('Castor\Docker\build') . '"?');
         io()->note('Or you forget to login to the registry?');
 
         throw $e;
@@ -173,11 +174,11 @@ function up(
 /**
  * @param list<string> $profiles
  */
-#[AsTask(description: 'Stops the infrastructure', aliases: ['stop'], namespace: 'docker')]
+#[AsTask(description: 'Stop the infrastructure', aliases: ['stop'], namespace: 'docker')]
 function stop(
     #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
+    #[AsOption(description: 'The compose profiles to act on, the default ones when omitted', mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
 ): void {
     if (!$service || !$profiles) {
@@ -206,11 +207,11 @@ function stop(
 /**
  * @param list<string> $profiles
  */
-#[AsTask(description: 'Displays infrastructure logs', aliases: ['logs'], namespace: 'docker')]
+#[AsTask(description: 'Display the logs of the infrastructure', aliases: ['logs'], namespace: 'docker')]
 function logs(
     #[AsArgument(description: 'The service to act on, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
-    #[AsOption(mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
+    #[AsOption(description: 'The compose profiles to act on, the default ones when omitted', mode: InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED)]
     array $profiles = [],
 ): void {
     $command = ['logs', '--tail', '150'];
@@ -228,7 +229,7 @@ function logs(
     docker_compose($command, c: $c, profiles: $profiles);
 }
 
-#[AsTask(description: 'Clears the logs of a service, or of every service', namespace: 'docker:logs', name: 'clear')]
+#[AsTask(description: 'Clear the logs of a service, or of every service', namespace: 'docker:logs', name: 'clear')]
 function logs_clear(
     #[AsArgument(description: 'The service to clear, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_service_name')]
     ?string $service = null,
@@ -272,7 +273,7 @@ function logs_clear(
     io()->success(\sprintf('Cleared the logs of %s.', implode(', ', $cleared)));
 }
 
-#[AsTask(description: 'Lists containers status', aliases: ['ps'], namespace: 'docker')]
+#[AsTask(description: 'List the containers and their status', aliases: ['ps'], namespace: 'docker')]
 function ps(): void
 {
     docker_compose(['ps']);
@@ -282,7 +283,7 @@ function ps(): void
  * Everything is read from the compose files, so the task answers whether or not
  * the infrastructure runs — what is running only decorates the listing.
  */
-#[AsTask(description: 'Sums up the project and lists all its URLs', aliases: ['about'], namespace: 'docker')]
+#[AsTask(description: 'Sum up the project and list all its URLs', aliases: ['about'], namespace: 'docker')]
 function about(): void
 {
     $c = context();
@@ -297,7 +298,7 @@ function about(): void
 
     if (null !== ($worktree = get_worktree_name($c))) {
         io()->comment(\sprintf(
-            'This checkout is the <comment>%s</comment> worktree: it runs its own stack, under the <comment>%s</comment> compose project. See <comment>castor worktree:list</comment>.',
+            'This checkout is the <comment>%s</comment> worktree: it runs its own stack, under the <comment>%s</comment> compose project. See <comment>castor ' . task_name('Castor\Docker\worktree_list') . '</comment>.',
             $worktree,
             get_project_name($c),
         ));
@@ -331,7 +332,7 @@ function about(): void
 
         if (!$routerRunning) {
             io()->warning('The router is stopped: none of these URLs answers.');
-            io()->note('Start it with "castor docker:router:enable".');
+            io()->note('Start it with "castor ' . task_name('Castor\Docker\router_enable') . '".');
         }
     }
 
@@ -361,7 +362,7 @@ function status_label(string $service, array $running): string
     return \in_array($service, $running, true) ? '<fg=green>running</>' : '<fg=yellow>stopped</>';
 }
 
-#[AsTask(description: 'Shows the CPU, memory and disk the project uses', aliases: ['stats'], namespace: 'docker')]
+#[AsTask(description: 'Show the CPU, memory and disk the project uses', aliases: ['stats'], namespace: 'docker')]
 function stats(
     #[AsOption(description: 'Skip the disk usage, which makes docker measure every image, container and volume')]
     bool $noDisk = false,
@@ -378,7 +379,7 @@ function stats(
     io()->section(\sprintf('Containers (%d running out of %d)', \count($running), \count($containers)));
 
     if (!$containers) {
-        io()->text('This project has no container. Start it with <comment>castor docker:up</comment>.');
+        io()->text('This project has no container. Start it with <comment>castor ' . task_name('Castor\Docker\up') . '</comment>.');
     } else {
         $rows = [];
         $totals = ['cpu' => 0.0, 'memory' => 0, 'netIn' => 0, 'netOut' => 0, 'blockIn' => 0, 'blockOut' => 0, 'pids' => 0];
@@ -505,7 +506,7 @@ function stats(
  * Nothing has to run for it to answer: without a Docker daemon, the daemon is
  * what gets reported, and the checks needing it are skipped.
  */
-#[AsTask(description: 'Diagnoses the environment and says how to fix what is wrong', aliases: ['doctor'], namespace: 'docker')]
+#[AsTask(description: 'Diagnose the environment and say how to fix what is wrong', aliases: ['doctor'], namespace: 'docker')]
 function doctor(): int
 {
     $c = context();
@@ -724,7 +725,7 @@ function service_remove(
     io()->success(\sprintf('"%s" removed.', $name));
 }
 
-#[AsTask(description: 'Cleans the infrastructure (remove container, volume, networks)', aliases: ['destroy'], namespace: 'docker')]
+#[AsTask(description: 'Clean the infrastructure (remove containers, volumes and networks)', aliases: ['destroy'], namespace: 'docker')]
 function destroy(
     #[AsOption(description: 'Force the destruction without confirmation', shortcut: 'f')]
     bool $force = false,
@@ -748,6 +749,7 @@ function destroy(
 
 #[AsTask(description: 'Push the images and their build cache to the registry', namespace: 'docker', name: 'push', aliases: ['push'])]
 function push(
+    #[AsOption(description: 'Print the bake plan instead of building and pushing')]
     bool $dryRun = false,
     #[AsOption(description: 'The tag the images are published under')]
     string $tag = 'latest',

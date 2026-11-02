@@ -277,7 +277,7 @@ function close_all_tunnels(?Context $c = null): void
 /**
  * @param list<string> $domains
  */
-#[AsTask(name: 'start', namespace: 'docker:tunnel', description: 'Opens a public HTTPS tunnel to the domains of the project', aliases: ['tunnel'])]
+#[AsTask(name: 'start', namespace: 'docker:tunnel', description: 'Open a public HTTPS tunnel to the domains of the project', aliases: ['tunnel'])]
 function tunnel_start(
     #[AsArgument(description: 'The domains to tunnel, every domain of the project when omitted', autocomplete: 'Castor\Docker\autocomplete_tunnel_domain')]
     array $domains = [],
@@ -306,7 +306,7 @@ function tunnel_start(
 
     if (!is_router_running()) {
         io()->error('The router is not running: the tunnels reach the project through it.');
-        io()->note('Start the project with "castor docker:up", or the router with "castor docker:router:enable".');
+        io()->note('Start the project with "castor ' . task_name('Castor\Docker\up') . '", or the router with "castor ' . task_name('Castor\Docker\router_enable') . '".');
 
         return;
     }
@@ -374,14 +374,14 @@ function tunnel_start(
 
     io()->note([
         'A new URL may take a few seconds to answer, the time for its DNS record to spread.',
-        'Anyone with the URL can reach the service: close the tunnels with "castor docker:tunnel:stop". "castor docker:stop" closes them too.',
+        'Anyone with the URL can reach the service: close the tunnels with "castor ' . task_name('Castor\Docker\tunnel_stop') . '". "castor ' . task_name('Castor\Docker\stop') . '" closes them too.',
     ]);
 }
 
 /**
  * @param list<string> $domains
  */
-#[AsTask(name: 'stop', namespace: 'docker:tunnel', description: 'Closes the public tunnels of the project')]
+#[AsTask(name: 'stop', namespace: 'docker:tunnel', description: 'Close the public tunnels of the project')]
 function tunnel_stop(
     #[AsArgument(description: 'The domains whose tunnel to close, all of them when omitted', autocomplete: 'Castor\Docker\autocomplete_tunnel_domain')]
     array $domains = [],
