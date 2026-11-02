@@ -46,16 +46,9 @@ function build(
 ): void {
     io()->title('Building infrastructure');
 
-    $command = [];
+    $command = ['build'];
 
-    $buildArgs = variable('build_args', []);
-
-    $command = [
-        ...$command,
-        'build',
-    ];
-
-    foreach ($buildArgs as $key => $value) {
+    foreach (variable('build_args', []) as $key => $value) {
         $command[] = '--build-arg';
         $command[] = "{$key}={$value}";
     }
@@ -73,44 +66,21 @@ function build(
         return;
     }
 
-    build_separately($command, $services, $profiles);
-}
-
-function is_build_parallel(?bool $option = null, ?Context $c = null): bool
-{
-    return $option ?? (($c ?? context())->data['build_parallel'] ?? false);
-}
-
-/**
- * One build per service, run in parallel: in a single session BuildKit merges
- * the stages services share, then races the caches of those services over them
- * and randomly loses the steps of all but one (moby/buildkit#6418).
- *
- * @param list<string> $command
- * @param non-empty-list<string> $services
- * @param list<string> $profiles
- */
-function build_separately(array $command, array $services, array $profiles): void
-{
+    // One build per service: in a single session BuildKit merges the stages
+    // services share, then races the caches of those services over them and
+    // randomly loses the steps of all but one (moby/buildkit#6418).
     $builds = [];
 
     foreach ($services as $service) {
         $builds[$service] = static fn(): Process => docker_compose([...$command, $service], profiles: $profiles, progress: 'plain');
     }
 
-    run_builds_in_parallel($builds);
+    parallel(...$builds);
 }
 
-/**
- * Each build is a job of castor's parallel(): a block per service with its last
- * lines in a terminal, every line prefixed by its service anywhere else, and
- * the full log of the failed ones once they are all done.
- *
- * @param non-empty-array<string, \Closure(): Process> $builds
- */
-function run_builds_in_parallel(array $builds): void
+function is_build_parallel(?bool $option = null, ?Context $c = null): bool
 {
-    parallel(...$builds);
+    return $option ?? (($c ?? context())->data['build_parallel'] ?? false);
 }
 
 /**
@@ -866,14 +836,14 @@ function push(
         return;
     }
 
-    // One bake per target, for the reason build_separately() gives.
+    // One bake per target, for the reason build() gives.
     $builds = [];
 
     foreach (array_keys($targets) as $service) {
         $builds[$service] = static fn(): Process => run([...$command, ...$options[$service], '--progress', 'plain', $service], context: $c);
     }
 
-    run_builds_in_parallel($builds);
+    parallel(...$builds);
 }
 
 /**
