@@ -15,17 +15,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class WorkerTasksTest extends TestCase
 {
-    private function app(string ...$workers): PHPService
+    private function app(string ...$workers): WorkerPHPService
     {
-        $app = new class ('app') extends PHPService {
-            /**
-             * @return list<string>
-             */
-            public function workerServices(?string $worker = null): array
-            {
-                return $this->resolveWorkerServices($worker);
-            }
-        };
+        $app = new WorkerPHPService('app');
 
         foreach ($workers as $worker) {
             $app->addWorker($worker, 'php bin/console ' . $worker);
@@ -72,5 +64,19 @@ final class WorkerTasksTest extends TestCase
         $this->expectExceptionMessage('Declared: messenger, scheduler.');
 
         $app->workerServices('typo');
+    }
+}
+
+/**
+ * Exposes how a worker name resolves to its containers.
+ */
+final class WorkerPHPService extends PHPService
+{
+    /**
+     * @return list<string>
+     */
+    public function workerServices(?string $worker = null): array
+    {
+        return $this->resolveWorkerServices($worker);
     }
 }

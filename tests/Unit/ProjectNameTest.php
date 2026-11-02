@@ -59,7 +59,7 @@ final class ProjectNameTest extends TestCase
 
         $context = initialize_project($this->context(['project_name' => 'rio-wt2']));
 
-        static::assertSame('rio-wt2', $context->data['project_name']);
+        static::assertSame('rio-wt2', $context->data['project_name'] ?? null);
         static::assertSame('rio-wt2', get_project_name($context));
     }
 
@@ -69,7 +69,7 @@ final class ProjectNameTest extends TestCase
 
         $context = initialize_project($this->context());
 
-        static::assertSame('rio', $context->data['project_name']);
+        static::assertSame('rio', $context->data['project_name'] ?? null);
         static::assertSame('rio', get_project_name($context));
     }
 
@@ -81,7 +81,7 @@ final class ProjectNameTest extends TestCase
     {
         file_put_contents($this->directory . '/compose.yaml', "services: {}\n");
 
-        static::assertSame('my-project', initialize_project($this->context())->data['project_name']);
+        static::assertSame('my-project', initialize_project($this->context())->data['project_name'] ?? null);
     }
 
     /**
@@ -108,6 +108,6 @@ final class ProjectNameTest extends TestCase
         $once = initialize_project($this->context(['project_name' => 'rio-wt2']));
         $twice = initialize_project($once);
 
-        static::assertSame('rio-wt2', $twice->data['project_name']);
+        static::assertSame('rio-wt2', $twice->data['project_name'] ?? null);
     }
 }

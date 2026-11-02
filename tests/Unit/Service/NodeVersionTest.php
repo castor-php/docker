@@ -59,6 +59,7 @@ final class NodeVersionTest extends SnapshotTestCase
     public function testTheDockerfileReadsTheVariableWeSend(): void
     {
         $dockerfile = file_get_contents(\dirname(__DIR__, 3) . '/src/Resources/php/Dockerfile');
+        static::assertIsString($dockerfile);
 
         static::assertStringContainsString('node_{{ node_version }}', $dockerfile);
         static::assertStringNotContainsString('NODEJS_VERSION', $dockerfile, 'The old build argument is still there.');

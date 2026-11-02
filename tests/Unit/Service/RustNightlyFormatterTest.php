@@ -16,39 +16,9 @@ use Castor\Docker\Tests\SnapshotTestCase;
  */
 final class RustNightlyFormatterTest extends SnapshotTestCase
 {
-    private function builder(bool $nightly): RustBuilder
+    private function builder(bool $nightly): ExposedRustBuilder
     {
-        $builder = new class ('rust-builder') extends RustBuilder {
-            /**
-             * @return list<array{name: string, components: list<string>}>
-             */
-            public function toolchains(): array
-            {
-                return $this->getRustupToolchains();
-            }
-
-            /**
-             * @param array<string, mixed> $options
-             */
-            /**
-             * @return list<string>
-             */
-            public function format(array $options = []): array
-            {
-                return $this->formatCommand($options);
-            }
-
-            /**
-             * @param array<string, mixed> $options
-             */
-            /**
-             * @return string|list<string>
-             */
-            public function build(array $options = []): string|array
-            {
-                return $this->getBuildCommand('app', 'app', $options);
-            }
-        };
+        $builder = new ExposedRustBuilder('rust-builder');
 
         return $builder->withNightlyFormatter($nightly);
     }
@@ -131,5 +101,39 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
         // nothing for it.
         static::assertSame(['rustup', 'run', 'nightly', 'cargo'], $builder->format(['toolchain' => 'nightly']));
         static::assertSame(['rustup', 'run', 'beta', 'cargo', 'build'], $builder->build(['toolchain' => 'beta']));
+    }
+}
+
+/**
+ * Exposes what the builder computes for the formatter.
+ */
+final class ExposedRustBuilder extends RustBuilder
+{
+    /**
+     * @return list<array{name: string, components: list<string>}>
+     */
+    public function toolchains(): array
+    {
+        return $this->getRustupToolchains();
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return list<string>
+     */
+    public function format(array $options = []): array
+    {
+        return $this->formatCommand($options);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return string|list<string>
+     */
+    public function build(array $options = []): string|array
+    {
+        return $this->getBuildCommand('app', 'app', $options);
     }
 }

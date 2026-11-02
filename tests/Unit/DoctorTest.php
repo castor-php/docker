@@ -214,10 +214,13 @@ final class DoctorTest extends TestCase
         $registry = ['registry' => 'ghcr.io/org/project'];
         self::assertCheck(Status::Warning, 'Buildx', $this->doctor($registry)->checkDocker(), '"docker" driver', 'docker buildx create --use --driver docker-container');
 
-        $this->probe->dockerInfo = ['containerdStore' => true] + (array) $this->probe->dockerInfo;
+        $dockerInfo = $this->probe->dockerInfo;
+        static::assertNotNull($dockerInfo);
+
+        $this->probe->dockerInfo = ['containerdStore' => true] + $dockerInfo;
         self::assertCheck(Status::Ok, 'Buildx', $this->doctor($registry)->checkDocker());
 
-        $this->probe->dockerInfo = ['containerdStore' => false] + $this->probe->dockerInfo;
+        $this->probe->dockerInfo = ['containerdStore' => false] + $dockerInfo;
         $this->probe->buildxDriver = 'docker-container';
         self::assertCheck(Status::Ok, 'Buildx', $this->doctor($registry)->checkDocker());
     }
@@ -367,7 +370,8 @@ final class DoctorTest extends TestCase
      */
     public function testARouterWithAnOlderConfigurationIsReported(): void
     {
-        $this->probe->router = ['version' => '0.6.0', 'checksum' => 'older'] + (array) $this->probe->router;
+        static::assertNotNull($this->probe->router);
+        $this->probe->router = ['version' => '0.6.0', 'checksum' => 'older'] + $this->probe->router;
 
         self::assertCheck(Status::Warning, 'Router', $this->doctor()->checkRouter(), 'created by castor-php/docker 0.6.0', 'castor docker:router:restart');
     }
@@ -377,7 +381,8 @@ final class DoctorTest extends TestCase
      */
     public function testARouterWithANewerConfigurationIsFine(): void
     {
-        $this->probe->router = ['version' => 'dev-next', 'checksum' => 'newer'] + (array) $this->probe->router;
+        static::assertNotNull($this->probe->router);
+        $this->probe->router = ['version' => 'dev-next', 'checksum' => 'newer'] + $this->probe->router;
 
         self::assertCheck(Status::Ok, 'Router', $this->doctor()->checkRouter());
     }
@@ -388,7 +393,8 @@ final class DoctorTest extends TestCase
      */
     public function testARouterThatDidNotJoinTheProjectNetwork(): void
     {
-        $this->probe->router = ['networks' => [get_router_name() . '_default']] + (array) $this->probe->router;
+        static::assertNotNull($this->probe->router);
+        $this->probe->router = ['networks' => [get_router_name() . '_default']] + $this->probe->router;
 
         self::assertCheck(Status::Error, 'Network', $this->doctor()->checkRouter(), 'has not joined myproject_default', 'castor docker:router:enable');
     }

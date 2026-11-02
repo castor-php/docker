@@ -23,6 +23,8 @@ parameters:
         '''
     paths:
         - src
-
-includes:
-    - phpstan-baseline.neon
+        # Not the whole directory: a fixture project links back to the
+        # repository, which would be walked forever.
+        - tests/Unit
+        - tests/Integration
+        - tests/SnapshotTestCase.php
