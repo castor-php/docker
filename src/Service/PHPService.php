@@ -24,7 +24,7 @@ use function Castor\io;
 use function Castor\Docker\interactive_context;
 use function Castor\context;
 
-class PHPService implements ServiceInterface
+class PHPService implements HttpRoutedServiceInterface
 {
     use HasDirectory;
     use HasDockerfile;

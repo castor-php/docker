@@ -27,7 +27,7 @@ use function Castor\yaml_dump;
  * A single agent handles as many domains as needed, each with its own
  * redirection.io project key.
  */
-class RedirectionioAgentService implements ServiceInterface
+class RedirectionioAgentService implements HttpRoutedServiceInterface
 {
     use HasHttpRouting;
     use HasName;
@@ -144,13 +144,9 @@ class RedirectionioAgentService implements ServiceInterface
         return $this->withDomain($domain);
     }
 
-    /**
-     * getPort() comes from the HasHttpRouting behaviour every service routed
-     * over HTTP uses. There is no interface for it, hence the check.
-     */
     private function resolveTargetPort(ServiceInterface|string $target): int
     {
-        if ($target instanceof ServiceInterface && method_exists($target, 'getPort')) {
+        if ($target instanceof HttpRoutedServiceInterface) {
             return $target->getPort();
         }
 

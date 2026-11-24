@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
-use Castor\Attribute\AsArgument;
-use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
-use function Castor\Docker\expose_service_port;
+use function Castor\Docker\expose_task;
 
 use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
@@ -250,15 +248,6 @@ class RustFSService implements LinkableServiceInterface
 
     public function getTasks(): iterable
     {
-        yield [
-            'task' => new AsTask('expose', $this->getName(), description: 'Expose the S3 API of the rustfs service over TCP on the host (--stop to stop)'),
-            'function' => function (
-                #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
-                ?int $port = null,
-                bool $stop = false,
-            ): void {
-                expose_service_port($this->getName(), 9000, $port, $stop);
-            },
-        ];
+        yield expose_task($this, 9000, 'S3 API');
     }
 }

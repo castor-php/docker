@@ -30,7 +30,7 @@ use function Castor\watch;
  * withDirectory() is what gets mounted, withWorkingDirectory() is where the
  * toolchain runs below it.
  */
-abstract class AbstractSourceService implements ServiceInterface
+abstract class AbstractSourceService implements HttpRoutedServiceInterface
 {
     use HasDirectory;
     use HasDockerfile;

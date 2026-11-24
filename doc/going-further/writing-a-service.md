@@ -100,7 +100,8 @@ the built-in services — see [configuring
 services](../getting-started/configuring-services.md) for the full list.
 `HasHttpRouting` is the one that saves the most work: it holds the domains, the
 HTTP access flag and the port, and `applyHttpRouting()` emits the router labels
-for you.
+for you. Declare `HttpRoutedServiceInterface` along with it, so a Mercure hub
+allows the pages of your service and a redirection.io agent finds its port.
 
 ## Making it linkable
 
