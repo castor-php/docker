@@ -18,7 +18,7 @@ final class OtherStackProjectTest extends TestCase
 
     protected function setUp(): void
     {
-        $castor = getenv('CASTOR_BINARY') ?: (new ExecutableFinder())->find('castor');
+        $castor = getenv('CASTOR_BINARY') ?: new ExecutableFinder()->find('castor');
 
         if (!$castor) {
             static::markTestSkipped('No castor binary found: install castor or set CASTOR_BINARY.');
@@ -49,19 +49,36 @@ final class OtherStackProjectTest extends TestCase
         $process = $this->castor(['postgres:client', '--help']);
 
         static::assertTrue($process->isSuccessful(), "castor postgres:client --help failed:\n" . $process->getOutput() . $process->getErrorOutput());
-
-        foreach (self::WRITTEN as $path) {
-            static::assertFileDoesNotExist(self::PROJECT . '/' . $path, \sprintf('"%s" must not be written when "generate_compose_files" is false.', $path));
-        }
+        $this->assertNothingWritten();
     }
 
-    public function testTheTasksOfThePluginStackStop(): void
+    /**
+     * Docker compose runs on the file the project names, which it would refuse
+     * to start without.
+     */
+    public function testTheCommandsRunOnTheStackOfTheProject(): void
     {
         $process = $this->castor(['docker:ps']);
 
+        static::assertTrue($process->isSuccessful(), "castor docker:ps failed:\n" . $process->getOutput() . $process->getErrorOutput());
+        $this->assertNothingWritten();
+    }
+
+    public function testTheTasksManagingThePluginStackStop(): void
+    {
+        $process = $this->castor(['docker:service:install', 'redis']);
+
         static::assertFalse($process->isSuccessful());
-        static::assertStringContainsString('generate_compose_files', $process->getOutput() . $process->getErrorOutput());
-        static::assertFileDoesNotExist(self::PROJECT . '/compose.yaml');
+        // The console wraps the message wherever it likes.
+        static::assertStringContainsString('"generate_compose_files"isfalse', (string) preg_replace('/\s+/', '', $process->getOutput() . $process->getErrorOutput()));
+        $this->assertNothingWritten();
+    }
+
+    private function assertNothingWritten(): void
+    {
+        foreach (self::WRITTEN as $path) {
+            static::assertFileDoesNotExist(self::PROJECT . '/' . $path, \sprintf('"%s" must not be written when "generate_compose_files" is false.', $path));
+        }
     }
 
     /**

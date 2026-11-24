@@ -15,6 +15,7 @@ use function Castor\Docker\compare_router_configuration;
 use function Castor\Docker\get_router_name;
 use function Castor\Docker\get_worktree_base_domain;
 use function Castor\Docker\get_worktree_name;
+use function Castor\Docker\get_compose_file;
 use function Castor\Docker\get_plugin_version;
 use function Castor\Docker\is_compose_generation_enabled;
 use function Castor\Docker\is_worktree_domain;
@@ -453,18 +454,20 @@ final class Doctor
 
     private function checkComposeFiles(): Check
     {
-        if (!is_compose_generation_enabled($this->context)) {
-            return Check::skipped('Compose files', 'The project generates no compose file: "generate_compose_files" is false.');
-        }
-
         if (null === $this->composeVersion()) {
             return Check::skipped('Compose files', 'Needs Docker Compose.');
         }
 
         $error = $this->probe->composeConfigError();
+        $file = Path::makeRelative(get_compose_file($this->context), $this->context->workingDirectory);
 
         if (null === $error) {
-            return Check::ok('Compose files', 'Docker Compose accepts compose.yaml and the files it includes.');
+            return Check::ok('Compose files', \sprintf('Docker Compose accepts %s and the files it includes.', $file));
+        }
+
+        // The stack another tool manages is that tool's to fix.
+        if (!is_compose_generation_enabled($this->context)) {
+            return Check::error('Compose files', 'Docker Compose rejects the project: ' . $error, \sprintf('Fix %s, or the tool that generates it.', $file));
         }
 
         return Check::error(

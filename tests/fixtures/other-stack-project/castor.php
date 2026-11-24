@@ -14,7 +14,10 @@ defined('CASTOR_USE_CHDIR') || define('CASTOR_USE_CHDIR', false);
 #[AsContext(default: true)]
 function default_context(): Context
 {
-    return new Context(['generate_compose_files' => false]);
+    return new Context([
+        'generate_compose_files' => false,
+        'compose_file' => 'stack/compose.yaml',
+    ]);
 }
 
 #[AsListener(RegisterServiceEvent::class)]

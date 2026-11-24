@@ -35,6 +35,7 @@ function default_context(): Context
 | `router_autostart` | Whether `docker:up` starts the global router and `docker:stop` stops it, `true` by default — see [below](#starting-and-stopping-the-router-with-your-projects) |
 | `build_parallel` | Whether the services are built on their own, in parallel, so services sharing a stage keep their build cache, `false` by default — see [`docker:build`](tasks.md#castor-dockerbuild) |
 | `generate_compose_files` | Whether the plugin writes `compose.yaml`, `compose.generated.yaml`, `compose.override.yaml` and the bind-mounted directories, `true` by default — see [below](#using-another-docker-stack) |
+| `compose_file` | The compose file every `docker compose` command runs with, relative to the project or absolute, `compose.yaml` by default — see [below](#using-another-docker-stack) |
 | `worktree` | The git worktree this checkout is, detected on boot — see [git worktrees](going-further/worktrees.md) |
 | `worktree_isolation` | Whether a git worktree runs a stack of its own, `true` by default |
 | `worktree_directory` | Where `worktree:create` checks a worktree out |
@@ -99,21 +100,31 @@ images in another.
 
 ### Using another Docker stack
 
-A project whose containers come from another Docker stack — its own compose
-files elsewhere, a tool generating them — can still use the tasks the services
-bring, without the plugin writing its own compose files next to `castor.php` on
-every run:
+A project whose stack another tool manages — a Docker setup of its own, a
+starter generating its compose files — can still run the commands of its
+services on that stack, without the plugin writing any file of its own:
 
 ```php
 return new Context([
     'generate_compose_files' => false,
+    'compose_file' => 'docker/compose.yaml', // compose.yaml at the root by default
 ]);
 ```
 
-The services are still collected and their tasks registered; nothing is written,
-and the tasks running the plugin's stack (`docker:up`, `docker:build`,
-`docker:push`, `docker:service:install`, …) stop with an error saying so.
-`docker:doctor` skips its compose files check.
+Nothing is written: no `compose.yaml`, `compose.generated.yaml`,
+`compose.override.yaml` nor bind-mounted directory. The services are still
+collected, and their tasks — `{service}:client`, `{service}:bash`, the QA tools,
+dump and restore — run `docker compose` on the file `compose_file` names, so the
+services of that stack must carry the names the tasks expect. `docker:up`,
+`docker:stop`, `docker:logs` and the like act on that stack too, and
+`docker:doctor` checks that Docker Compose accepts its file.
+
+The tasks managing the plugin's own stack — `docker:service:install`,
+`docker:service:remove` and `docker:push` — stop with an error saying so.
+
+`compose_file` also works with the plugin writing its files: point it at a
+compose file of your own that includes `compose.generated.yaml`, and the plugin
+leaves it alone instead of creating `compose.yaml`.
 
 ### Default profiles
 

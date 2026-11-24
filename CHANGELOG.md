@@ -4,7 +4,8 @@
 
 ### Added
 
-* The [`generate_compose_files`](configuration.md#using-another-docker-stack) context variable: set to `false`, the plugin writes no `compose.yaml`, `compose.generated.yaml`, `compose.override.yaml` nor bind-mounted directory, for a project whose containers come from another Docker stack. The services still bring their tasks; the tasks running the plugin's stack stop with an error.
+* The [`generate_compose_files`](configuration.md#using-another-docker-stack) context variable: set to `false`, for a project whose stack another tool manages, the plugin writes no `compose.yaml`, `compose.generated.yaml`, `compose.override.yaml` nor bind-mounted directory, and the tasks of the services run on that stack. `docker:service:install`, `docker:service:remove` and `docker:push` stop with an error.
+* The [`compose_file`](configuration.md#using-another-docker-stack) context variable names the compose file every `docker compose` command runs with, `compose.yaml` at the root of the project by default.
 
 ### Changed
 

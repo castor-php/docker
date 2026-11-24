@@ -768,7 +768,7 @@ function push(
     // bake reads the compose file itself — "include:" and all — so everything
     // but the cache-to comes from there, already interpolated. Profiles do not
     // apply: bake sees every service that has a "build".
-    $command = ['docker', 'buildx', 'bake', '-f', $c->workingDirectory . '/compose.yaml'];
+    $command = ['docker', 'buildx', 'bake', '-f', get_compose_file($c)];
 
     $options = [];
 

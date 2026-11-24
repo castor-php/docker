@@ -253,11 +253,19 @@ final class DoctorTest extends TestCase
         self::assertCheck(Status::Error, 'Compose files', $this->doctor()->checkProject(), "'restartt' not allowed", 'compose.override.yaml');
     }
 
-    public function testComposeFilesOfAnotherStackAreNotChecked(): void
+    /**
+     * The stack another tool manages is checked too, from the file the project
+     * names, and fixed with that tool rather than through castor.php.
+     */
+    public function testComposeFilesOfAnotherStackAreChecked(): void
     {
-        $this->probe->composeConfigError = 'open /project/compose.yaml: no such file or directory';
+        $data = ['generate_compose_files' => false, 'compose_file' => 'docker/compose.yaml'];
 
-        self::assertCheck(Status::Skipped, 'Compose files', $this->doctor(['generate_compose_files' => false])->checkProject(), 'generate_compose_files');
+        self::assertCheck(Status::Ok, 'Compose files', $this->doctor($data)->checkProject(), 'docker/compose.yaml');
+
+        $this->probe->composeConfigError = 'open /project/docker/compose.yaml: no such file or directory';
+
+        self::assertCheck(Status::Error, 'Compose files', $this->doctor($data)->checkProject(), 'no such file', 'the tool that generates it');
     }
 
     /**

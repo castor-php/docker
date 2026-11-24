@@ -15,6 +15,7 @@ parameters:
                 router_autostart?: bool,
                 build_parallel?: bool,
                 generate_compose_files?: bool,
+                compose_file?: string,
                 worktree?: ?string,
                 worktree_isolation?: bool,
                 worktree_directory?: string,
