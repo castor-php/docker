@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Castor\Docker;
 
+use Castor\Attribute\AsArgument;
 use Castor\Attribute\AsListener;
 use Castor\Attribute\AsTask;
 use Castor\Console\Output\VerbosityLevel;
@@ -1059,6 +1060,27 @@ function truncate_container_log(string $logPath, ?Context $c = null): void
         'nsenter', '-t', '1', '-m', '-u', '-i', '-n', '--',
         'truncate', '-s', '0', $logPath,
     ], context: $c->withQuiet());
+}
+
+/**
+ * The "expose" task of a service, forwarding its TCP port to the host.
+ *
+ * @return array{task: AsTask, function: \Closure}
+ */
+function expose_task(ServiceInterface $service, int $containerPort, ?string $protocol = null): array
+{
+    $name = $service->getName();
+
+    return [
+        'task' => new AsTask('expose', $name, description: \sprintf('Expose the %s service%s over TCP on the host (--stop to stop)', $name, $protocol ? " ({$protocol})" : '')),
+        'function' => static function (
+            #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
+            ?int $port = null,
+            bool $stop = false,
+        ) use ($name, $containerPort): void {
+            expose_service_port($name, $containerPort, $port, $stop);
+        },
+    ];
 }
 
 /**
