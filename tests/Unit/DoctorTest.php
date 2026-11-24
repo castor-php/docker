@@ -254,6 +254,21 @@ final class DoctorTest extends TestCase
     }
 
     /**
+     * The stack another tool manages is checked too, from the file the project
+     * names, and fixed with that tool rather than through castor.php.
+     */
+    public function testComposeFilesOfAnotherStackAreChecked(): void
+    {
+        $data = ['generate_compose_files' => false, 'compose_file' => 'docker/compose.yaml'];
+
+        self::assertCheck(Status::Ok, 'Compose files', $this->doctor($data)->checkProject(), 'docker/compose.yaml');
+
+        $this->probe->composeConfigError = 'open /project/docker/compose.yaml: no such file or directory';
+
+        self::assertCheck(Status::Error, 'Compose files', $this->doctor($data)->checkProject(), 'no such file', 'the tool that generates it');
+    }
+
+    /**
      * "Containers will not start", in the troubleshooting page.
      */
     public function testContainersThatDoNotStartPointAtTheirLogs(): void

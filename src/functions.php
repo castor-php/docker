@@ -62,6 +62,60 @@ use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
 /**
+ * False for a project whose stack is managed by another tool: the plugin writes
+ * none of its files and only runs commands on that stack.
+ */
+function is_compose_generation_enabled(?Context $c = null): bool
+{
+    return false !== (($c ?? context())->data['generate_compose_files'] ?? true);
+}
+
+/**
+ * For the tasks that manage the plugin's own stack, which make no sense on a
+ * stack another tool manages.
+ */
+function assert_compose_generation_enabled(?Context $c = null): void
+{
+    if (!is_compose_generation_enabled($c)) {
+        throw new \RuntimeException('This project manages its Docker stack with another tool ("generate_compose_files" is false in its context): manage it with that tool.');
+    }
+}
+
+/**
+ * The compose file every docker compose command runs with, "compose.yaml" at
+ * the root of the project unless the "compose_file" context data names another
+ * one, relative to the project or absolute.
+ */
+function get_compose_file(?Context $c = null): string
+{
+    $c ??= context();
+    $file = $c->data['compose_file'] ?? 'compose.yaml';
+
+    return Path::makeAbsolute($file, $c->workingDirectory);
+}
+
+/**
+ * The compose files to read services from: the plugin's own ones next to the
+ * project's, or only the project's when another tool manages its stack.
+ *
+ * @return list<string>
+ */
+function get_compose_files(?Context $c = null): array
+{
+    $c ??= context();
+
+    if (!is_compose_generation_enabled($c)) {
+        return [get_compose_file($c)];
+    }
+
+    return [
+        $c->workingDirectory . '/compose.generated.yaml',
+        get_compose_file($c),
+        $c->workingDirectory . '/compose.override.yaml',
+    ];
+}
+
+/**
  * Read from the "docker_profiles" context data, so a project with more than the
  * two built-in profiles does not have to pass --profiles to every task.
  *
@@ -118,7 +172,7 @@ function docker_compose(array $subCommand, ?Context $c = null, array $profiles =
     }
 
     $command[] = '-f';
-    $command[] = $c->workingDirectory . '/compose.yaml';
+    $command[] = get_compose_file($c);
 
     $command = array_merge($command, $subCommand);
 
@@ -161,7 +215,7 @@ function get_project_name(?Context $c = null): string
         return $c->data['project_name'];
     }
 
-    $composeFile = $c->workingDirectory . '/compose.yaml';
+    $composeFile = get_compose_file($c);
 
     if (file_exists($composeFile) && ($content = file_get_contents($composeFile))) {
         $name = yaml_parse($content)['name'] ?? null;
@@ -192,8 +246,7 @@ function get_compose_service_names(?Context $c = null): array
     $c ??= context();
     $names = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
@@ -311,8 +364,7 @@ function get_project_urls(?Context $c = null): array
     $c ??= context();
     $urls = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
@@ -1247,10 +1299,14 @@ function on_init_context(ContextCreatedEvent $event): void
  */
 function initialize_project(Context $context): Context
 {
-    $composeFile = $context->workingDirectory . '/compose.yaml';
+    $composeFile = get_compose_file($context);
     $projectName = basename($context->workingDirectory);
 
-    if (!file_exists($composeFile)) {
+    // A compose file of its own at another path is the project's to write: it
+    // includes the generated files however it sees fit.
+    $isDefaultComposeFile = !isset($context->data['compose_file']);
+
+    if (!file_exists($composeFile) && $isDefaultComposeFile && is_compose_generation_enabled($context)) {
         // On stderr, to keep the output of the task itself, like the bake plan
         // of "docker:push --dry-run", parsable.
         $io = io()->getErrorStyle();
@@ -1276,7 +1332,7 @@ function initialize_project(Context $context): Context
                 # Here you can also add your own services.
                 YAML
         );
-    } elseif ($content = file_get_contents($composeFile)) {
+    } elseif (file_exists($composeFile) && ($content = file_get_contents($composeFile))) {
 
         $baseCompose = yaml_parse($content);
 
@@ -1401,12 +1457,12 @@ function get_project_mount_roots(Context $c): array
 function get_project_bind_mounts(?Context $c = null): array
 {
     $c ??= context();
-    $root = Path::canonicalize($c->workingDirectory);
+    // Compose resolves a relative path from the directory of the compose file.
+    $root = Path::canonicalize(Path::getDirectory(get_compose_file($c)));
     $roots = get_project_mount_roots($c);
     $paths = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
@@ -1826,6 +1882,11 @@ function initialize(FunctionsResolvedEvent $functionsResolvedEvent): void
     }
 
     $c = initialize_project(context());
+
+    if (!is_compose_generation_enabled($c)) {
+        return;
+    }
+
     generate_compose_file($c, $services);
 
     $overrideFile = $c->workingDirectory . '/compose.override.yaml';

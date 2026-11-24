@@ -279,8 +279,7 @@ function get_project_published_ports(?Context $c = null): array
     $c ??= context();
     $ports = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;

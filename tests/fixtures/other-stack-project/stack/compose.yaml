@@ -1,0 +1,6 @@
+# The stack of the project, as another tool would generate it.
+name: other-stack
+
+services:
+    postgres:
+        image: postgres:18
