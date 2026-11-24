@@ -9,6 +9,14 @@
 * The `client` tasks of the databases pass the terminal size, like the other commands run in a container.
 * Every task description is in the imperative, and every option has a description.
 * The plugin requires PHP 8.4.1, which Castor 1.9 already requires.
+* `SymfonyService::withPhpTwigCsFixerVersion()` is renamed `withTwigCsFixerVersion()`.
+* A service linked to a database always waits for its healthcheck.
+
+### Removed
+
+* `withDatabaseService()` and `withMailerService()`, deprecated since 0.8: use `link()`.
+* `DatabaseServiceInterface::hasHealthCheck()`: every database has a healthcheck.
+* The "Enabled in cache" line of `docker:router:status`, which autostart made meaningless.
 
 ### Fixed
 

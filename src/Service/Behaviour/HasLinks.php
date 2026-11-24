@@ -41,11 +41,6 @@ trait HasLinks
         return $this->links;
     }
 
-    protected function unlink(LinkableServiceInterface $service): void
-    {
-        unset($this->links[$service->getName()]);
-    }
-
     /**
      * Two links handing over the same variable — two databases, two
      * DATABASE_URL — is refused rather than won by whichever came last.

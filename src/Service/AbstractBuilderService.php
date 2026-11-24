@@ -14,7 +14,6 @@ use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\Builder\ServiceBuilder;
 
-use function Castor\context;
 use function Castor\Docker\docker_compose_run;
 use function Castor\Docker\interactive_context;
 

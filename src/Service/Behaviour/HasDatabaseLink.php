@@ -19,12 +19,10 @@ trait HasDatabaseLink
 
     public function getLinkDependencies(): array
     {
-        return [$this->getName() => $this->hasHealthCheck() ? 'service_healthy' : 'service_started'];
+        return [$this->getName() => 'service_healthy'];
     }
 
     abstract public function getDatabaseURL(): string;
-
-    abstract public function hasHealthCheck(): bool;
 
     abstract public function getName(): string;
 }

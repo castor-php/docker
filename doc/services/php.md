@@ -30,9 +30,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
 `link()` hands the application the variables of another service — a
 database, a mail catcher, a search engine, an object storage — in the
 application, its builder and its workers alike; see [linking
-services](index.md#linking-services). `withDatabaseService()` and
-`withMailerService()` are deprecated, and removed in 1.0: use `link()`. A
-FrankenPHP application linked to a Mercure hub nobody else links to [serves it
+services](index.md#linking-services). A FrankenPHP application linked to a Mercure hub nobody else links to [serves it
 itself](mercure.md#where-the-hub-runs).
 
 ## Applications inside a monorepo
@@ -422,7 +420,7 @@ Pin the tool versions and add PHPStan extensions from the service:
     ->withPhpStanVersion('^2.0')
     ->withPhpCsFixerVersion('^3.0')
     ->withRectorVersion('^2.0')
-    ->withPhpTwigCsFixerVersion('^3.0')   // SymfonyService only
+    ->withTwigCsFixerVersion('^3.0')   // SymfonyService only
     ->addPhpStanExtraDependency('phpstan/phpstan-symfony', '^2.0')
 ```
 
