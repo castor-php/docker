@@ -35,14 +35,14 @@ final class TwigFrontendPinTest extends SnapshotTestCase
     private function services(): array
     {
         return [
-            (new PHPService('app'))->withDirectory('/project/app')->addWorker('messenger', 'php bin/console messenger:consume'),
-            (new PHPService('legacy'))->withMode(PhpMode::Fpm)->withDirectory('/project/legacy'),
-            (new ClickhouseService())->withVersion('25.8'),
-            (new GoService('api'))->withVersion('1.25')->withDirectory('/project/api'),
-            (new RustService('agent'))->withVersion('1.90')->withDirectory('/project/agent'),
-            (new NodeService('front'))->withVersion('24')->withDirectory('/project/front'),
-            (new GoBuilder('go-builder'))->withVersion('1.25')->withDirectory('/project')->withApp('server/exporter'),
-            (new RustBuilder('rust-builder'))->withVersion('1.90')->withDirectory('/project')->withApp('server/injector'),
+            new PHPService('app')->withDirectory('/project/app')->addWorker('messenger', 'php bin/console messenger:consume'),
+            new PHPService('legacy')->withMode(PhpMode::Fpm)->withDirectory('/project/legacy'),
+            new ClickhouseService()->withVersion('25.8'),
+            new GoService('api')->withVersion('1.25')->withDirectory('/project/api'),
+            new RustService('agent')->withVersion('1.90')->withDirectory('/project/agent'),
+            new NodeService('front')->withVersion('24')->withDirectory('/project/front'),
+            new GoBuilder('go-builder')->withVersion('1.25')->withDirectory('/project')->withApp('server/exporter'),
+            new RustBuilder('rust-builder')->withVersion('1.90')->withDirectory('/project')->withApp('server/injector'),
             // Builds a plain Dockerfile: the argument is none of its business.
             new RabbitMQService(),
         ];

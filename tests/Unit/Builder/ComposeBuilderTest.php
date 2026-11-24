@@ -11,7 +11,7 @@ final class ComposeBuilderTest extends TestCase
 {
     public function testEmptyCompose(): void
     {
-        static::assertSame(['services' => [], 'volumes' => []], (new ComposeBuilder())->toArray());
+        static::assertSame(['services' => [], 'volumes' => []], new ComposeBuilder()->toArray());
     }
 
     public function testServiceIsReusedByName(): void
@@ -119,7 +119,6 @@ final class ComposeBuilderTest extends TestCase
                 // Already mounted by "app": the same directory is only returned once.
                 ->volume('.home', '/home/app', 'cached')
                 ->volume('/var/run/docker.sock', '/var/run/docker.sock')
-            ->end()
         ;
 
         static::assertSame(

@@ -23,7 +23,7 @@ final class ElasticsearchInstaller extends AbstractServiceInstaller
     public function getInputs(): array
     {
         return [
-            new Input('version', 'Elasticsearch version', InputType::Text, (new ElasticsearchService())->getVersion()),
+            new Input('version', 'Elasticsearch version', InputType::Text, new ElasticsearchService()->getVersion()),
         ];
     }
 
@@ -35,6 +35,6 @@ final class ElasticsearchInstaller extends AbstractServiceInstaller
 
     public function createInstance(array $answers): ServiceInterface
     {
-        return (new ElasticsearchService())->withVersion((string) $answers['version']);
+        return new ElasticsearchService()->withVersion((string) $answers['version']);
     }
 }

@@ -29,14 +29,14 @@ final class SudoTest extends SnapshotTestCase
 
     public function testItIsOffUntilAskedFor(): void
     {
-        static::assertFalse((new PHPService('app'))->hasSudo());
+        static::assertFalse(new PHPService('app')->hasSudo());
         static::assertArrayNotHasKey('sudo', $this->argsOf(new PHPService('app')));
         static::assertStringNotContainsString('gosu', $this->render(false));
     }
 
     public function testAskingForItInstallsIt(): void
     {
-        $app = (new PHPService('app'))->withSudo();
+        $app = new PHPService('app')->withSudo();
 
         static::assertTrue($app->hasSudo());
         static::assertSame('true', $this->argsOf($app)['sudo']);
@@ -45,7 +45,7 @@ final class SudoTest extends SnapshotTestCase
 
     public function testItCanBeTurnedBackOff(): void
     {
-        $app = (new PHPService('app'))->withSudo()->withSudo(false);
+        $app = new PHPService('app')->withSudo()->withSudo(false);
 
         static::assertFalse($app->hasSudo());
         static::assertArrayNotHasKey('sudo', $this->argsOf($app));

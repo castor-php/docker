@@ -12,7 +12,7 @@ final class ServiceBuilderTest extends TestCase
 {
     private function service(string $name = 'app'): ServiceBuilder
     {
-        return (new ComposeBuilder())->service($name);
+        return new ComposeBuilder()->service($name);
     }
 
     public function testEmptyServiceProducesNoKeys(): void

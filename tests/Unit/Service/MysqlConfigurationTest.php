@@ -36,7 +36,7 @@ final class MysqlConfigurationTest extends SnapshotTestCase
     public function testSettingsBecomeAMysqldSection(): void
     {
         $compose = $this->build(
-            (new MySQLService())
+            new MySQLService()
                 ->withSetting('max_connections', 500)
                 ->withSetting('innodb_buffer_pool_size', '1G')
                 ->withSetting('slow_query_log', true)
@@ -78,7 +78,7 @@ final class MysqlConfigurationTest extends SnapshotTestCase
      */
     public function testConfigurationContentIsEscapedAgainstInterpolation(): void
     {
-        $compose = $this->build((new MySQLService())->withConfiguration('# $secret ${VALUE}'));
+        $compose = $this->build(new MySQLService()->withConfiguration('# $secret ${VALUE}'));
 
         static::assertStringContainsString('# $$secret $${VALUE}', $compose['configs']['mysql-config']['content']);
     }
@@ -86,7 +86,7 @@ final class MysqlConfigurationTest extends SnapshotTestCase
     public function testRawConfigurationIsAppended(): void
     {
         $compose = $this->build(
-            (new MySQLService())
+            new MySQLService()
                 ->withSetting('max_connections', 500)
                 ->withConfiguration("[client]\ndefault-character-set = utf8mb4")
         );
@@ -112,7 +112,7 @@ final class MysqlConfigurationTest extends SnapshotTestCase
         file_put_contents($path, "[mysqld]\nsql_mode = STRICT_ALL_TABLES\n");
 
         try {
-            $compose = $this->build((new MySQLService())->withConfigurationFile($path));
+            $compose = $this->build(new MySQLService()->withConfigurationFile($path));
         } finally {
             unlink($path);
         }
@@ -129,12 +129,12 @@ final class MysqlConfigurationTest extends SnapshotTestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('/nowhere/my.cnf');
 
-        (new MySQLService())->withConfigurationFile('/nowhere/my.cnf');
+        new MySQLService()->withConfigurationFile('/nowhere/my.cnf');
     }
 
     public function testMariadbTakesTheSameConfiguration(): void
     {
-        $compose = $this->build((new MariaDBService())->withSetting('max_connections', 500));
+        $compose = $this->build(new MariaDBService()->withSetting('max_connections', 500));
 
         static::assertStringContainsString('max_connections = 500', $compose['configs']['mariadb-config']['content']);
         static::assertSame(
@@ -149,7 +149,7 @@ final class MysqlConfigurationTest extends SnapshotTestCase
     public function testTheConfigurationIsNamedAfterTheService(): void
     {
         $compose = $this->build(
-            (new MySQLService())->withName('reporting')->withSetting('max_connections', 500)
+            new MySQLService()->withName('reporting')->withSetting('max_connections', 500)
         );
 
         static::assertArrayHasKey('reporting-config', $compose['configs']);

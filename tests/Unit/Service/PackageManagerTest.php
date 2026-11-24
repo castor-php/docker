@@ -34,7 +34,7 @@ final class PackageManagerTest extends SnapshotTestCase
      */
     public function testNpmIsTheDefault(): void
     {
-        static::assertSame(PackageManager::Npm, (new PHPService('app'))->getPackageManager());
+        static::assertSame(PackageManager::Npm, new PHPService('app')->getPackageManager());
         static::assertSame('npm', $this->argsOf(new PHPService('app'))['package_manager']);
     }
 
@@ -43,7 +43,7 @@ final class PackageManagerTest extends SnapshotTestCase
         foreach (PackageManager::cases() as $manager) {
             static::assertSame(
                 $manager->value,
-                $this->argsOf((new PHPService('app'))->withPackageManager($manager))['package_manager'],
+                $this->argsOf(new PHPService('app')->withPackageManager($manager))['package_manager'],
                 $manager->name,
             );
         }
@@ -112,7 +112,7 @@ final class PackageManagerTest extends SnapshotTestCase
      */
     public function testOnlyTheStageInstallingNodeIsGivenIt(): void
     {
-        $compose = (new PHPService('app'))
+        $compose = new PHPService('app')
             ->withPackageManager(PackageManager::Pnpm)
             ->updateCompose($this->fixedContext(), new ComposeBuilder())
             ->toArray()

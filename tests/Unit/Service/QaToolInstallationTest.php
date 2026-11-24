@@ -55,8 +55,8 @@ final class QaToolInstallationTest extends TestCase
      */
     public function testTheNameDoesNotDependOnTheVersionInstalled(): void
     {
-        $before = (new PHPService('app'))->withPhpStanVersion('^1.0');
-        $after = (new PHPService('app'))->withPhpStanVersion('^2.0');
+        $before = new PHPService('app')->withPhpStanVersion('^1.0');
+        $after = new PHPService('app')->withPhpStanVersion('^2.0');
 
         static::assertSame(
             $this->installation($before->getName(), 'phpstan'),

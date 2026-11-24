@@ -59,10 +59,10 @@ final class ServiceLinkTest extends TestCase
         $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withDatabaseService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
         $this->expectUserDeprecationMessage('Castor\\Docker\\Service\\PHPService::withMailerService() is deprecated since castor-php/docker 0.8 and will be removed in 1.0, use link() instead.');
 
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->withDirectory('/project/app')
             ->withDatabaseService(new PostgresService())
-            ->withDatabaseService((new PostgresService())->withName('analytics'))
+            ->withDatabaseService(new PostgresService()->withName('analytics'))
             ->withMailerService(new MailpitService())
         ;
 
@@ -76,10 +76,10 @@ final class ServiceLinkTest extends TestCase
 
     public function testTwoLinksProvidingTheSameVariableAreRefused(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->withDirectory('/project/app')
             ->link(new PostgresService())
-            ->link((new PostgresService())->withName('analytics'))
+            ->link(new PostgresService()->withName('analytics'))
         ;
 
         $this->expectException(\LogicException::class);
@@ -95,7 +95,7 @@ final class ServiceLinkTest extends TestCase
     {
         $rustfs = new RustFSService();
 
-        $compose = $this->build($this->context(), (new GoService('api'))->withDirectory('/project/api')->link($rustfs));
+        $compose = $this->build($this->context(), new GoService('api')->withDirectory('/project/api')->link($rustfs));
 
         static::assertSame('http://rustfs:9000', $compose['services']['api']['environment']['AWS_ENDPOINT_URL_S3']);
         static::assertSame('service_started', $compose['services']['api']['depends_on']['rustfs']['condition']);
@@ -108,7 +108,7 @@ final class ServiceLinkTest extends TestCase
         $meilisearch = new MeilisearchService();
         $rustfs = new RustFSService();
 
-        $compose = $this->build($context, (new PHPService('app'))
+        $compose = $this->build($context, new PHPService('app')
             ->withDirectory('/project/app')
             ->link($mercure)
             ->link($meilisearch)
@@ -128,9 +128,9 @@ final class ServiceLinkTest extends TestCase
     public function testTheHubAllowsTheWorktreeDomainsOfItsApplications(): void
     {
         $context = $this->context('wt2');
-        $mercure = (new MercureService())->withCorsOrigin('https://legacy.demo.test:8443', 'https://front.other.test');
+        $mercure = new MercureService()->withCorsOrigin('https://legacy.demo.test:8443', 'https://front.other.test');
 
-        (new PHPService('app'))->withDomain('app.demo.test', 'localhost')->link($mercure);
+        new PHPService('app')->withDomain('app.demo.test', 'localhost')->link($mercure);
 
         static::assertSame(
             ['https://app.wt2.demo.test', 'https://localhost', 'https://legacy.wt2.demo.test:8443', 'https://front.other.test'],
@@ -140,9 +140,9 @@ final class ServiceLinkTest extends TestCase
 
     public function testTheEmbeddedHubIsServedOnTheWorktreeDomain(): void
     {
-        $mercure = (new MercureService())->withJwtSecret('a-secret-long-enough-for-hs256-signatures');
+        $mercure = new MercureService()->withJwtSecret('a-secret-long-enough-for-hs256-signatures');
 
-        $compose = $this->build($this->context('wt2'), $mercure, (new PHPService('app'))
+        $compose = $this->build($this->context('wt2'), $mercure, new PHPService('app')
             ->withDirectory('/project/app')
             ->withDomain('app.demo.test')
             ->link($mercure));
@@ -164,7 +164,7 @@ final class ServiceLinkTest extends TestCase
     {
         $mercure = new MercureService();
 
-        $compose = $this->build($this->context(), $mercure, (new PHPService('app'))
+        $compose = $this->build($this->context(), $mercure, new PHPService('app')
             ->withDirectory('/project/app')
             ->withMode(PhpMode::Fpm)
             ->withDomain('app.demo.test')
@@ -182,7 +182,7 @@ final class ServiceLinkTest extends TestCase
     {
         $mercure = new MercureService();
 
-        (new PHPService('app'))->link($mercure);
+        new PHPService('app')->link($mercure);
 
         static::assertNull($mercure->getHost());
     }
@@ -199,8 +199,8 @@ final class ServiceLinkTest extends TestCase
         $compose = $this->build(
             $this->context(),
             $mercure,
-            (new PHPService('front'))->withDirectory('/project/front')->withDomain('front.demo.test')->link($mercure),
-            (new PHPService('back'))->withDirectory('/project/back')->withDomain('back.demo.test')->link($mercure),
+            new PHPService('front')->withDirectory('/project/front')->withDomain('front.demo.test')->link($mercure),
+            new PHPService('back')->withDirectory('/project/back')->withDomain('back.demo.test')->link($mercure),
         );
 
         static::assertArrayHasKey('mercure', $compose['services']);
@@ -224,6 +224,6 @@ final class ServiceLinkTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new RustFSService())->withBucket('Uploads; rm -rf /');
+        new RustFSService()->withBucket('Uploads; rm -rf /');
     }
 }

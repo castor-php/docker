@@ -136,10 +136,10 @@ final class WorktreeDetectionTest extends TestCase
             workingDirectory: $path,
         ));
 
-        static::assertSame('bug-4242', $context->data['worktree']);
-        static::assertSame('app-bug-4242', $context->data['project_name']);
+        static::assertSame('bug-4242', $context->data['worktree'] ?? null);
+        static::assertSame('app-bug-4242', $context->data['project_name'] ?? null);
         static::assertSame('app-bug-4242', get_project_name($context));
-        static::assertSame('bug-4242.myproject.test', $context->data['root_domain']);
+        static::assertSame('bug-4242.myproject.test', $context->data['root_domain'] ?? null);
     }
 
     /**
@@ -158,8 +158,8 @@ final class WorktreeDetectionTest extends TestCase
 
         $context = initialize_project(initialize_project(initialize_project($context)));
 
-        static::assertSame('app-bug-4242', $context->data['project_name']);
-        static::assertSame('bug-4242.myproject.test', $context->data['root_domain']);
+        static::assertSame('app-bug-4242', $context->data['project_name'] ?? null);
+        static::assertSame('bug-4242.myproject.test', $context->data['root_domain'] ?? null);
     }
 
     public function testAProjectDerivingItsOwnNamesIsLeftAlone(): void
@@ -175,8 +175,8 @@ final class WorktreeDetectionTest extends TestCase
             workingDirectory: $path,
         ));
 
-        static::assertSame('app-bug-4242', $context->data['project_name']);
-        static::assertSame('bug-4242.myproject.test', $context->data['root_domain']);
+        static::assertSame('app-bug-4242', $context->data['project_name'] ?? null);
+        static::assertSame('bug-4242.myproject.test', $context->data['root_domain'] ?? null);
     }
 
     /**
@@ -193,9 +193,10 @@ final class WorktreeDetectionTest extends TestCase
             workingDirectory: $path,
         ));
 
-        static::assertNull($context->data['worktree']);
-        static::assertSame('app', $context->data['project_name']);
-        static::assertSame('myproject.test', $context->data['root_domain']);
+        static::assertArrayHasKey('worktree', $context->data);
+        static::assertNull($context->data['worktree'] ?? null);
+        static::assertSame('app', $context->data['project_name'] ?? null);
+        static::assertSame('myproject.test', $context->data['root_domain'] ?? null);
     }
 
     /**
@@ -209,7 +210,7 @@ final class WorktreeDetectionTest extends TestCase
 
         $context = initialize_project(new Context(workingDirectory: $path));
 
-        static::assertSame('bug-4242.' . \Castor\Docker\DEFAULT_ROOT_DOMAIN, $context->data['root_domain']);
+        static::assertSame('bug-4242.' . \Castor\Docker\DEFAULT_ROOT_DOMAIN, $context->data['root_domain'] ?? null);
     }
 
     /**
@@ -222,8 +223,9 @@ final class WorktreeDetectionTest extends TestCase
 
         $context = initialize_project(new Context(workingDirectory: $this->root . '/app'));
 
-        static::assertNull($context->data['worktree']);
-        static::assertSame('app', $context->data['project_name']);
+        static::assertArrayHasKey('worktree', $context->data);
+        static::assertNull($context->data['worktree'] ?? null);
+        static::assertSame('app', $context->data['project_name'] ?? null);
         static::assertArrayNotHasKey('root_domain', $context->data);
     }
 

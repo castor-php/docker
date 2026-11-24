@@ -7,8 +7,8 @@ description: Add the Castor Docker plugin to your project.
 
 ## Requirements
 
-* [Castor](https://castor.jolicode.com/) 1.1 or later
-* PHP 8.3 or later
+* [Castor](https://castor.jolicode.com/) 1.9 or later
+* PHP 8.4.1 or later
 * Docker with Compose v2.23 or later (the plugin generates inline `configs`)
 * [mkcert](https://github.com/FiloSottile/mkcert) — optional, for locally-trusted HTTPS
 

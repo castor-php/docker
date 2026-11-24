@@ -27,7 +27,7 @@ final class PostgresDataDirectoryTest extends SnapshotTestCase
         foreach (['18', '18.4', '18-alpine', '19.0'] as $version) {
             static::assertSame(
                 'postgres_data:/var/lib/postgresql',
-                $this->mountOf((new PostgresService())->withVersion($version)),
+                $this->mountOf(new PostgresService()->withVersion($version)),
                 $version,
             );
         }
@@ -38,7 +38,7 @@ final class PostgresDataDirectoryTest extends SnapshotTestCase
         foreach (['17', '17.6', '16-bookworm', '9.6'] as $version) {
             static::assertSame(
                 'postgres_data:/var/lib/postgresql/data',
-                $this->mountOf((new PostgresService())->withVersion($version)),
+                $this->mountOf(new PostgresService()->withVersion($version)),
                 $version,
             );
         }
@@ -53,7 +53,7 @@ final class PostgresDataDirectoryTest extends SnapshotTestCase
         foreach (['latest', 'alpine', 'bookworm'] as $version) {
             static::assertSame(
                 'postgres_data:/var/lib/postgresql',
-                $this->mountOf((new PostgresService())->withVersion($version)),
+                $this->mountOf(new PostgresService()->withVersion($version)),
                 $version,
             );
         }

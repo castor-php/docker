@@ -14,35 +14,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class QaToolContainerInstallationTest extends TestCase
 {
-    private function application(string $name = 'app'): object
+    private function application(string $name = 'app'): QaToolPHPService
     {
-        return new class ($name) extends PHPService {
-            /**
-             * @param array<string, string> $dependencies
-             */
-            public function manifest(string $directory, array $dependencies): string
-            {
-                return $this->getQaToolManifest($directory, $dependencies);
-            }
-
-            /**
-             * @return list<string>
-             */
-            public function installCommand(string $directory): array
-            {
-                return $this->getQaToolInstallCommand($directory);
-            }
-
-            public function installation(string $tool): string
-            {
-                return $this->getQaToolInstallation($tool);
-            }
-
-            public function mountPoint(): string
-            {
-                return static::QA_TOOLS_MOUNT_POINT;
-            }
-        };
+        return new QaToolPHPService($name);
     }
 
     public function testTheInstallationIsDrivenByTheComposerOfTheContainer(): void
@@ -124,5 +98,37 @@ final class QaToolContainerInstallationTest extends TestCase
             $app->manifest('app-phpstan', ['phpstan/phpstan' => '*']),
             $app->manifest('app-rector', ['rector/rector' => '*']),
         );
+    }
+}
+
+/**
+ * Exposes how the QA tools get installed in the container.
+ */
+final class QaToolPHPService extends PHPService
+{
+    /**
+     * @param array<string, string> $dependencies
+     */
+    public function manifest(string $directory, array $dependencies): string
+    {
+        return $this->getQaToolManifest($directory, $dependencies);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function installCommand(string $directory): array
+    {
+        return $this->getQaToolInstallCommand($directory);
+    }
+
+    public function installation(string $tool): string
+    {
+        return $this->getQaToolInstallation($tool);
+    }
+
+    public function mountPoint(): string
+    {
+        return static::QA_TOOLS_MOUNT_POINT;
     }
 }

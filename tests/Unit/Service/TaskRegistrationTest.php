@@ -66,7 +66,7 @@ final class TaskRegistrationTest extends TestCase
      */
     public function testWorkerTasksAppearWithTheWorkers(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addWorker('messenger', 'php bin/console messenger:consume async')
             ->addWorker('scheduler', 'php bin/console schedule:run')
         ;
@@ -82,7 +82,7 @@ final class TaskRegistrationTest extends TestCase
 
     public function testWorkerNamesResolveToTheirContainers(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addWorker('messenger', 'php bin/console messenger:consume async')
             ->addWorker('scheduler', 'php bin/console schedule:run')
         ;
@@ -106,11 +106,11 @@ final class TaskRegistrationTest extends TestCase
     {
         static::assertSame(
             ['analytics:client', 'analytics:expose', 'analytics:dump', 'analytics:restore'],
-            $this->taskNames((new PostgresService())->withName('analytics')),
+            $this->taskNames(new PostgresService()->withName('analytics')),
         );
         static::assertSame(
             ['reporting:client', 'reporting:expose', 'reporting:dump', 'reporting:restore'],
-            $this->taskNames((new MySQLService())->withName('reporting')),
+            $this->taskNames(new MySQLService()->withName('reporting')),
         );
     }
 
@@ -143,7 +143,7 @@ final class TaskRegistrationTest extends TestCase
     {
         static::assertContains(
             'front:pnpm',
-            $this->taskNames((new NodeService('front'))->withPackageManager(PackageManager::Pnpm)),
+            $this->taskNames(new NodeService('front')->withPackageManager(PackageManager::Pnpm)),
         );
     }
 
@@ -153,7 +153,7 @@ final class TaskRegistrationTest extends TestCase
      */
     public function testRustBuilderTasks(): void
     {
-        $builder = (new RustBuilder('rust-builder'))
+        $builder = new RustBuilder('rust-builder')
             ->withApp('agent/agent-application')
             ->withApp('server/log-injector', 'injector')
         ;
@@ -169,7 +169,7 @@ final class TaskRegistrationTest extends TestCase
 
     public function testGoBuilderTasks(): void
     {
-        $builder = (new GoBuilder('go-builder'))->withApp('server/exporter');
+        $builder = new GoBuilder('go-builder')->withApp('server/exporter');
 
         static::assertSame(
             ['go-builder:bash', 'exporter:build', 'exporter:test', 'exporter:go', 'exporter:update'],
@@ -185,14 +185,14 @@ final class TaskRegistrationTest extends TestCase
     {
         static::assertSame(
             ['agent:restart'],
-            $this->taskNames((new BinaryRunService('agent', 'bin/agent'))->withImage('debian:13-slim')),
+            $this->taskNames(new BinaryRunService('agent', 'bin/agent')->withImage('debian:13-slim')),
         );
 
-        $builder = (new RustBuilder('rust-builder'))->withApp('agent');
+        $builder = new RustBuilder('rust-builder')->withApp('agent');
 
         static::assertSame(
             ['agent:restart', 'agent:build', 'agent:watch'],
-            $this->taskNames((new BinaryRunService('agent', 'bin/agent'))->withBuilder($builder)),
+            $this->taskNames(new BinaryRunService('agent', 'bin/agent')->withBuilder($builder)),
         );
     }
 
@@ -202,11 +202,11 @@ final class TaskRegistrationTest extends TestCase
      */
     public function testSharedBuilderRedirectsTheBuilderTasks(): void
     {
-        $backend = (new SymfonyService('backend'))->withDirectory('/project');
-        $demo = (new SymfonyService('demo'))->withSharedBuilder($backend);
+        $backend = new SymfonyService('backend')->withDirectory('/project');
+        $demo = new SymfonyService('demo')->withSharedBuilder($backend);
 
         static::assertSame('backend-builder', $backend->getBuilderServiceName());
         static::assertSame('backend-builder', $demo->getBuilderServiceName());
-        static::assertSame('app', (new PHPService('app'))->withoutBuilder()->getBuilderServiceName());
+        static::assertSame('app', new PHPService('app')->withoutBuilder()->getBuilderServiceName());
     }
 }

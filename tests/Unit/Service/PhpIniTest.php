@@ -45,7 +45,7 @@ final class PhpIniTest extends SnapshotTestCase
 
     public function testTheDirectivesReachTheGeneratedFile(): void
     {
-        $app = (new PHPService('app'))->withPhpIni(['memory_limit' => '1G', 'opcache.enable' => 1]);
+        $app = new PHPService('app')->withPhpIni(['memory_limit' => '1G', 'opcache.enable' => 1]);
 
         $content = $this->build($app)['configs']['app-php-ini-web']['content'];
 
@@ -60,7 +60,7 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testBooleansAreWrittenTheWayPhpReadsThem(): void
     {
-        $app = (new PHPService('app'))->withPhpIni(['display_errors' => true, 'expose_php' => false]);
+        $app = new PHPService('app')->withPhpIni(['display_errors' => true, 'expose_php' => false]);
 
         $content = $this->build($app)['configs']['app-php-ini-web']['content'];
 
@@ -70,7 +70,7 @@ final class PhpIniTest extends SnapshotTestCase
 
     public function testAScopeOnlyReachesItsOwnContainers(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addWorker('messenger', 'php bin/console messenger:consume')
             ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
         ;
@@ -85,7 +85,7 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testWorkersFollowTheCommandLineScope(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addWorker('messenger', 'php bin/console messenger:consume')
             ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
         ;
@@ -103,8 +103,8 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testTheFileLandsWhereTheServerActuallyReadsIt(): void
     {
-        $franken = (new PHPService('app'))->withMode(PhpMode::FrankenPhp)->withPhpIni(['memory_limit' => '1G']);
-        $fpm = (new PHPService('app'))->withMode(PhpMode::Fpm)->withVersion('8.4')->withPhpIni(['memory_limit' => '1G']);
+        $franken = new PHPService('app')->withMode(PhpMode::FrankenPhp)->withPhpIni(['memory_limit' => '1G']);
+        $fpm = new PHPService('app')->withMode(PhpMode::Fpm)->withVersion('8.4')->withPhpIni(['memory_limit' => '1G']);
 
         static::assertSame(['/usr/local/etc/php/conf.d/99-castor.ini'], $this->targetsOf($franken, 'app'));
         static::assertSame(['/etc/php/8.4/fpm/conf.d/99-castor.ini'], $this->targetsOf($fpm, 'app'));
@@ -117,11 +117,11 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testTheCliFileFollowsTheImageTheCommandsRunOn(): void
     {
-        $franken = (new PHPService('app'))
+        $franken = new PHPService('app')
             ->withMode(PhpMode::FrankenPhp)
             ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
         ;
-        $fpm = (new PHPService('app'))
+        $fpm = new PHPService('app')
             ->withMode(PhpMode::Fpm)
             ->withVersion('8.4')
             ->withPhpIni(['memory_limit' => '4G'], PhpIniScope::Cli)
@@ -137,7 +137,7 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testTheProjectHasTheLastWordOverTheShippedDefaults(): void
     {
-        $app = (new PHPService('app'))->withPhpIni(['memory_limit' => '1G']);
+        $app = new PHPService('app')->withPhpIni(['memory_limit' => '1G']);
 
         foreach ($this->targetsOf($app, 'app') as $target) {
             static::assertStringContainsString('/99-', $target);
@@ -146,7 +146,7 @@ final class PhpIniTest extends SnapshotTestCase
 
     public function testTheLastValueGivenForADirectiveWins(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->withPhpIni(['memory_limit' => '1G'])
             ->withPhpIni(['memory_limit' => '2G'])
         ;
@@ -159,7 +159,7 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testTheGeneratedFileParsesAsIni(): void
     {
-        $app = (new PHPService('app'))->withPhpIni([
+        $app = new PHPService('app')->withPhpIni([
             'memory_limit' => '1G',
             'error_reporting' => 'E_ALL',
             'date.timezone' => 'Europe/Paris',
@@ -184,8 +184,8 @@ final class PhpIniTest extends SnapshotTestCase
      */
     public function testChangingADirectiveRecreatesTheContainers(): void
     {
-        $before = $this->build((new PHPService('app'))->withPhpIni(['memory_limit' => '1G']));
-        $after = $this->build((new PHPService('app'))->withPhpIni(['memory_limit' => '2G']));
+        $before = $this->build(new PHPService('app')->withPhpIni(['memory_limit' => '1G']));
+        $after = $this->build(new PHPService('app')->withPhpIni(['memory_limit' => '2G']));
 
         $label = static fn(array $c): string => Yaml::dump($c['services']['app']['labels'] ?? []);
 

@@ -50,7 +50,7 @@ final class PhpExtensionTest extends SnapshotTestCase
     public function testAnExtensionReachesTheImageAsWritten(): void
     {
         foreach ([PhpMode::FrankenPhp, PhpMode::Fpm] as $mode) {
-            $app = (new PHPService('app'))->withMode($mode)->addExtension('redis');
+            $app = new PHPService('app')->withMode($mode)->addExtension('redis');
 
             static::assertContains('redis', $app->getExtensions(), $mode->value);
         }
@@ -64,8 +64,8 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testTheDefaultsAreSpelledTheWayTheModeInstallsThem(): void
     {
-        $franken = (new PHPService('app'))->withMode(PhpMode::FrankenPhp)->getExtensions();
-        $fpm = (new PHPService('app'))->withMode(PhpMode::Fpm)->getExtensions();
+        $franken = new PHPService('app')->withMode(PhpMode::FrankenPhp)->getExtensions();
+        $fpm = new PHPService('app')->withMode(PhpMode::Fpm)->getExtensions();
 
         static::assertContains('pdo_pgsql', $franken);
         static::assertContains('pgsql', $franken);
@@ -80,7 +80,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testTheDefaultsFollowAModeSetAfterwards(): void
     {
-        $app = (new PHPService('app'))->addExtension('redis')->withMode(PhpMode::Fpm);
+        $app = new PHPService('app')->addExtension('redis')->withMode(PhpMode::Fpm);
 
         static::assertNotContains('pdo_pgsql', $app->getExtensions());
         static::assertContains('redis', $app->getExtensions());
@@ -92,7 +92,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testEveryContainerOfTheApplicationInstallsTheSameExtensions(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addExtension('redis')
             ->addWorker('messenger', 'php bin/console messenger:consume')
         ;
@@ -104,7 +104,7 @@ final class PhpExtensionTest extends SnapshotTestCase
 
     public function testTheListHoldsNoDuplicate(): void
     {
-        $app = (new PHPService('app'))->addExtension('pgsql')->addExtension('redis')->addExtension('redis');
+        $app = new PHPService('app')->addExtension('pgsql')->addExtension('redis')->addExtension('redis');
 
         static::assertSame(array_values(array_unique($app->getExtensions())), $app->getExtensions());
     }
@@ -116,7 +116,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testAPieExtensionIsNotHandedToTheInstallerOfTheMode(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addExtension('redis')
             ->addExtension('xdebug/xdebug', installer: ExtensionInstaller::Pie)
         ;
@@ -132,7 +132,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testAVersionRidesAlongWithTheName(): void
     {
-        $app = (new PHPService('app'))->addExtension('xdebug/xdebug:^3.5@alpha', installer: ExtensionInstaller::Pie);
+        $app = new PHPService('app')->addExtension('xdebug/xdebug:^3.5@alpha', installer: ExtensionInstaller::Pie);
 
         static::assertSame('xdebug/xdebug:^3.5@alpha', $app->getPieExtensions()[0]['name']);
     }
@@ -145,7 +145,7 @@ final class PhpExtensionTest extends SnapshotTestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new PHPService('app'))->addExtension('xdebug', installer: ExtensionInstaller::Pie);
+        new PHPService('app')->addExtension('xdebug', installer: ExtensionInstaller::Pie);
     }
 
     /**
@@ -155,7 +155,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testDependenciesFollowTheInstallerTheyBelongTo(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addExtension('snmp', ['libsnmp-dev'])
             ->addExtension('php/kafka', ['librdkafka-dev'], ExtensionInstaller::Pie)
         ;
@@ -171,7 +171,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testEveryContainerOfTheApplicationGetsThePieExtensions(): void
     {
-        $app = (new PHPService('app'))
+        $app = new PHPService('app')
             ->addExtension('xdebug/xdebug', ['libfoo-dev'], ExtensionInstaller::Pie)
             ->addWorker('messenger', 'php bin/console messenger:consume')
         ;
@@ -201,7 +201,7 @@ final class PhpExtensionTest extends SnapshotTestCase
      */
     public function testThePinnedPieReleaseReachesTheImage(): void
     {
-        $app = (new PHPService('app'))->withPieVersion('1.2.3');
+        $app = new PHPService('app')->withPieVersion('1.2.3');
 
         static::assertSame('1.2.3', $this->argsOf($app, 'app')['pie_version'] ?? null);
     }
