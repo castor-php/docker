@@ -12,7 +12,7 @@ use Castor\Docker\Service\Behaviour\HasName;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
 
-use function Castor\Docker\docker_compose;
+use function Castor\Docker\docker_compose_exec;
 use function Castor\Docker\expose_service_port;
 use function Castor\Docker\get_dump_tasks;
 use function Castor\Docker\interactive_context;
@@ -69,7 +69,7 @@ class PostgresService implements DatabaseServiceInterface, DumpableServiceInterf
         yield [
             'task' => new AsTask('client', $this->getName(), 'Open a psql session on the database'),
             'function' => function (): void {
-                docker_compose(['exec', $this->getName(), 'psql', '-U', 'app', 'app'], c: interactive_context());
+                docker_compose_exec(['psql', '-U', 'app', 'app'], $this->getName(), interactive_context());
             },
         ];
 

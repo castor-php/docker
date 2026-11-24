@@ -13,6 +13,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\expose_service_port;
 
+use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
+
 /**
  * An S3-compatible object storage, RustFS, with its web console.
  *
@@ -141,12 +143,12 @@ class RustFSService implements LinkableServiceInterface
 
     public function getDomain(Context $context): string
     {
-        return $this->getName() . '.' . ($context->data['root_domain'] ?? 'castor.local');
+        return $this->getName() . '.' . ($context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN);
     }
 
     public function getConsoleDomain(Context $context): string
     {
-        return $this->getName() . '-console.' . ($context->data['root_domain'] ?? 'castor.local');
+        return $this->getName() . '-console.' . ($context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN);
     }
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder

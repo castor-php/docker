@@ -731,7 +731,7 @@ class PHPService implements ServiceInterface
         ];
 
         yield [
-            'task' => new AsTask('phpstan', $this->name . ':qa', 'Runs PHPStan'),
+            'task' => new AsTask('phpstan', $this->name . ':qa', 'Run PHPStan'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHPStan...');
 
@@ -745,7 +745,7 @@ class PHPService implements ServiceInterface
         ];
 
         yield [
-            'task' => new AsTask('cs', $this->name . ':qa', 'Fixes Coding Style'),
+            'task' => new AsTask('cs', $this->name . ':qa', 'Fix the coding style'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHP CS Fixer...');
 
@@ -759,7 +759,7 @@ class PHPService implements ServiceInterface
         ];
 
         yield [
-            'task' => new AsTask('rector', $this->name . ':qa', 'Updates and refactors code using Rector'),
+            'task' => new AsTask('rector', $this->name . ':qa', 'Update and refactor the code with Rector'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running Rector...');
 

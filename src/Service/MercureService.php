@@ -11,6 +11,8 @@ use Castor\Docker\Service\Builder\ComposeBuilder;
 
 use function Castor\Docker\worktree_domain;
 
+use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
+
 /**
  * A Mercure hub. link() it to an application to hand it MERCURE_URL,
  * MERCURE_PUBLIC_URL and MERCURE_JWT_SECRET, the variables of the
@@ -138,7 +140,7 @@ class MercureService implements LinkAwareServiceInterface
 
     public function getDomain(Context $context): string
     {
-        return $this->getName() . '.' . ($context->data['root_domain'] ?? 'castor.local');
+        return $this->getName() . '.' . ($context->data['root_domain'] ?? DEFAULT_ROOT_DOMAIN);
     }
 
     /**

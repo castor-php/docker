@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+* The messages naming a task to run use its real name, prefixed when the plugin is mounted under a namespace.
+* `PROJECT_ROOT_DOMAIN` defaults to `castor.local`, like every other default domain, instead of `local.test`.
+* The `client` tasks of the databases pass the terminal size, like the other commands run in a container.
+* Every task description is in the imperative, and every option has a description.
+
 ### Fixed
 
 * The PHP frontend starts nginx and PHP-FPM again when the plugin was installed from a zip archive, which drops the executable bit of their runit scripts.

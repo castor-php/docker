@@ -231,7 +231,7 @@ class RustBuilder extends AbstractBuilderService
             $this->run($this->joinArgs($cargo, $args), $directory);
         });
 
-        yield $this->task('clippy', $name . ':qa', 'Runs Clippy', function (array $args) use ($cargo, $directory): void {
+        yield $this->task('clippy', $name . ':qa', 'Run Clippy', function (array $args) use ($cargo, $directory): void {
             io()->section('Running Clippy...');
 
             $this->run($this->joinArgs([...$cargo, 'clippy', '--all-targets'], $args), $directory);
@@ -239,7 +239,7 @@ class RustBuilder extends AbstractBuilderService
 
         $format = $this->formatCommand($options);
 
-        yield $this->task('fmt', $name . ':qa', 'Fixes Coding Style' . ($this->nightlyFormatter ? ' (nightly rustfmt)' : ''), function (array $args) use ($format, $directory): void {
+        yield $this->task('fmt', $name . ':qa', 'Fix the coding style' . ($this->nightlyFormatter ? ' (nightly rustfmt)' : ''), function (array $args) use ($format, $directory): void {
             io()->section('Running rustfmt...');
 
             $this->run($this->joinArgs([...$format, 'fmt'], $args), $directory);
