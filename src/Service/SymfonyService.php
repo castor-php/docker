@@ -7,6 +7,7 @@ namespace Castor\Docker\Service;
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
 
+use function Castor\context;
 use function Castor\Docker\docker_exit_code;
 
 class SymfonyService extends PHPService
@@ -69,7 +70,7 @@ class SymfonyService extends PHPService
 
         yield [
             'task' => new AsTask('twig-cs', $this->name . ':qa', 'Fix the Twig coding style'),
-            'function' => fn(bool $dryRun = false): int => $this->runQaTool(
+            'function' => fn(bool $dryRun = false): int => $this->getQaToolRunner(context())->run(
                 'twig-cs-fixer',
                 ['vincentlanglet/twig-cs-fixer' => $this->twigCsFixerVersion],
                 $dryRun ? [] : ['--fix'],

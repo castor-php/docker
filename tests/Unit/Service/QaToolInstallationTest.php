@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Unit\Service;
 
+use Castor\Context;
 use Castor\Docker\Service\PHPService;
+use Castor\Docker\Service\QaToolRunner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -18,13 +20,13 @@ final class QaToolInstallationTest extends TestCase
     private function installation(string $application, string $tool): string
     {
         $app = new class ($application) extends PHPService {
-            public function installation(string $tool): string
+            public function runner(): QaToolRunner
             {
-                return $this->getQaToolInstallation($tool);
+                return $this->getQaToolRunner(new Context(workingDirectory: '/project'));
             }
         };
 
-        return $app->installation($tool);
+        return $app->runner()->getInstallation($tool);
     }
 
     public function testAnInstallationBelongsToOneApplicationAndOneTool(): void
