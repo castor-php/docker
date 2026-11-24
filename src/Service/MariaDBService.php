@@ -4,49 +4,11 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Service;
 
-use Castor\Attribute\AsArgument;
-use Castor\Attribute\AsTask;
-use Castor\Context;
-use Castor\Docker\Service\Behaviour\HasMysqlConfiguration;
-use Castor\Docker\Service\Behaviour\HasDatabaseLink;
-use Castor\Docker\Service\Behaviour\HasMysqlDump;
-use Castor\Docker\Service\Behaviour\HasName;
-use Castor\Docker\Service\Behaviour\HasVersion;
-use Castor\Docker\Service\Builder\ComposeBuilder;
-
-use function Castor\Docker\docker_compose_exec;
-use function Castor\Docker\expose_service_port;
-use function Castor\Docker\get_dump_tasks;
-use function Castor\Docker\interactive_context;
-
-class MariaDBService implements DatabaseServiceInterface, DumpableServiceInterface
+class MariaDBService extends AbstractMysqlFamilyService
 {
-    use HasDatabaseLink;
-    use HasMysqlConfiguration;
-    use HasMysqlDump;
-    use HasName;
-    use HasVersion;
-
-    private string $rootPassword = 'root';
-    private string $database = 'app';
-
     protected function getDefaultVersion(): string
     {
         return '12.3.2';
-    }
-
-    public function withRootPassword(string $password): static
-    {
-        $this->rootPassword = $password;
-
-        return $this;
-    }
-
-    public function withDatabase(string $database): static
-    {
-        $this->database = $database;
-
-        return $this;
     }
 
     protected function getDefaultName(): string
@@ -54,66 +16,23 @@ class MariaDBService implements DatabaseServiceInterface, DumpableServiceInterfa
         return 'mariadb';
     }
 
-    public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
-    {
-        $name = $this->getName();
-
-        $service = $builder
-            ->volume($name . '-data')
-            ->service($name)
-                ->image('mariadb:' . $this->getVersion())
-                ->environment('MARIADB_ROOT_PASSWORD', $this->rootPassword)
-                ->environment('MARIADB_DATABASE', $this->database)
-                ->volume($name . '-data', '/var/lib/mysql')
-                // TCP only: ignores the socket-only init server.
-                ->healthcheck('healthcheck.sh --connect', startPeriod: '2m')
-                ->profile('default')
-        ;
-
-        $this->applyConfiguration($builder, $service);
-
-        return $builder;
-    }
-
-    public function getTasks(): iterable
-    {
-        yield [
-            'task' => new AsTask('client', $this->getName(), 'Open a mariadb session on the database'),
-            'function' => function (): void {
-                docker_compose_exec(['mariadb', '-u', 'root', '-p' . $this->rootPassword, $this->database], $this->getName(), interactive_context());
-            },
-        ];
-
-        yield [
-            'task' => new AsTask('expose', $this->getName(), description: 'Expose the mariadb service over TCP on the host (--stop to stop)'),
-            'function' => function (
-                #[AsArgument(description: 'Host port to expose on (defaults to the service port)')]
-                ?int $port = null,
-                bool $stop = false,
-            ): void {
-                expose_service_port($this->getName(), 3306, $port, $stop);
-            },
-        ];
-
-        yield from get_dump_tasks($this);
-    }
-
     protected function isMariaDB(): bool
     {
         return true;
     }
 
+    protected function getHealthcheck(): string
+    {
+        return 'healthcheck.sh --connect';
+    }
+
     /**
      * Doctrine rejects an incomplete MariaDB version: omit it rather.
      */
-    public function getDatabaseURL(): string
+    protected function getServerVersion(): ?string
     {
         $version = $this->getVersionNumber();
-        $isComplete = null !== $version && substr_count($version, '.') >= 2;
 
-        return 'mysql://root:' . $this->rootPassword . '@' . $this->getName() . ':3306/' . $this->database . '?' . http_build_query(array_filter([
-            'serverVersion' => $isComplete ? 'mariadb-' . $version : null,
-            'charset' => 'utf8mb4',
-        ]));
+        return null !== $version && substr_count($version, '.') >= 2 ? 'mariadb-' . $version : null;
     }
 }
