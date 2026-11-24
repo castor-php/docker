@@ -27,8 +27,8 @@ container command.
     ->withHttpAccess()              // Also serve plain HTTP, without redirecting to HTTPS
 ```
 
-The application is expected to listen on port 80 inside the container. Use
-`->withPort()` if it listens somewhere else.
+The application is expected to listen on port 8080 inside the container, like
+the Rust and binary services. Use `->withPort()` if it listens somewhere else.
 
 ### Paths
 
@@ -57,11 +57,21 @@ Three different things, three settings — they only coincide in the simple case
 `withRunCommand()` given a **list** appends the arguments to the binary; given a
 **string** it replaces the container command outright.
 
+```php
+->withEnvironment('LOG_LEVEL', 'debug')
+->withEnvironment('SENTRY_DSN')     // no value: passed through from your own environment
+```
+
 ### Generated tasks
 
 * `castor api:build` — build the application (`go build -o api`)
 * `castor api:restart` — restart the service
-* `castor api:watch` — rebuild and restart on every change to a `.go` file
+* `castor api:watch` — rebuild and restart on every change to a `.go`, `go.mod`
+  or `go.sum` file
+* `castor api:test` — run the test suite (`go test ./...`, or the packages and
+  flags you give it)
+* `castor api:go` — any go command in the container
+* `castor api:bash` — a bash shell in the container
 
 ### Containers
 

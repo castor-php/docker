@@ -10,6 +10,7 @@ use Castor\Attribute\AsTask;
 use Castor\Context;
 use Castor\Docker\Service\Behaviour\HasDirectory;
 use Castor\Docker\Service\Behaviour\HasDockerfile;
+use Castor\Docker\Service\Behaviour\HasEnvironment;
 use Castor\Docker\Service\Behaviour\HasHttpRouting;
 use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
@@ -29,6 +30,7 @@ class PHPService implements ServiceInterface
 {
     use HasDirectory;
     use HasDockerfile;
+    use HasEnvironment;
     use HasHttpRouting;
     use HasLinks;
     use HasSharedHomeDirectory;
@@ -630,6 +632,7 @@ class PHPService implements ServiceInterface
 
         $this->applyHttpRouting($appService);
         $this->applyLinks($context, $appService, $builderService);
+        $this->applyEnvironment($appService, $builderService);
 
         foreach ($this->workers as $workerName => $worker) {
             $workerService = $builder
@@ -662,6 +665,7 @@ class PHPService implements ServiceInterface
             }
 
             $this->applyLinks($context, $workerService);
+            $this->applyEnvironment($workerService);
         }
 
         return $builder;

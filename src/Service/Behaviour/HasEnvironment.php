@@ -33,10 +33,15 @@ trait HasEnvironment
         return $this->environment;
     }
 
-    protected function applyEnvironment(ServiceBuilder $service): void
+    /**
+     * Every container of this service, like the links.
+     */
+    protected function applyEnvironment(?ServiceBuilder ...$services): void
     {
-        foreach ($this->environment as $key => $value) {
-            $service->environment($key, $value);
+        foreach ($services as $service) {
+            foreach ($this->environment as $key => $value) {
+                $service?->environment($key, $value);
+            }
         }
     }
 }

@@ -19,6 +19,7 @@ cache, migrations, Twig CS). Use `PHPService` for any other PHP application.
     ->withMode(PhpMode::FrankenPhp)  // PhpMode::FrankenPhp (default) or PhpMode::Fpm
     ->link($databaseService)         // DATABASE_URL, see "Linking services"
     ->link($meilisearchService)      // any linkable service: Mailpit, RustFS, a Mercure hub…
+    ->withEnvironment('LOG_LEVEL', 'debug')  // Any variable, in every container of the application
     ->withDomain('app.example.test', 'example.test')
     ->withHttpAccess()               // Also serve plain HTTP, without redirecting to HTTPS
     ->addExtension('redis')          // An extension, in every container of the application

@@ -18,7 +18,7 @@ services:
             - '.home:/home/app:cached'
         labels:
             - caddy=api.demo.test
-            - 'caddy.reverse_proxy={{upstreams 80}}'
+            - 'caddy.reverse_proxy={{upstreams 8080}}'
             - caddy.tls=internal
             - caddy.tls.on_demand=
         profiles:
