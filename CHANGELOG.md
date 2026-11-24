@@ -22,6 +22,7 @@
 
 ### Removed
 
+* The protected QA tool methods of `PHPService` (`runQaTool()`, `installQaTool()`, `getDefaultQaToolArguments()`…) and its `QA_TOOLS_*` constants: they moved to `QaToolRunner`, which a subclass gets from `getQaToolRunner()`.
 * `withDatabaseService()` and `withMailerService()`, deprecated since 0.8: use `link()`.
 * `DatabaseServiceInterface::hasHealthCheck()`: every database has a healthcheck.
 * The "Enabled in cache" line of `docker:router:status`, which autostart made meaningless.
