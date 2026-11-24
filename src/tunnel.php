@@ -143,15 +143,11 @@ function get_project_tunnels(?Context $c = null): array
 {
     $c ??= context();
 
-    try {
-        $output = capture([
-            'docker', 'ps', '--all',
-            '--filter', 'label=castor.tunnel.project=' . get_project_name($c),
-            '--format', '{{.Label "castor.tunnel.domain"}}{{"\t"}}{{.Names}}{{"\t"}}{{.State}}',
-        ], context: $c->withQuiet()->withAllowFailure());
-    } catch (\Throwable) {
-        return [];
-    }
+    $output = quiet_capture([
+        'docker', 'ps', '--all',
+        '--filter', 'label=castor.tunnel.project=' . get_project_name($c),
+        '--format', '{{.Label "castor.tunnel.domain"}}{{"\t"}}{{.Names}}{{"\t"}}{{.State}}',
+    ], $c);
 
     $tunnels = [];
 
@@ -258,14 +254,7 @@ function close_all_tunnels(?Context $c = null): void
 {
     $c ??= context();
 
-    try {
-        $ids = array_filter(explode("\n", capture(
-            ['docker', 'ps', '--all', '--quiet', '--filter', 'label=castor.tunnel=1'],
-            context: $c->withQuiet()->withAllowFailure(),
-        )));
-    } catch (\Throwable) {
-        return;
-    }
+    $ids = array_filter(explode("\n", quiet_capture(['docker', 'ps', '--all', '--quiet', '--filter', 'label=castor.tunnel=1'], $c)));
 
     if (!$ids) {
         return;

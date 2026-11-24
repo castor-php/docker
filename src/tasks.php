@@ -90,14 +90,22 @@ function is_build_parallel(?bool $option = null, ?Context $c = null): bool
  */
 function get_buildable_services(array $profiles): array
 {
-    $config = json_decode(
-        docker_compose(['config', '--format', 'json'], context()->withQuiet(), profiles: $profiles)->getOutput(),
-        true,
-    );
+    return array_map('strval', array_keys(array_filter(get_resolved_services($profiles), static fn(array $config): bool => isset($config['build']))));
+}
 
-    $services = \is_array($config['services'] ?? null) ? $config['services'] : [];
+/**
+ * The services as compose resolves them: includes followed, variables
+ * interpolated, overrides merged.
+ *
+ * @param list<string> $profiles "*" for every one
+ *
+ * @return array<string, array{build?: array{cache_from?: list<string>}, depends_on?: array<string, mixed>}>
+ */
+function get_resolved_services(array $profiles): array
+{
+    $config = json_decode(docker_compose(['config', '--format', 'json'], context()->withQuiet(), profiles: $profiles)->getOutput(), true);
 
-    return array_map('strval', array_keys(array_filter($services, static fn(mixed $config): bool => \is_array($config) && isset($config['build']))));
+    return \is_array($config['services'] ?? null) ? $config['services'] : [];
 }
 
 /**
@@ -736,7 +744,7 @@ function push(
     // cache back to, and it goes back to every one of them.
     $targets = [];
 
-    foreach (get_services() as $service => $config) {
+    foreach (get_resolved_services(['*']) as $service => $config) {
         $cacheFrom = $config['build']['cache_from'] ?? [];
 
         if ($cacheFrom) {
@@ -971,28 +979,7 @@ function normalize_source_url(string $remote): ?string
  */
 function capture_git(array $command): ?string
 {
-    try {
-        $output = trim(capture($command, context: context()->withQuiet()->withAllowFailure()));
-    } catch (\Throwable) {
-        return null;
-    }
+    $output = quiet_capture($command);
 
     return '' === $output ? null : $output;
-}
-
-/**
- * Fully resolved, whatever profile they belong to.
- *
- * @return array<string, array{build?: array{cache_from?: list<string>}, depends_on?: array<string, mixed>}>
- */
-function get_services(): array
-{
-    return json_decode(
-        docker_compose(
-            ['config', '--format', 'json'],
-            context()->withQuiet(),
-            profiles: ['*'],
-        )->getOutput(),
-        true,
-    )['services'];
 }

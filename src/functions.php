@@ -63,6 +63,39 @@ use function Castor\yaml_dump;
 use function Castor\yaml_parse;
 
 /**
+ * The trimmed output of a command probing docker or git, empty when it fails
+ * or cannot even start: a missing binary or daemon is an answer here, not an
+ * error.
+ *
+ * @param list<string> $command
+ */
+function quiet_capture(array $command, ?Context $c = null): string
+{
+    try {
+        return trim(capture($command, context: ($c ?? context())->withQuiet()->withAllowFailure()));
+    } catch (\Throwable) {
+        return '';
+    }
+}
+
+/**
+ * The compose files to read the services from, the project's own ones along
+ * with the one the plugin generates.
+ *
+ * @return list<string>
+ */
+function get_compose_files(?Context $c = null): array
+{
+    $c ??= context();
+
+    return [
+        $c->workingDirectory . '/compose.generated.yaml',
+        $c->workingDirectory . '/compose.yaml',
+        $c->workingDirectory . '/compose.override.yaml',
+    ];
+}
+
+/**
  * Read from the "docker_profiles" context data, so a project with more than the
  * two built-in profiles does not have to pass --profiles to every task.
  *
@@ -193,8 +226,7 @@ function get_compose_service_names(?Context $c = null): array
     $c ??= context();
     $names = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
@@ -312,8 +344,7 @@ function get_project_urls(?Context $c = null): array
     $c ??= context();
     $urls = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
@@ -392,15 +423,11 @@ function get_running_service_names(?Context $c = null): array
 {
     $c ??= context();
 
-    try {
-        $output = trim(capture([
-            'docker', 'ps',
-            '--filter', 'label=com.docker.compose.project=' . get_project_name($c),
-            '--format', '{{.Label "com.docker.compose.service"}}',
-        ], context: $c->withQuiet()->withAllowFailure()));
-    } catch (\Throwable) {
-        return [];
-    }
+    $output = quiet_capture([
+        'docker', 'ps',
+        '--filter', 'label=com.docker.compose.project=' . get_project_name($c),
+        '--format', '{{.Label "com.docker.compose.service"}}',
+    ], $c);
 
     if ('' === $output) {
         return [];
@@ -533,11 +560,7 @@ function get_project_containers(bool $withSize = false, ?Context $c = null): arr
         $command[] = '--size';
     }
 
-    try {
-        $output = trim(capture($command, context: $c->withQuiet()->withAllowFailure()->withTimeout(null)));
-    } catch (\Throwable) {
-        return [];
-    }
+    $output = quiet_capture($command, $c->withTimeout(null));
 
     $containers = [];
 
@@ -585,14 +608,7 @@ function get_container_stats(array $ids, ?Context $c = null): array
 
     $c ??= context();
 
-    try {
-        $output = trim(capture(
-            array_merge(['docker', 'stats', '--no-stream', '--format', '{{json .}}'], $ids),
-            context: $c->withQuiet()->withAllowFailure()->withTimeout(null),
-        ));
-    } catch (\Throwable) {
-        return [];
-    }
+    $output = quiet_capture(['docker', 'stats', '--no-stream', '--format', '{{json .}}', ...$ids], $c->withTimeout(null));
 
     $stats = [];
 
@@ -640,17 +656,10 @@ function get_project_disk_usage(?Context $c = null): array
     $c ??= context();
     $empty = ['images' => [], 'volumes' => []];
 
-    try {
-        // Measuring every volume of the daemon takes a while, so no timeout.
-        $output = capture(
-            ['docker', 'system', 'df', '--verbose', '--format', '{{json .}}'],
-            context: $c->withQuiet()->withAllowFailure()->withTimeout(null),
-        );
-    } catch (\Throwable) {
-        return $empty;
-    }
+    // Measuring every volume of the daemon takes a while, so no timeout.
+    $output = quiet_capture(['docker', 'system', 'df', '--verbose', '--format', '{{json .}}'], $c->withTimeout(null));
 
-    $usage = json_decode(trim($output), true);
+    $usage = json_decode($output, true);
 
     if (!\is_array($usage)) {
         return $empty;
@@ -722,14 +731,7 @@ function get_docker_host_resources(?Context $c = null): array
 {
     $c ??= context();
 
-    try {
-        $output = trim(capture(
-            ['docker', 'info', '--format', "{{.NCPU}}\t{{.MemTotal}}"],
-            context: $c->withQuiet()->withAllowFailure(),
-        ));
-    } catch (\Throwable) {
-        return ['cpus' => null, 'memory' => null];
-    }
+    $output = quiet_capture(['docker', 'info', '--format', "{{.NCPU}}\t{{.MemTotal}}"], $c);
 
     $fields = explode("\t", $output);
 
@@ -1427,8 +1429,7 @@ function get_project_bind_mounts(?Context $c = null): array
     $roots = get_project_mount_roots($c);
     $paths = [];
 
-    foreach (['compose.generated.yaml', 'compose.yaml', 'compose.override.yaml'] as $file) {
-        $path = $c->workingDirectory . '/' . $file;
+    foreach (get_compose_files($c) as $path) {
 
         if (!file_exists($path) || !($content = file_get_contents($path))) {
             continue;
