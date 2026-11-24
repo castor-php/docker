@@ -419,7 +419,7 @@ function get_running_dependents(array $services): array
 {
     $running = get_running_service_names();
 
-    return array_values(array_intersect(find_dependents(get_services(), $services), $running));
+    return array_values(array_intersect(find_dependents(get_resolved_services(['*']), $services), $running));
 }
 
 /**

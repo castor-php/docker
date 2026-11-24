@@ -18,7 +18,11 @@
             "src/tasks.php",
             "src/tunnel.php",
             "src/worktree.php",
-            "src/database.php"
+            "src/database.php",
+            "src/expose.php",
+            "src/installer.php",
+            "src/push.php",
+            "src/stats.php"
         ]
     },
     "autoload-dev": {

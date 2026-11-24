@@ -343,16 +343,9 @@ function warn_if_router_outdated(?string $consequence = null): void
 
 function is_router_running(): bool
 {
-    try {
-        $output = capture(
-            ['docker', 'ps', '--filter', 'name=' . get_router_name(), '--filter', 'status=running', '--format', '{{.Names}}'],
-            context: context()->withQuiet()->withAllowFailure()
-        );
+    $output = quiet_capture(['docker', 'ps', '--filter', 'name=' . get_router_name(), '--filter', 'status=running', '--format', '{{.Names}}']);
 
-        return trim($output) === get_router_name();
-    } catch (\Throwable) {
-        return false;
-    }
+    return $output === get_router_name();
 }
 
 /**
@@ -388,18 +381,11 @@ function get_running_router(): ?array
  */
 function get_routed_projects(): array
 {
-    try {
-        $found = capture(
-            ['docker', 'ps', '--filter', 'label=caddy', '--format', '{{.Label "com.docker.compose.project"}}|{{.Names}}'],
-            context: context()->withQuiet()->withAllowFailure()
-        );
-    } catch (\Throwable) {
-        return [];
-    }
+    $found = quiet_capture(['docker', 'ps', '--filter', 'label=caddy', '--format', '{{.Label "com.docker.compose.project"}}|{{.Names}}']);
 
     $projects = [];
 
-    foreach (explode("\n", trim($found)) as $line) {
+    foreach (explode("\n", $found) as $line) {
         if ('' === trim($line)) {
             continue;
         }
@@ -646,10 +632,15 @@ function disconnect_router_from_network(string $network): void
  */
 function get_router_networks(): array
 {
-    $found = trim(capture(
-        ['docker', 'inspect', '-f', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}', get_router_name()],
-        context: context()->withQuiet()->withAllowFailure()
-    ));
+    return get_container_networks(get_router_name());
+}
+
+/**
+ * @return list<string>
+ */
+function get_container_networks(string $container): array
+{
+    $found = quiet_capture(['docker', 'inspect', '-f', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}', $container]);
 
     return array_values(array_filter(array_map(trim(...), explode("\n", $found))));
 }
@@ -670,13 +661,8 @@ function connect_router_to_running_projects(): array
     $networks = [];
 
     foreach ($ids as $id) {
-        $found = trim(capture(
-            ['docker', 'inspect', '-f', '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}', $id],
-            context: context()->withQuiet()->withAllowFailure()
-        ));
-
-        foreach (array_filter(explode("\n", $found)) as $network) {
-            $networks[trim($network)] = true;
+        foreach (get_container_networks($id) as $network) {
+            $networks[$network] = true;
         }
     }
 
