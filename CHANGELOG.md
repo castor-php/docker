@@ -6,6 +6,8 @@
 
 * `withEnvironment()` on `PHPService`, `GoService` and `RustService`, like on `NodeService` and `BinaryRunService`. A PHP application gets the variables in its builder and its workers too.
 * `GoService` has the `test`, `go` and `bash` tasks of `RustService`.
+* `RustService::withNightlyFormatter()`, like on `RustBuilder`: its `qa:fmt` task runs the nightly rustfmt.
+* `HttpRoutedServiceInterface`, for a service routed over HTTP: a Mercure hub allows its pages and a redirection.io agent reaches its port, whatever class it is.
 
 ### Changed
 
@@ -26,6 +28,7 @@
 * `withDatabaseService()` and `withMailerService()`, deprecated since 0.8: use `link()`.
 * `DatabaseServiceInterface::hasHealthCheck()`: every database has a healthcheck.
 * The "Enabled in cache" line of `docker:router:status`, which autostart made meaningless.
+* The `HasMysqlDump` behaviour, now part of `AbstractMysqlFamilyService`, the parent of `MySQLService` and `MariaDBService`.
 
 ### Fixed
 
