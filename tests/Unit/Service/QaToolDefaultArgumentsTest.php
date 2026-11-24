@@ -70,7 +70,7 @@ final class QaToolDefaultArgumentsTest extends TestCase
              */
             public function defaults(string $tool, Context $context, array $command, string $suffix): array
             {
-                return $this->getDefaultQaToolArguments($tool, $context, $command, $suffix);
+                return $this->getQaToolRunner($context)->getDefaultArguments($tool, $command, $suffix);
             }
         };
 

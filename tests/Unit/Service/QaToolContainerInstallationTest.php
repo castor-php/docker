@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Castor\Docker\Tests\Unit\Service;
 
+use Castor\Context;
 use Castor\Docker\Service\PHPService;
+use Castor\Docker\Service\QaToolRunner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -102,7 +104,7 @@ final class QaToolContainerInstallationTest extends TestCase
 }
 
 /**
- * Exposes how the QA tools get installed in the container.
+ * Exposes the runner the QA tasks of an application get.
  */
 final class QaToolPHPService extends PHPService
 {
@@ -111,7 +113,7 @@ final class QaToolPHPService extends PHPService
      */
     public function manifest(string $directory, array $dependencies): string
     {
-        return $this->getQaToolManifest($directory, $dependencies);
+        return $this->runner()->getManifest($directory, $dependencies);
     }
 
     /**
@@ -119,16 +121,21 @@ final class QaToolPHPService extends PHPService
      */
     public function installCommand(string $directory): array
     {
-        return $this->getQaToolInstallCommand($directory);
+        return $this->runner()->getInstallCommand($directory);
     }
 
     public function installation(string $tool): string
     {
-        return $this->getQaToolInstallation($tool);
+        return $this->runner()->getInstallation($tool);
     }
 
     public function mountPoint(): string
     {
-        return static::QA_TOOLS_MOUNT_POINT;
+        return QaToolRunner::MOUNT_POINT;
+    }
+
+    private function runner(): QaToolRunner
+    {
+        return $this->getQaToolRunner(new Context(workingDirectory: '/project'));
     }
 }

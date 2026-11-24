@@ -16,15 +16,13 @@ use Castor\Docker\Service\Behaviour\HasLinks;
 use Castor\Docker\Service\Behaviour\HasSharedHomeDirectory;
 use Castor\Docker\Service\Behaviour\HasVersion;
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\Builder\ServiceBuilder;
 
 use function Castor\Docker\docker_compose;
 use function Castor\Docker\docker_compose_run;
 use function Castor\io;
-use function Castor\Docker\docker_exit_code;
 use function Castor\Docker\interactive_context;
 use function Castor\context;
-use function Castor\fingerprint;
-use function Castor\hasher;
 
 class PHPService implements ServiceInterface
 {
@@ -81,22 +79,6 @@ class PHPService implements ServiceInterface
     protected string $rectorVersion = '*';
 
     protected const MOUNT_POINT = '/var/www';
-
-    /**
-     * Where the QA tools are installed, and mounted in the container that runs
-     * them.
-     */
-    protected const QA_TOOLS_MOUNT_POINT = '/castor-tools';
-
-    /**
-     * The configuration file names each QA tool discovers on its own, in the
-     * directory it runs in.
-     */
-    protected const QA_TOOLS_CONFIGURATION_FILES = [
-        'phpstan' => ['.phpstan.neon', 'phpstan.neon', '.phpstan.neon.dist', 'phpstan.neon.dist', '.phpstan.dist.neon', 'phpstan.dist.neon'],
-        'php-cs-fixer' => ['.php-cs-fixer.php', '.php-cs-fixer.dist.php'],
-        'rector' => ['rector.php'],
-    ];
 
     /**
      * The application whose builder container this one uses, false when none is
@@ -508,8 +490,6 @@ class PHPService implements ServiceInterface
 
     public function updateCompose(Context $context, ComposeBuilder $builder): ComposeBuilder
     {
-        $userId = $context->data['user_id'] ?? 1000;
-
         $appService = $builder
             ->service($this->name)
                 ->build(__DIR__ . '/../Resources/php')
@@ -521,24 +501,15 @@ class PHPService implements ServiceInterface
                     ->arg('php_extensions', json_encode($this->getExtensions(), \JSON_THROW_ON_ERROR))
                     ->arg('pie_version', $this->getPieVersion())
                 ->end()
-                ->user("{$userId}:{$userId}")
-                ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                 ->profile('default')
         ;
+
+        $this->configureApplicationContainer($appService, $context, PhpIniScope::Web);
 
         foreach ([PhpIniScope::Cli, PhpIniScope::Web] as $scope) {
             if ($this->getPhpIni($scope)) {
                 $builder->config($this->getPhpIniConfigName($scope), $this->renderPhpIni($this->getPhpIni($scope)));
             }
-        }
-
-        if ($this->webPhpIni) {
-            $appService->config(
-                $this->getPhpIniConfigName(PhpIniScope::Web),
-                $this->getPhpIniPath(PhpIniScope::Web),
-                recreateOnChange: true,
-            );
         }
 
         // The templates default both to an empty list, and everything a PIE
@@ -608,26 +579,15 @@ class PHPService implements ServiceInterface
                 $builderService->build()->arg('sudo', 'true');
             }
 
-            $builderService
-                    ->user("{$userId}:{$userId}")
-                    ->init(true)
-                    ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                    ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
-                    ->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached')
-                    ->profile('builder')
+            $this->configureApplicationContainer($builderService, $context, PhpIniScope::Cli)
+                ->init(true)
+                ->volume(QaToolRunner::getToolsDirectory($context), QaToolRunner::MOUNT_POINT, 'cached')
+                ->profile('builder')
             ;
-
-            if ($this->cliPhpIni) {
-                $builderService->config(
-                    $this->getPhpIniConfigName(PhpIniScope::Cli),
-                    $this->getPhpIniPath(PhpIniScope::Cli),
-                    recreateOnChange: true,
-                );
-            }
         } elseif (false === $this->sharedBuilder) {
             // Without a builder container the QA tasks fall back to the
             // application one, which then needs the tools too.
-            $appService->volume($this->getQaToolsDirectory($context), static::QA_TOOLS_MOUNT_POINT, 'cached');
+            $appService->volume(QaToolRunner::getToolsDirectory($context), QaToolRunner::MOUNT_POINT, 'cached');
         }
 
         $this->applyHttpRouting($appService);
@@ -641,20 +601,11 @@ class PHPService implements ServiceInterface
                         ->target('worker')
                         ->withRegistryCache($this->name . '-worker')
                     ->end()
-                    ->user("{$userId}:{$userId}")
-                    ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
-                    ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
                     ->command($worker['command'])
                     ->profile('default')
             ;
 
-            if ($this->cliPhpIni) {
-                $workerService->config(
-                    $this->getPhpIniConfigName(PhpIniScope::Cli),
-                    $this->getPhpIniPath(PhpIniScope::Cli),
-                    recreateOnChange: true,
-                );
-            }
+            $this->configureApplicationContainer($workerService, $context, PhpIniScope::Cli);
 
             if (null !== $worker['restart']) {
                 $workerService->restart($worker['restart']);
@@ -669,6 +620,32 @@ class PHPService implements ServiceInterface
         }
 
         return $builder;
+    }
+
+    /**
+     * What every container running the application code shares: the host user,
+     * so the files it writes stay the user's own, the sources, the home holding
+     * the shared caches, and the php.ini of the PHP it runs.
+     */
+    protected function configureApplicationContainer(ServiceBuilder $service, Context $context, PhpIniScope $phpIniScope): ServiceBuilder
+    {
+        $userId = $context->data['user_id'] ?? 1000;
+
+        $service
+            ->user("{$userId}:{$userId}")
+            ->volume($this->getDirectory(), static::MOUNT_POINT, 'cached')
+            ->volume($this->getSharedHomeDirectory($context), '/home/app', 'cached')
+        ;
+
+        if ($this->getPhpIni($phpIniScope)) {
+            $service->config(
+                $this->getPhpIniConfigName($phpIniScope),
+                $this->getPhpIniPath($phpIniScope),
+                recreateOnChange: true,
+            );
+        }
+
+        return $service;
     }
 
     public function getTasks(): iterable
@@ -702,12 +679,13 @@ class PHPService implements ServiceInterface
             'task' => new AsTask('phpstan', $this->name . ':qa', 'Run PHPStan'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHPStan...');
+                $runner = $this->getQaToolRunner(context());
 
                 /** @var list<string> $args */
-                return $this->runQaTool(
+                return $runner->run(
                     'phpstan',
                     ['phpstan/phpstan' => $this->phpStanVersion, ...$this->phpStanExtraDependencies],
-                    $args ?: $this->getDefaultQaToolArguments('phpstan', context(), ['analyze']),
+                    $args ?: $runner->getDefaultArguments('phpstan', ['analyze']),
                 );
             },
         ];
@@ -716,12 +694,13 @@ class PHPService implements ServiceInterface
             'task' => new AsTask('cs', $this->name . ':qa', 'Fix the coding style'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running PHP CS Fixer...');
+                $runner = $this->getQaToolRunner(context());
 
                 /** @var list<string> $args */
-                return $this->runQaTool(
+                return $runner->run(
                     'php-cs-fixer',
                     ['friendsofphp/php-cs-fixer' => $this->phpCsFixerVersion],
-                    $args ?: $this->getDefaultQaToolArguments('php-cs-fixer', context(), ['fix'], '/src'),
+                    $args ?: $runner->getDefaultArguments('php-cs-fixer', ['fix'], '/src'),
                 );
             },
         ];
@@ -730,12 +709,13 @@ class PHPService implements ServiceInterface
             'task' => new AsTask('rector', $this->name . ':qa', 'Update and refactor the code with Rector'),
             'function' => function (#[AsRawTokens] array $args): int {
                 io()->section('Running Rector...');
+                $runner = $this->getQaToolRunner(context());
 
                 /** @var list<string> $args */
-                return $this->runQaTool(
+                return $runner->run(
                     'rector',
                     ['rector/rector' => $this->rectorVersion],
-                    $args ?: $this->getDefaultQaToolArguments('rector', context(), [], '/src'),
+                    $args ?: $runner->getDefaultArguments('rector', [], '/src'),
                 );
             },
         ];
@@ -744,157 +724,20 @@ class PHPService implements ServiceInterface
     }
 
     /**
-     * Install and run the tool inside the container, so the analysis sees the
-     * PHP version, the extensions and the vendor/ the application really runs
-     * on rather than whichever PHP happens to run castor.
-     *
-     * @param array<string, string> $dependencies the composer requirements of the tool
-     * @param list<string>          $arguments
+     * Built per run, against the context of that run: the configuration files
+     * and the tools directory are found through it.
      */
-    protected function runQaTool(string $tool, array $dependencies, array $arguments): int
+    protected function getQaToolRunner(Context $context): QaToolRunner
     {
-        $directory = $this->getQaToolInstallation($tool);
-
-        $this->installQaTool($directory, $dependencies);
-
-        $binary = static::QA_TOOLS_MOUNT_POINT . '/' . $directory . '/vendor/bin/' . $tool;
-
-        return docker_exit_code(
-            [$binary, ...$arguments],
-            $this->getBuilderServiceName(),
+        return new QaToolRunner(
+            application: $this->name,
+            phpVersion: $this->getVersion(),
+            service: $this->getBuilderServiceName(),
             workDir: $this->getBuilderWorkingDirectory(),
+            hostWorkingDirectory: $this->getAbsoluteHostWorkingDirectory($context),
+            containerWorkingDirectory: $this->getContainerWorkingDirectory(static::MOUNT_POINT),
+            toolsDirectory: QaToolRunner::getToolsDirectory($context),
         );
-    }
-
-    /**
-     * Resolved by the composer of the container, not the one castor embeds:
-     * composer picks versions against the platform it runs on, so a host on PHP
-     * 8.5 installing for a container on 8.1 gets a tool the container cannot
-     * run, and the reverse analyses with an older tool than it should.
-     *
-     * The directory is on the host, mounted in the container: an installation
-     * survives the containers, and the composer cache is reused across tools.
-     *
-     * @param array<string, string> $dependencies
-     */
-    protected function installQaTool(string $directory, array $dependencies): void
-    {
-        $path = $this->getQaToolsDirectory(context()) . '/' . $directory;
-        $manifest = $this->getQaToolManifest($directory, $dependencies);
-
-        // The PHP version takes part in the resolution, so bumping it has to
-        // reinstall the tool.
-        fingerprint(
-            callback: function () use ($path, $manifest, $directory): void {
-                if (!is_dir($path)) {
-                    mkdir($path, 0o777, true);
-                }
-
-                file_put_contents($path . '/composer.json', $manifest);
-
-                io()->comment('Installing/Updating ' . $directory . '...');
-
-                $this->runInBuilder($this->getQaToolInstallCommand($directory));
-            },
-            id: 'docker-tools-' . $directory,
-            fingerprint: hasher()->write($manifest)->write($this->getVersion())->finish(),
-            force: !is_file($path . '/composer.json'),
-        );
-    }
-
-    /**
-     * Pins nothing beyond what the task asks for: the resolution is the
-     * container's to make.
-     *
-     * @param array<string, string> $dependencies
-     */
-    protected function getQaToolManifest(string $directory, array $dependencies): string
-    {
-        return json_encode([
-            'name' => 'tools/' . $directory,
-            'require' => $dependencies,
-            'config' => [
-                // A tool is a leaf: its own plugins are the only ones here,
-                // and none is worth an interactive prompt.
-                'allow-plugins' => array_fill_keys(array_keys($dependencies), true),
-            ],
-        ], \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
-    }
-
-    /**
-     * Run in the builder container, so --working-dir names the mount point and
-     * not the host directory behind it.
-     *
-     * @return list<string>
-     */
-    protected function getQaToolInstallCommand(string $directory): array
-    {
-        return [
-            'composer',
-            'update',
-            '--working-dir=' . static::QA_TOOLS_MOUNT_POINT . '/' . $directory,
-            '--no-interaction',
-        ];
-    }
-
-    /**
-     * What a QA tool analyses when the task was given no arguments of its own.
-     *
-     * A path on the command line *replaces* the ones the configuration file
-     * declares rather than restricting them — PHPStan only falls back to
-     * `parameters.paths` when none is named, PHP CS Fixer ignores its finder
-     * without `--path-mode=intersection`, Rector does the same with
-     * `withPaths()`. So no path is named when the application ships a
-     * configuration the tool discovers on its own.
-     *
-     * @param list<string> $command the sub-command the tool needs, if any
-     *
-     * @return list<string>
-     */
-    protected function getDefaultQaToolArguments(string $tool, Context $context, array $command, string $suffix = ''): array
-    {
-        if ($this->hasQaToolConfiguration($tool, $context)) {
-            return $command;
-        }
-
-        return [...$command, $this->getContainerWorkingDirectory(static::MOUNT_POINT) . $suffix];
-    }
-
-    /**
-     * Whether the application ships a configuration file the tool discovers on
-     * its own, in the directory it runs in.
-     */
-    protected function hasQaToolConfiguration(string $tool, Context $context): bool
-    {
-        $directory = $this->getAbsoluteHostWorkingDirectory($context);
-
-        foreach (static::QA_TOOLS_CONFIGURATION_FILES[$tool] ?? [] as $name) {
-            if (is_file($directory . '/' . $name)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * One per application, per tool: a repository pinning PHPStan 1 on one
-     * application and 2 on another would otherwise have every run reinstall
-     * over the previous one. Naming it after the application also keeps the
-     * name stable, so a version bump reinstalls in place.
-     */
-    protected function getQaToolInstallation(string $tool): string
-    {
-        return $this->name . '-' . $tool;
-    }
-
-    /**
-     * The host directory holding the QA tools castor installs, mounted in the
-     * container that runs them.
-     */
-    protected function getQaToolsDirectory(Context $context): string
-    {
-        return $context->workingDirectory . '/.castor/vendor/.tools';
     }
 
     /**
