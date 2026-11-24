@@ -156,13 +156,12 @@ class MercureService implements LinkAwareServiceInterface
         $origins = [];
 
         foreach ($this->linkedServices as $service) {
-            if (!method_exists($service, 'getDomains')) {
+            if (!$service instanceof HttpRoutedServiceInterface) {
                 continue;
             }
 
-            $httpAccess = method_exists($service, 'isHttpAccessAllowed') && $service->isHttpAccessAllowed();
+            $httpAccess = $service->isHttpAccessAllowed();
 
-            /** @var string $domain */
             foreach ($service->getDomains() as $domain) {
                 // Its pages will be served on the moved domain.
                 $domain = worktree_domain($domain, $context);

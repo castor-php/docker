@@ -31,7 +31,7 @@ use function Castor\watch;
  * image will not start in an unrelated slim one. Without a builder, pass your
  * own withImage() and you only get "<name>:restart".
  */
-class BinaryRunService implements ServiceInterface
+class BinaryRunService implements HttpRoutedServiceInterface
 {
     use HasDirectory;
     use HasEnvironment;
