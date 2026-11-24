@@ -132,7 +132,8 @@ installs the nightly toolchain with its rustfmt in the image, and points the
 point — nightly for the formatter, stable for everything that ships.
 
 Declaring nightly yourself keeps working: `addRustupToolchain('nightly', [...])`
-is completed with `rustfmt` rather than installed twice.
+is completed with `rustfmt` rather than installed twice. `RustService` takes
+`withNightlyFormatter()` too, and its `qa:fmt` task moves the same way.
 
 ### `withApp()`
 

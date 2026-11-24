@@ -6,6 +6,7 @@ namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Docker\Service\Builder\ComposeBuilder;
 use Castor\Docker\Service\RustBuilder;
+use Castor\Docker\Service\RustService;
 use Castor\Docker\Tests\SnapshotTestCase;
 
 /**
@@ -101,6 +102,26 @@ final class RustNightlyFormatterTest extends SnapshotTestCase
         // nothing for it.
         static::assertSame(['rustup', 'run', 'nightly', 'cargo'], $builder->format(['toolchain' => 'nightly']));
         static::assertSame(['rustup', 'run', 'beta', 'cargo', 'build'], $builder->build(['toolchain' => 'beta']));
+    }
+
+    /**
+     * A single crate formats on nightly the same way as the crates of a
+     * monorepo.
+     */
+    public function testARustServiceFormatsOnNightlyToo(): void
+    {
+        $service = new RustService('api')->withNightlyFormatter();
+        $compose = $service->updateCompose($this->fixedContext(), new ComposeBuilder())->toArray();
+
+        static::assertSame('[{"name":"nightly","components":["rustfmt"]}]', $compose['services']['api']['build']['args']['rust_toolchains']);
+
+        $tasks = [];
+
+        foreach ($service->getTasks() as $task) {
+            $tasks[$task['task']->name] = $task['task']->description;
+        }
+
+        static::assertSame('Fix the coding style (nightly rustfmt)', $tasks['fmt']);
     }
 }
 

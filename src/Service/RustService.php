@@ -6,6 +6,7 @@ namespace Castor\Docker\Service;
 
 use Castor\Attribute\AsRawTokens;
 use Castor\Attribute\AsTask;
+use Castor\Docker\Service\Behaviour\HasRustupToolchain;
 use Castor\Docker\Service\Builder\ServiceBuilder;
 
 use function Castor\io;
@@ -27,14 +28,7 @@ use function Castor\io;
  */
 class RustService extends AbstractSourceService
 {
-    /** @var list<string> */
-    protected array $rustupComponents = ['clippy', 'rustfmt'];
-
-    /** @var list<string> */
-    protected array $rustupTargets = [];
-
-    /** @var list<array{name: string, components: list<string>}> */
-    protected array $rustupToolchains = [];
+    use HasRustupToolchain;
 
     protected ?string $binaryPath = null;
 
@@ -53,47 +47,6 @@ class RustService extends AbstractSourceService
     protected function getDefaultPort(): int
     {
         return 8080;
-    }
-
-    /**
-     * Install a compilation target, e.g. "x86_64-unknown-linux-musl".
-     */
-    public function addRustupTarget(string ...$targets): static
-    {
-        foreach ($targets as $target) {
-            if (!\in_array($target, $this->rustupTargets, true)) {
-                $this->rustupTargets[] = $target;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * "clippy" and "rustfmt" are there by default, so the QA tasks work out of
-     * the box.
-     */
-    public function addRustupComponent(string ...$components): static
-    {
-        foreach ($components as $component) {
-            if (!\in_array($component, $this->rustupComponents, true)) {
-                $this->rustupComponents[] = $component;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * E.g. "nightly", for a lint or a formatter that is not stable yet.
-     *
-     * @param list<string> $components
-     */
-    public function addRustupToolchain(string $name, array $components = []): static
-    {
-        $this->rustupToolchains[] = ['name' => $name, 'components' => $components];
-
-        return $this;
     }
 
     /**
@@ -168,12 +121,7 @@ class RustService extends AbstractSourceService
 
     protected function getBuildArgs(): array
     {
-        return [
-            'rust_version' => $this->getVersion(),
-            'rust_components' => json_encode($this->rustupComponents, \JSON_THROW_ON_ERROR),
-            'rust_targets' => json_encode($this->rustupTargets, \JSON_THROW_ON_ERROR),
-            'rust_toolchains' => json_encode($this->rustupToolchains, \JSON_THROW_ON_ERROR),
-        ];
+        return $this->getRustupBuildArgs();
     }
 
     protected function isWatched(string $file): bool
@@ -221,11 +169,13 @@ class RustService extends AbstractSourceService
     protected function fmtTask(): array
     {
         return [
-            'task' => new AsTask('fmt', $this->name . ':qa', 'Fix the coding style'),
+            'task' => new AsTask('fmt', $this->name . ':qa', 'Fix the coding style' . ($this->nightlyFormatter ? ' (nightly rustfmt)' : '')),
             'function' => function (#[AsRawTokens] array $args): void {
                 io()->section('Running rustfmt...');
 
-                $this->runInBuilder(['cargo', 'fmt', ...$args]);
+                $cargo = $this->nightlyFormatter ? ['rustup', 'run', static::NIGHTLY_TOOLCHAIN, 'cargo'] : ['cargo'];
+
+                $this->runInBuilder([...$cargo, 'fmt', ...$args]);
             },
         ];
     }
