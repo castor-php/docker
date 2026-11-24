@@ -86,6 +86,10 @@ which Doctrine rejects: Doctrine then asks the server.
   `clickhouse:dump` and `clickhouse:restore`
 * **Containers:** `clickhouse` and `clickhouse-keeper`, named volume `clickhouse-data`
 * **UI:** `https://clickhouse.{root_domain}` when the router is enabled
+* **[Link](index.md#linking-services):** `CLICKHOUSE_URL`
+  (`http://app:app@clickhouse:8123/app`), and `CLICKHOUSE_HOST`,
+  `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD` and `CLICKHOUSE_DATABASE` for the
+  clients taking them apart
 
 > [!NOTE]
 > ClickHouse is not a `DatabaseServiceInterface`: it is meant to sit next to your

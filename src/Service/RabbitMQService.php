@@ -13,7 +13,7 @@ use function Castor\Docker\expose_task;
 
 use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
-class RabbitMQService implements ServiceInterface
+class RabbitMQService implements LinkableServiceInterface
 {
     use HasName;
     use HasVersion;
@@ -53,5 +53,19 @@ class RabbitMQService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield expose_task($this, 5672, 'AMQP');
+    }
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        return [
+            // The guest user the image allows from other containers, on the
+            // default vhost.
+            'RABBITMQ_URL' => 'amqp://guest:guest@' . $this->getName() . ':5672/%2f',
+        ];
+    }
+
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_healthy'];
     }
 }

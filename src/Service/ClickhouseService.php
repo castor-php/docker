@@ -17,7 +17,7 @@ use function Castor\Docker\interactive_context;
 
 use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
-class ClickhouseService implements DumpableServiceInterface
+class ClickhouseService implements DumpableServiceInterface, LinkableServiceInterface
 {
     use HasName;
     use HasVersion;
@@ -212,5 +212,23 @@ class ClickhouseService implements DumpableServiceInterface
                 castor_query "RESTORE DATABASE \`$CASTOR_DATABASE\` FROM File('$backup')"
             }
             BASH, ['{directory}' => self::BACKUPS_DIRECTORY]);
+    }
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        return [
+            // Over HTTP, which every client speaks, and split for the ones
+            // taking a host and credentials rather than a URL.
+            'CLICKHOUSE_URL' => \sprintf('http://%s:%s@%s:8123/%s', rawurlencode($this->username), rawurlencode($this->password), $this->getName(), $this->database),
+            'CLICKHOUSE_HOST' => $this->getName(),
+            'CLICKHOUSE_USER' => $this->username,
+            'CLICKHOUSE_PASSWORD' => $this->password,
+            'CLICKHOUSE_DATABASE' => $this->database,
+        ];
+    }
+
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_healthy'];
     }
 }

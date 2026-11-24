@@ -75,6 +75,10 @@ handful of environment variables — and not to start before it is there.
     ->link($meilisearch)    // MEILISEARCH_URL, MEILISEARCH_API_KEY, …
     ->link($rustfs)         // AWS_ACCESS_KEY_ID, AWS_ENDPOINT_URL_S3, …
     ->link($mercure)        // MERCURE_URL, MERCURE_PUBLIC_URL, MERCURE_JWT_SECRET
+    ->link($redis)          // REDIS_URL
+    ->link($rabbitmq)       // RABBITMQ_URL
+    ->link($elasticsearch)  // ELASTICSEARCH_URL
+    ->link($clickhouse)     // CLICKHOUSE_URL, CLICKHOUSE_HOST, …
 ```
 
 The variables reach every container of the application — for a PHP one, the

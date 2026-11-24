@@ -13,7 +13,7 @@ use function Castor\Docker\expose_task;
 
 use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
-class ElasticsearchService implements ServiceInterface
+class ElasticsearchService implements LinkableServiceInterface
 {
     use HasName;
     use HasVersion;
@@ -75,5 +75,17 @@ class ElasticsearchService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield expose_task($this, 9200);
+    }
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        return [
+            'ELASTICSEARCH_URL' => 'http://' . $this->getName() . ':9200',
+        ];
+    }
+
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_healthy'];
     }
 }

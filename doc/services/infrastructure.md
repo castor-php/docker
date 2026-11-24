@@ -18,6 +18,7 @@ Redis with the RedisInsight web UI.
   `redis-insight-data`
 * **UI:** `https://redis.{root_domain}` when the router is enabled
 * **Task:** `castor redis:expose` — reach Redis from the host
+* **[Link](index.md#linking-services):** `REDIS_URL` (`redis://redis:6379`)
 
 In RedisInsight, add the database `redis:6379`; it is kept in its volume.
 
@@ -34,6 +35,9 @@ RabbitMQ with the management plugin.
 * **UI:** `https://rabbitmq.{root_domain}` when the router is enabled, as
   `guest` / `guest`
 * **Task:** `castor rabbitmq:expose` — reach AMQP (5672) from the host
+* **[Link](index.md#linking-services):** `RABBITMQ_URL`
+  (`amqp://guest:guest@rabbitmq:5672/%2f`). Map it to `MESSENGER_TRANSPORT_DSN`
+  in your `.env` if Messenger uses it: Redis could claim that name too
 
 The image is `rabbitmq:{version}-management-alpine`. The node is always
 `rabbit@localhost`, so its data survives a recreate.
@@ -52,6 +56,8 @@ Elasticsearch with Kibana.
   when the router is enabled
 * **URL:** `http://elasticsearch:9200` from the other containers
 * **Task:** `castor elasticsearch:expose` — reach the HTTP API from the host
+* **[Link](index.md#linking-services):** `ELASTICSEARCH_URL`
+  (`http://elasticsearch:9200`)
 
 Development settings: security off (plain HTTP, no credentials), 512 MB heap
 (raise it through

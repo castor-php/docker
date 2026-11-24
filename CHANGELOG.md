@@ -4,6 +4,7 @@
 
 ### Added
 
+* `RedisService`, `RabbitMQService`, `ElasticsearchService` and `ClickhouseService` can be [linked](services/index.md#linking-services): `REDIS_URL`, `RABBITMQ_URL`, `ELASTICSEARCH_URL`, and `CLICKHOUSE_URL` with its parts.
 * `withEnvironment()` on `PHPService`, `GoService` and `RustService`, like on `NodeService` and `BinaryRunService`. A PHP application gets the variables in its builder and its workers too.
 * `GoService` has the `test`, `go` and `bash` tasks of `RustService`.
 * `RustService::withNightlyFormatter()`, like on `RustBuilder`: its `qa:fmt` task runs the nightly rustfmt.
