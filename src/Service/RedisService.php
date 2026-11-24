@@ -13,7 +13,7 @@ use function Castor\Docker\expose_task;
 
 use const Castor\Docker\DEFAULT_ROOT_DOMAIN;
 
-class RedisService implements ServiceInterface
+class RedisService implements LinkableServiceInterface
 {
     use HasName;
     use HasVersion;
@@ -61,5 +61,18 @@ class RedisService implements ServiceInterface
     public function getTasks(): iterable
     {
         yield expose_task($this, 6379);
+    }
+
+    public function getLinkEnvironment(Context $context): array
+    {
+        return [
+            // Symfony's cache and lock, Predis, phpredis through a DSN.
+            'REDIS_URL' => 'redis://' . $this->getName() . ':6379',
+        ];
+    }
+
+    public function getLinkDependencies(): array
+    {
+        return [$this->getName() => 'service_healthy'];
     }
 }

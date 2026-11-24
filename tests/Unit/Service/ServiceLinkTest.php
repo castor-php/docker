@@ -6,12 +6,16 @@ namespace Castor\Docker\Tests\Unit\Service;
 
 use Castor\Context;
 use Castor\Docker\Service\Builder\ComposeBuilder;
+use Castor\Docker\Service\ClickhouseService;
+use Castor\Docker\Service\ElasticsearchService;
 use Castor\Docker\Service\GoService;
 use Castor\Docker\Service\MeilisearchService;
 use Castor\Docker\Service\MercureService;
 use Castor\Docker\Service\PHPService;
 use Castor\Docker\Service\PhpMode;
 use Castor\Docker\Service\PostgresService;
+use Castor\Docker\Service\RabbitMQService;
+use Castor\Docker\Service\RedisService;
 use Castor\Docker\Service\RustFSService;
 use Castor\Docker\Service\ServiceInterface;
 use PHPUnit\Framework\TestCase;
@@ -64,6 +68,35 @@ final class ServiceLinkTest extends TestCase
     /**
      * Every application service consumes links, not only the PHP ones.
      */
+    /**
+     * The infrastructure services hand over the URL their clients read, and an
+     * application waits for them to answer.
+     */
+    public function testTheInfrastructureServicesCanBeLinked(): void
+    {
+        $clickhouse = new ClickhouseService()->withCredentials('app', 'p@ss');
+        $app = new PHPService('app')
+            ->withDirectory('/project/app')
+            ->link(new RedisService())
+            ->link(new RabbitMQService())
+            ->link(new ElasticsearchService())
+            ->link($clickhouse)
+        ;
+
+        $compose = $this->build($this->context(), $app);
+        $environment = $compose['services']['app']['environment'];
+
+        static::assertSame('redis://redis:6379', $environment['REDIS_URL']);
+        static::assertSame('amqp://guest:guest@rabbitmq:5672/%2f', $environment['RABBITMQ_URL']);
+        static::assertSame('http://elasticsearch:9200', $environment['ELASTICSEARCH_URL']);
+        static::assertSame('http://app:p%40ss@clickhouse:8123/app', $environment['CLICKHOUSE_URL']);
+        static::assertSame('p@ss', $environment['CLICKHOUSE_PASSWORD']);
+
+        foreach (['redis', 'rabbitmq', 'elasticsearch', 'clickhouse'] as $service) {
+            static::assertSame(['condition' => 'service_healthy'], $compose['services']['app']['depends_on'][$service]);
+        }
+    }
+
     public function testAGoApplicationCanBeLinked(): void
     {
         $rustfs = new RustFSService();
